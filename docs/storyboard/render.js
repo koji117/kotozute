@@ -9,7 +9,7 @@ const fps = 12, dur = 180;
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
   await page.goto('file://' + path.resolve('storyboard.html'), { waitUntil: 'networkidle' });
   await page.evaluate(async () => {
-    const txt = '地図 合否表 トンネル 0123456789 ABC';
+    const txt = 'ことづて 合否表 トンネル 0123456789 ABC';
     const specs = ['400 16px "BIZ UDPGothic"','700 16px "BIZ UDPGothic"','500 16px "IBM Plex Sans JP"','700 16px "IBM Plex Sans JP"','400 16px "IBM Plex Mono"','500 16px "IBM Plex Mono"'];
     for (const s of specs) await document.fonts.load(s, txt);
     for (let t = 0; t <= 180; t += 0.5) window.render(t);

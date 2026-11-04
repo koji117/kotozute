@@ -2,16 +2,16 @@
 
 ## 準備
 
-1. 受け取った `osm-ai-viewer.zip` を、iCloud で同期されないフォルダ（例：`~/dev`）に展開する。数GBのデータをリポジトリの直下に置くので、「書類」や「デスクトップ」は避ける。
+1. 受け取った `kotozute.zip` を、iCloud で同期されないフォルダ（例：`~/dev`）に展開する。数GBのデータをリポジトリの直下に置くので、「書類」や「デスクトップ」は避ける。
 2. そのフォルダで `claude` を起動し、下の文をそのまま貼り付ける。
 
 ```bash
-cd ~/dev/osm-ai-viewer && claude
+cd ~/dev/kotozute && claude
 ```
 
 ---
 
-このリポジトリは、ハッカソン「Built with Claude: Japan 2026」に1人で出す「AIで動くOSMビューア」です。クラウドのセッションで調査・計画・絵コンテ動画まで終えたので、ここから実装を始めます。締切は11月8日（日）20:00 JSTです。
+このリポジトリは、ハッカソン「Built with Claude: Japan 2026」に1人で出す「ことづて」（AIで動くOSMビューア）です。クラウドのセッションで調査・計画・絵コンテ動画まで終えたので、ここから実装を始めます。締切は11月8日（日）20:00 JSTです。
 
 まず CLAUDE.md、docs/HANDOFF.md、docs/plan.md を読んでください。細かい技術の注意点は private/plan-critique.md にあります（private/ は Git に入れない手元だけのメモです）。
 
