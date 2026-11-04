@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Sans+JP:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=block">
+<style>
+:root{
+  --paper:#F2F4F1; --surface:#FFFFFF; --sunken:#E8ECE8; --ink:#17262B; --muted:#4F5F64; --line:#CBD5D2;
+  --accent:#0C6680; --accent-soft:#DCEDF2; --road:#E3A008; --road-soft:#FFF2CC; --road-ink:#5C4100;
+  --ok:#1D6B45; --ok-bg:#DDF1E5; --ng:#B3261E; --ng-bg:#F8E1DF; --unk:#8A4F00; --unk-bg:#FBEBD2;
+  --f-display:"IBM Plex Sans JP","Hiragino Sans",sans-serif;
+  --f-body:"BIZ UDPGothic","Hiragino Sans",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:var(--paper);color:var(--ink);font-family:var(--f-body)}
+[data-show]{opacity:0;visibility:hidden}
+.abs{position:absolute}
+/* app chrome */
+.topbar{left:0;top:0;width:1280px;height:48px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 18px}
+.brand{font-family:var(--f-display);font-weight:700;font-size:18px}
+.chip{font-family:var(--f-display);font-weight:500;font-size:13px;padding:3px 10px;border-radius:999px;background:var(--sunken);color:var(--muted)}
+.mock{position:absolute;right:14px;top:10px;font-family:var(--f-display);font-weight:700;font-size:13px;color:var(--road-ink);background:var(--road-soft);border:1px solid var(--road);padding:4px 10px;border-radius:6px;z-index:50}
+.map{left:0;top:48px;width:820px;height:592px;overflow:hidden;background:#EEF1EC}
+.map svg{display:block}
+.mapnote{left:12px;bottom:10px;font-size:12px;color:var(--muted);background:rgba(255,255,255,.85);padding:2px 8px;border-radius:4px}
+.attrib{right:10px;bottom:10px;font-size:12px;color:var(--ink);background:rgba(255,255,255,.9);padding:2px 8px;border-radius:4px}
+.side{left:820px;top:48px;width:460px;height:592px;background:var(--surface);border-left:1px solid var(--line);padding:14px 16px;overflow:hidden}
+.input{height:92px;border:2px solid var(--accent);border-radius:10px;font-size:16.5px;line-height:1.5;position:relative;background:#fff}
+.input > span{position:absolute;left:12px;right:12px;top:9px}
+.input .ph{color:#9AA6A9}
+.caret{display:inline-block;width:2px;height:1.1em;background:var(--accent);vertical-align:-.15em;margin-left:1px}
+.label{font-family:var(--f-display);font-weight:500;font-size:12px;color:var(--muted);letter-spacing:.06em;margin:12px 0 6px}
+.log{font-family:var(--f-mono);font-size:13px;line-height:1.55;color:var(--ink)}
+.log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log b{color:var(--accent);font-weight:500}
+.card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;font-size:15px;line-height:1.55}
+.card h5{margin:0 0 4px;font-family:var(--f-display);font-weight:700;font-size:15px}
+.badge{display:inline-block;font-family:var(--f-display);font-weight:500;font-size:12px;padding:1px 8px;border-radius:4px}
+.b-ok{background:var(--ok-bg);color:var(--ok)}
+.b-ng{background:var(--ng-bg);color:var(--ng)}
+.b-unk{background:var(--unk-bg);color:var(--unk)}
+.b-acc{background:var(--accent-soft);color:var(--accent)}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl td{border-bottom:1px solid var(--line);padding:6px 4px;vertical-align:top}
+.tbl tr:last-child td{border-bottom:0}
+.tbl small{color:var(--muted);font-size:11.5px}
+.speed{left:18px;top:60px;font-family:var(--f-display);font-weight:700;font-size:15px;color:#fff;background:var(--ink);padding:4px 12px;border-radius:999px;z-index:30}
+/* caption */
+.cap{left:0;top:640px;width:1280px;height:80px;background:var(--ink);color:#fff;display:flex;align-items:center;gap:16px;padding:0 24px;z-index:40}
+.scene{flex:none;font-family:var(--f-display);font-weight:700;font-size:14px;color:var(--ink);background:var(--road);padding:4px 12px;border-radius:999px}
+.captext{position:relative;flex:1;height:80px}
+.captext > div{position:absolute;left:0;top:0;height:80px;display:flex;align-items:center;font-size:22px;line-height:1.4}
+/* full-screen scenes */
+.full{left:0;top:0;width:1280px;height:640px;background:var(--paper);z-index:20}
+.slide{left:190px;top:70px;width:900px;height:506px;background:#fff;border:1px solid var(--line);box-shadow:0 6px 30px rgba(0,0,0,.12);padding:36px 44px}
+.slide h3{font-family:var(--f-display);font-size:28px;margin:0 0 18px}
+.shot{width:520px;height:300px;background:repeating-linear-gradient(45deg,#E4E7E4 0 14px,#EDEFEC 14px 28px);display:grid;place-items:center;color:var(--muted);font-size:16px;border:1px dashed #A9B3B0}
+.reenact{position:absolute;left:190px;top:30px;font-family:var(--f-display);font-weight:700;font-size:14px;color:#fff;background:var(--ng);padding:3px 10px;border-radius:4px}
+.pitch{left:140px;top:150px;width:1000px;text-align:center}
+.pitch p{font-family:var(--f-display);font-weight:700;font-size:38px;line-height:1.55;margin:0}
+.pitch small{display:block;margin-top:22px;font-size:18px;color:var(--muted)}
+.win{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.10);overflow:hidden}
+.win .bar{height:34px;background:var(--sunken);display:flex;align-items:center;padding:0 12px;font-family:var(--f-display);font-weight:500;font-size:13px;color:var(--muted)}
+.term{background:#0F1A1E;color:#D6E2E2;font-family:var(--f-mono);font-size:15px;line-height:1.6;padding:16px 18px}
+.term .r{color:#F19A8F}.term .g{color:#8FD6A8}.term .y{color:#F2C46B}.term .c{color:#7CC3DA}.term .m{color:#9FB0B3}
+.bubble{border-radius:12px;padding:10px 14px;font-size:16px;line-height:1.55;max-width:560px}
+.u{background:var(--accent-soft);margin-left:auto}
+.a{background:var(--sunken)}
+.cmp{border-collapse:collapse;font-size:17px;background:#fff}
+.cmp th,.cmp td{border:1px solid var(--line);padding:10px 14px;text-align:left}
+.cmp th{font-family:var(--f-display);font-weight:500;color:var(--muted);background:var(--sunken)}
+.cmp td.me{background:var(--road-soft);font-weight:700}
+.end h2{font-family:var(--f-display);font-size:44px;margin:0 0 10px}
+.mono{font-family:var(--f-mono)}
+</style></head>
+<body>
+
+<!-- ============ APP CHROME (visible 4-115) ============ -->
+<div data-show="4-115" class="abs" style="left:0;top:0;width:1280px;height:640px">
+  <div class="abs topbar">
+    <span class="brand">OSMビューア（仮称）</span>
+    <span class="chip">東京都（島しょ部を除く）</span>
+    <span class="chip">データ時点：撮影時の値を表示</span>
+    <span class="chip">地図・検索・ルート・住所は自社で稼働</span>
+  </div>
+
+  <div class="abs map">
+    <svg width="820" height="592" viewBox="0 0 820 592" aria-hidden="true">
+      <rect width="820" height="592" fill="#EEF1EC"/>
+      <path d="M560 380 L700 360 L740 470 L600 500 Z" fill="#DCEBD5"/>
+      <path d="M120 80 L230 70 L250 160 L140 180 Z" fill="#DCEBD5"/>
+      <path d="M-10 430 C150 390,260 480,420 440 S700 370,830 410" stroke="#A9CDE0" stroke-width="20" fill="none"/>
+      <!-- expressway -->
+      <path id="xw" d="M0 150 C200 172,420 118,820 182" stroke="#E8A33A" stroke-width="8" fill="none"/>
+      <text x="40" y="146" font-size="13" fill="#8A5A00" font-family="IBM Plex Sans JP">高速道路</text>
+      <!-- roads -->
+      <g stroke="#C5CDC9" stroke-width="11" fill="none" stroke-linecap="round">
+        <path d="M60 560 L300 330 L540 300 L780 80"/><path d="M40 260 L380 260 L760 300"/>
+        <path d="M200 40 L240 300 L280 580"/><path d="M520 30 L540 300 L600 590"/>
+        <path d="M380 260 L420 580"/><path d="M522 90 L780 116"/>
+      </g>
+      <g stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round">
+        <path d="M60 560 L300 330 L540 300 L780 80"/><path d="M40 260 L380 260 L760 300"/>
+        <path d="M200 40 L240 300 L280 580"/><path d="M520 30 L540 300 L600 590"/>
+        <path d="M380 260 L420 580"/><path d="M522 90 L780 116"/>
+      </g>
+      <!-- rail -->
+      <path d="M0 340 L820 250" stroke="#5B6468" stroke-width="6" fill="none"/>
+      <path d="M0 340 L820 250" stroke="#FFFFFF" stroke-width="3" stroke-dasharray="14 14" fill="none"/>
+      <!-- tunnels -->
+      <path d="M392 318 L462 309" stroke="#7A6A55" stroke-width="13" stroke-dasharray="6 4" fill="none" opacity=".75"/>
+      <text x="398" y="345" font-size="13" fill="#5B4C38" font-family="IBM Plex Sans JP">トンネルA</text>
+      <path d="M536 250 L531 180" stroke="#7A6A55" stroke-width="13" stroke-dasharray="6 4" fill="none" opacity=".75"/>
+      <text x="548" y="222" font-size="13" fill="#5B4C38" font-family="IBM Plex Sans JP">トンネルB</text>
+      <path d="M240 520 L256 470" stroke="#7A6A55" stroke-width="13" stroke-dasharray="6 4" fill="none" opacity=".75"/>
+      <text x="262" y="500" font-size="13" fill="#5B4C38" font-family="IBM Plex Sans JP">トンネルC</text>
+
+      <!-- (b) highlights -->
+      <g data-show="44-58">
+        <circle cx="243" cy="313" r="11" fill="#B3261E" stroke="#fff" stroke-width="3"/>
+        <circle cx="385" cy="298" r="11" fill="#B3261E" stroke="#fff" stroke-width="3"/>
+        <circle cx="538" cy="281" r="11" fill="#B3261E" stroke="#fff" stroke-width="3"/>
+        <circle cx="120" cy="327" r="11" fill="#B3261E" stroke="#fff" stroke-width="3"/>
+        <path d="M392 318 L462 309" stroke="#0C6680" stroke-width="16" fill="none" opacity=".55"/>
+        <path d="M536 250 L531 180" stroke="#0C6680" stroke-width="16" fill="none" opacity=".55"/>
+        <path d="M240 520 L256 470" stroke="#0C6680" stroke-width="16" fill="none" opacity=".55"/>
+      </g>
+      <!-- expressway excluded mark -->
+      <g data-show="9-16,62-100">
+        <path d="M0 150 C200 172,420 118,820 182" stroke="#B3261E" stroke-width="3" stroke-dasharray="10 8" fill="none"/>
+        <text x="600" y="140" font-size="14" font-weight="700" fill="#B3261E" font-family="IBM Plex Sans JP">高速：除外</text>
+      </g>
+      <!-- route A (first attempt) -->
+      <path data-show="64-78" data-draw="64-68" pathLength="1" d="M90 520 L300 330 L540 300 L720 110" stroke="#0C6680" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+      <!-- route B (final) -->
+      <path data-show="8-16,73-115" data-draw="8-10,73-77" pathLength="1" d="M90 520 L300 330 L540 300 L531 180 L522 90 L720 110" stroke="#0C6680" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- start/goal -->
+      <g data-show="8-16,60-115">
+        <circle cx="90" cy="520" r="10" fill="#17262B"/><text x="70" y="550" font-size="14" font-weight="700" fill="#17262B" font-family="IBM Plex Sans JP">出発</text>
+        <circle cx="720" cy="110" r="10" fill="#17262B"/><text x="700" y="96" font-size="14" font-weight="700" fill="#17262B" font-family="IBM Plex Sans JP">到着</text>
+      </g>
+      <!-- (a) address pin -->
+      <g data-show="26-38">
+        <path d="M650 410 c-14 -22 -22 -32 -22 -44 a22 22 0 1 1 44 0 c0 12 -8 22 -22 44 z" fill="#E3A008" stroke="#5C4100" stroke-width="2"/>
+        <circle cx="650" cy="366" r="7" fill="#fff"/>
+      </g>
+      <!-- note marker -->
+      <g data-show="104-115">
+        <circle cx="522" cy="90" r="16" fill="none" stroke="#B3261E" stroke-width="4"/>
+        <text x="545" y="64" font-size="14" font-weight="700" fill="#B3261E" font-family="IBM Plex Sans JP">右折できなかった交差点</text>
+      </g>
+    </svg>
+    <div class="abs mapnote">模式図（実際の地理ではありません）</div>
+    <div class="abs attrib">© OpenStreetMap contributors ／ Protomaps</div>
+  </div>
+
+  <div class="abs side">
+    <!-- input texts -->
+    <div class="input">
+      <span data-show="4-6.2" class="ph">日本語で頼んでください</span>
+      <span data-show="6.2-16" data-type="6.2:14" data-text="来週の客先試走。品川駅を出て、トンネルを2本通り、高速は使わず60分以内。資料用の画像と共有リンクも"></span>
+      <span data-show="20-29" data-type="21:7" data-text="訪問先の住所「港区芝公園4-2-8」を地図に出して"></span>
+      <span data-show="29-38" data-type="29.5:7" data-text="東京タワーにピンを立てて"></span>
+      <span data-show="38-58" data-type="39:7" data-text="この範囲の踏切とトンネルを出して"></span>
+      <span data-show="58-85" data-type="59:8" data-text="出発から到着まで、トンネルを2本通り、高速なし、60分以内"></span>
+      <span data-show="85-100" data-type="86:8" data-text="資料用の画像と、共有リンクを作って"></span>
+      <span data-show="100-115" data-type="101:8" data-text="運転した人から：この交差点、右折できなかった"></span>
+    </div>
+
+    <div class="label">操作ログ</div>
+    <div class="log" style="height:132px">
+      <div data-show="10-16"><b>route</b> Valhalla（高速除外）→ check_route</div>
+      <div data-show="11-16"><b>export_png</b> 出典・データ時点を焼き込み</div>
+      <div data-show="12-16"><b>make_share_link</b> /s/k7Q2…</div>
+      <div data-show="23-38"><b>geocode_address</b> ABR → 1件</div>
+      <div data-show="31-38"><b>search_place</b> 名前「東京タワー」→ 候補3件</div>
+      <div data-show="41-58"><b>find_features</b> 辞書：踏切, トンネル</div>
+      <div data-show="42-58"><b>　→</b> 踏切 4件 ／ トンネル 3件（OSM上）</div>
+      <div data-show="62-85"><b>route</b> Valhalla（高速除外）</div>
+      <div data-show="66-85"><b>check_route</b> トンネル 1/2 → 不合格</div>
+      <div data-show="70-85"><b>候補生成</b> トンネルB経由を追加（プログラム）</div>
+      <div data-show="74-85"><b>route → check_route</b> トンネル 2/2 → 合格</div>
+      <div data-show="88-100"><b>export_png</b> 出典・データ時点を焼き込み</div>
+      <div data-show="92-100"><b>make_share_link</b> /s/k7Q2…（状態をサーバに保存）</div>
+      <div data-show="103-115"><b>draft_osm_note</b> 確認方法を選択 → 下書き</div>
+    </div>
+
+    <!-- S1 quick results -->
+    <div data-show="9-16" class="card" style="margin-top:6px">
+      <h5>合否表</h5>
+      <table class="tbl">
+        <tr><td>トンネル 2本</td><td><span class="badge b-ok">2/2 合格</span></td></tr>
+        <tr><td>高速を使わない</td><td><span class="badge b-ok">合格</span></td></tr>
+        <tr><td>60分以内</td><td><span class="badge b-ok">52分</span></td></tr>
+        <tr><td>車線数</td><td><span class="badge b-unk">判定不能 3区間</span></td></tr>
+      </table>
+    </div>
+    <div data-show="11-16" style="display:flex;gap:8px;margin-top:8px">
+      <span class="badge b-acc" style="font-size:14px;padding:4px 10px">画像（PNG）</span>
+      <span class="badge b-acc" style="font-size:14px;padding:4px 10px">GPX</span>
+      <span class="badge b-acc" style="font-size:14px;padding:4px 10px">共有リンク</span>
+    </div>
+
+    <!-- (a) -->
+    <div data-show="24-29" class="card" style="margin-top:6px">
+      <h5>東京都港区芝公園四丁目2番8号</h5>
+      <span class="badge b-ok">座標の精度：住居番号の位置</span> <span class="badge b-acc">出典：アドレス・ベース・レジストリ</span>
+      <div style="font-size:13px;color:var(--muted);margin-top:6px">座標の精度は住所ジオコーダーの値をそのまま表示（言い換えない）</div>
+    </div>
+    <div data-show="32-38" class="card" style="margin-top:6px">
+      <h5>「東京タワー」の候補（OSM）</h5>
+      <table class="tbl">
+        <tr><td>1　東京タワー</td><td><small>観光名所</small></td></tr>
+        <tr><td>2　東京タワー前</td><td><small>バス停</small></td></tr>
+        <tr><td>3　東京タワー通り</td><td><small>道路</small></td></tr>
+      </table>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px">どれですか？（候補はOSMが返したものだけ）</div>
+    </div>
+
+    <!-- (b) -->
+    <div data-show="43-58" class="card" style="margin-top:6px">
+      <h5>踏切 4件・トンネル 3件（OSM上）</h5>
+      <div style="font-size:14px">解釈：踏切＝<span class="mono">railway=level_crossing</span><br><small style="color:var(--muted)">歩行者専用の踏切は含まない［切り替え］</small></div>
+      <div style="font-size:14px;margin-top:4px">トンネル＝道路の<span class="mono">tunnel=yes</span>（建物の通り抜けは除く）</div>
+      <div data-show="49-58" style="margin-top:6px"><span class="badge b-unk">車線数タグの入力率 38%（この範囲）</span></div>
+      <div data-show="52-58" style="font-size:13px;color:var(--muted);margin-top:4px">0件のときは「OSM上で0件（現地にないとは限らない）」と表示</div>
+    </div>
+
+    <!-- (c) -->
+    <div data-show="64-85" class="card" style="margin-top:6px">
+      <h5>合否表</h5>
+      <table class="tbl">
+        <tr><td>トンネル 2本<br><small>連続する tunnel=yes を1本と数える</small></td>
+          <td><span data-show="66-77" class="badge b-ng">1/2 不合格</span><span data-show="77-85" class="badge b-ok">2/2 合格</span></td></tr>
+        <tr><td>高速を使わない</td><td><span data-show="66-85" class="badge b-ok">合格</span></td></tr>
+        <tr><td>60分以内</td><td><span data-show="66-77" class="badge b-ok">44分</span><span data-show="77-85" class="badge b-ok">52分</span></td></tr>
+        <tr><td>車線数</td><td><span data-show="78-85" class="badge b-unk">判定不能 3区間</span></td></tr>
+      </table>
+      <div data-show="70-77" style="font-size:14px;margin-top:6px;color:var(--accent)">候補生成（プログラム）：トンネルBを経由する案を計算中</div>
+      <div data-show="80-85" style="margin-top:6px;display:flex;gap:8px"><span class="badge b-acc" style="font-size:14px;padding:4px 10px">GPXを書き出し</span><span class="badge b-acc" style="font-size:14px;padding:4px 10px">レシピを保存</span></div>
+    </div>
+
+    <!-- (d) -->
+    <div data-show="88-100" class="card" style="margin-top:6px">
+      <h5>書き出し</h5>
+      <div style="font-size:14px">画像に焼き込む文字：</div>
+      <div class="mono" style="font-size:12.5px;background:var(--sunken);padding:6px 8px;border-radius:6px;margin-top:4px;line-height:1.5">© OpenStreetMap contributors（openstreetmap.org/copyright）／ Protomaps ／ 経路：Valhalla ／ データ時点：（撮影時の値）</div>
+      <div data-show="92-100" style="font-size:14px;margin-top:8px">共有リンク：<span class="mono">https://…/s/k7Q2…</span></div>
+    </div>
+
+    <!-- note -->
+    <div data-show="103-115" class="card" style="margin-top:6px">
+      <h5>OSMノートの下書き</h5>
+      <table class="tbl">
+        <tr><td>何が</td><td>右折禁止の規制がOSMにない可能性</td></tr>
+        <tr><td>どこで</td><td class="mono" style="font-size:13px">交差点（OSM要素IDを添付）</td></tr>
+        <tr><td>確認方法</td><td>現地で見た（日付）<br><small>「Googleマップで見た」は選べない</small></td></tr>
+      </table>
+      <div data-show="108-115" style="margin-top:6px"><span class="badge b-ng">社名・「試走」などの語は入れない</span></div>
+      <div data-show="111-115" style="font-size:13px;margin-top:6px;color:var(--muted)">下書きをコピー → OSMのノート画面へ（投稿は現地を見た本人）</div>
+    </div>
+  </div>
+
+  <div data-show="5-16" class="abs speed">3倍速</div>
+
+  <!-- (d) export preview over map -->
+  <div data-show="89-100" class="abs win" style="left:120px;top:110px;width:560px">
+    <div class="bar">資料（再現）：コースのご案内</div>
+    <div style="padding:14px">
+      <div style="height:250px;background:#EEF1EC;position:relative;border:1px solid var(--line)">
+        <svg width="530" height="250" viewBox="0 0 820 592" preserveAspectRatio="xMidYMid meet">
+          <path d="M-10 430 C150 390,260 480,420 440 S700 370,830 410" stroke="#A9CDE0" stroke-width="20" fill="none"/>
+          <path d="M0 340 L820 250" stroke="#5B6468" stroke-width="6" fill="none"/>
+          <path d="M90 520 L300 330 L540 300 L531 180 L522 90 L720 110" stroke="#0C6680" stroke-width="12" fill="none" stroke-linejoin="round"/>
+        </svg>
+        <div style="position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.92);font-size:11px;padding:3px 8px">© OpenStreetMap contributors（openstreetmap.org/copyright）／ Protomaps ／ 経路：Valhalla ／ データ時点：（撮影時の値）</div>
+      </div>
+    </div>
+  </div>
+  <div data-show="94-100" class="abs win" style="left:400px;top:400px;width:390px">
+    <div class="bar">別のブラウザで共有リンクを開く</div>
+    <div style="padding:12px;font-size:14px;line-height:1.6">同じ表示範囲・コース・ピン<br><span class="badge b-acc">データ時点：（撮影時の値）</span> <span class="badge b-acc">出典表示あり</span></div>
+  </div>
+</div>
+
+<!-- ============ S0 : reenacted slide (0-4) ============ -->
+<div data-show="0-4.3" class="abs full">
+  <div class="reenact">再現</div>
+  <div class="abs slide">
+    <h3>コースのご案内（再現）</h3>
+    <div style="display:flex;gap:28px;align-items:flex-start">
+      <div class="shot">（Googleマップのスクリーンショット）</div>
+      <div style="font-size:17px;line-height:1.9;color:var(--muted)">集合：◯◯駅<br>コース：◯◯</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ S2 : pitch (16-20) ============ -->
+<div data-show="16-20.2" class="abs full">
+  <div class="abs pitch">
+    <p>地図に詳しくない社員が、日本語ひとことで、<br>出典つきの“渡せる地図”をつくる。</p>
+    <small>Googleにも、公開サーバにも頼らずに。</small>
+  </div>
+</div>
+
+<!-- ============ S-MCP (115-130) ============ -->
+<div data-show="115-130.2" class="abs full">
+  <div class="abs win" style="left:60px;top:40px;width:640px;height:560px">
+    <div class="bar">MCPクライアント（例：Claude Desktop）＋ このアプリのMCPサーバ</div>
+    <div style="padding:18px;display:flex;flex-direction:column;gap:12px">
+      <div data-show="116-130.2" class="bubble u">添付：23区の区役所の住所一覧（公開データ）.csv<br>全部をピンにして、資料用の画像も作って</div>
+      <div data-show="119-130.2" class="bubble a mono" style="font-size:14px">geocode_address × 23<br>add_pin × 23<br>export_png × 1<br>make_share_link × 1</div>
+      <div data-show="123-130.2" class="bubble a">23件すべて住所が見つかりました（座標の精度は一覧に記載）。画像と共有リンクを作りました。</div>
+    </div>
+  </div>
+  <div data-show="124-130.2" class="abs win" style="left:740px;top:90px;width:480px">
+    <div class="bar">共有リンクをWebアプリで開く</div>
+    <svg width="480" height="330" viewBox="0 0 480 330">
+      <rect width="480" height="330" fill="#EEF1EC"/>
+      <path d="M-10 250 C120 220,220 290,330 250 S440 200,490 230" stroke="#A9CDE0" stroke-width="14" fill="none"/>
+      <g fill="#E3A008" stroke="#5C4100" stroke-width="1.5">
+        <circle cx="80" cy="90" r="7"/><circle cx="120" cy="140" r="7"/><circle cx="160" cy="70" r="7"/><circle cx="190" cy="180" r="7"/>
+        <circle cx="230" cy="110" r="7"/><circle cx="260" cy="200" r="7"/><circle cx="290" cy="60" r="7"/><circle cx="310" cy="150" r="7"/>
+        <circle cx="340" cy="240" r="7"/><circle cx="360" cy="100" r="7"/><circle cx="390" cy="170" r="7"/><circle cx="410" cy="60" r="7"/>
+        <circle cx="100" cy="200" r="7"/><circle cx="140" cy="260" r="7"/><circle cx="210" cy="250" r="7"/><circle cx="250" cy="40" r="7"/>
+        <circle cx="270" cy="280" r="7"/><circle cx="330" cy="200" r="7"/><circle cx="380" cy="280" r="7"/><circle cx="430" cy="130" r="7"/>
+        <circle cx="60" cy="150" r="7"/><circle cx="180" cy="120" r="7"/><circle cx="440" cy="210" r="7"/>
+      </g>
+      <text x="10" y="320" font-size="11" fill="#17262B" font-family="BIZ UDPGothic">模式図　© OpenStreetMap contributors ／ Protomaps</text>
+    </svg>
+  </div>
+</div>
+
+<!-- ============ S-CODE (130-160) ============ -->
+<div data-show="130-160.2" class="abs full">
+  <div class="abs win" style="left:60px;top:30px;width:1160px;height:580px">
+    <div class="bar">Claude Code（開発の記録・再現）</div>
+    <div class="term" style="height:546px">
+      <div data-show="130-137.6">
+        <div class="m">● Edit  web/src/map.ts</div>
+        <div>  tiles: "https://tile.openstreetmap.org/{z}/{x}/{y}.png"</div>
+        <div data-show="132-137.6" class="r">✗ PreToolUse hook が拒否：公開タイル（tile.openstreetmap.org）は使いません。自前の PMTiles を使ってください。</div>
+        <div data-show="134.5-137.6" class="g">● Edit  web/src/map.ts</div>
+        <div data-show="134.5-137.6" class="g">  url: "pmtiles:///tiles/tokyo.pmtiles"   ← 自前の地図ファイルに修正</div>
+      </div>
+      <div data-show="137.6-145.2">
+        <div class="c">● サブエージェントを2つ並行で起動</div>
+        <div style="display:flex;gap:16px;margin-top:10px">
+          <div style="flex:1;border:1px solid #2C3D43;border-radius:8px;padding:12px">
+            <div class="y">eval-runner</div><div>評価セット40問＋罠10問を採点中…</div><div class="m">結果は eval/runs/ に保存</div>
+          </div>
+          <div style="flex:1;border:1px solid #2C3D43;border-radius:8px;padding:12px">
+            <div class="y">tag-auditor</div><div>辞書のタグを関東データで数え中…</div><div class="m">0件のタグは辞書から外す</div>
+          </div>
+        </div>
+      </div>
+      <div data-show="145.2-152.6">
+        <div class="c">$ git log --reverse --date=format:%m/%d --format="%ad  %s"</div>
+        <div>11/04  地図・検索・ルートを自前で起動</div>
+        <div class="y">11/05  評価セットを追加（プロンプト調整より前）</div>
+        <div>11/05  4つの操作を最小構成で通す（M1）</div>
+        <div>11/06  評価1回目 → 辞書の解釈を修正</div>
+        <div>11/07  評価2回目 → 候補生成を修正</div>
+      </div>
+      <div data-show="152.6-160.2">
+        <div class="c">正答率の推移（数値は撮影時の実測に置き換え）</div>
+        <div style="display:flex;align-items:flex-end;gap:40px;height:260px;margin:24px 0 0 40px">
+          <div style="text-align:center"><div style="width:120px;height:120px;background:#3E6B78"></div><div class="m" style="margin-top:6px">1回目</div></div>
+          <div style="text-align:center"><div style="width:120px;height:170px;background:#4E8FA3"></div><div class="m" style="margin-top:6px">2回目</div></div>
+          <div style="text-align:center"><div style="width:120px;height:215px;background:#7CC3DA"></div><div class="m" style="margin-top:6px">3回目</div></div>
+          <div style="font-size:14px;line-height:1.8" class="m">各回で何を変えたかを<br>READMEに1行ずつ記録</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ S-FINAL (160-180) ============ -->
+<div data-show="160-168.2" class="abs full">
+  <div class="abs win" style="left:120px;top:60px;width:1040px">
+    <div class="bar">Claude API が止まっていても</div>
+    <div style="display:flex;gap:24px;padding:22px">
+      <div class="term" style="flex:1;border-radius:8px;font-size:14px">
+        <div class="m">recipe/k7Q2.json（保存したレシピ）</div>
+        <div>{ "steps": [</div>
+        <div>  { "op": "search_place", "name": "品川駅" },</div>
+        <div>  { "op": "route", "via": ["result:1","osm:way/…"], "exclude": ["highway","toll"] },</div>
+        <div>  { "op": "check_route", "tunnels": 2, "max_minutes": 60 },</div>
+        <div>  { "op": "export_png" } ],</div>
+        <div>  "data_time": "（撮影時の値）" }</div>
+      </div>
+      <div style="flex:1;font-size:18px;line-height:1.8">
+        <div data-show="162-168.2"><span class="badge b-ng" style="font-size:15px">Claude API：停止中</span></div>
+        <div data-show="163.5-168.2">レシピを再実行 →</div>
+        <div data-show="165-168.2"><span class="badge b-ok" style="font-size:15px">同じ地図と合否表が出る</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div data-show="168-176.2" class="abs full">
+  <div class="abs" style="left:100px;top:70px">
+    <div style="font-family:var(--f-display);font-weight:700;font-size:24px;margin-bottom:16px">似ているサービスとの違い</div>
+    <table class="cmp">
+      <tr><th></th><th>渡せる成果物</th><th>出典の焼き込み</th><th>自社で動く</th><th>判定不能の表示</th></tr>
+      <tr><td>TRIDENT（OSS）</td><td>地図表示のみ</td><td>―</td><td>可（OSS）</td><td>―</td></tr>
+      <tr><td>Googleマップ「マップに相談」</td><td>共有リンク（マップ本体）</td><td>―</td><td>不可</td><td>―</td></tr>
+      <tr><td>地図会社のMCP（Mapbox・TomTom）</td><td>チャット内の地図・地図画像（Mapbox）</td><td>未確認</td><td>不可</td><td>―</td></tr>
+      <tr><td class="me">この作品</td><td class="me">画像・共有リンク（GPX・レシピは社内用）</td><td class="me">あり</td><td class="me">可（AI以外）</td><td class="me">あり</td></tr>
+    </table>
+    <div style="font-size:14px;color:var(--muted);margin-top:10px">2026年11月時点の調査。「―」は調べた範囲で見当たらなかったもの、「未確認」は確かめきれなかったもの（「マップに相談」の細かい機能は未確認）</div>
+  </div>
+</div>
+<div data-show="176-180.5" class="abs full end">
+  <div class="abs" style="left:120px;top:190px">
+    <div class="chip" style="display:inline-block;margin-bottom:16px">Built with Claude: Japan 2026 ／ テーマ1「あなたにしかない深さを」</div>
+    <h2>OSMビューア（仮称）</h2>
+    <div style="font-size:22px;color:var(--muted)">Googleが止まっても、地図に詳しくなくても、渡せる地図をつくる</div>
+  </div>
+</div>
+
+<!-- ============ caption bar ============ -->
+<div class="abs cap">
+  <span class="scene" id="sceneLabel">冒頭</span>
+  <div class="captext">
+    <div data-show="0-4">資料の地図はGoogleマップのスクショ。コースを作るのに◯日待ち。</div>
+    <div data-show="4-16">1文で頼むだけ。コース、合否表、資料用の画像、GPX、共有リンクが出てくる。</div>
+    <div data-show="16-20">一言でいうと、こういう道具です。</div>
+    <div data-show="20-29">住所はデジタル庁のABRで解決。座標の精度を、そのまま表示する。</div>
+    <div data-show="29-38">名前だけなら候補を出して選んでもらう。見つからなければ、見つからないと言う。</div>
+    <div data-show="38-48">業務の言葉をOSMのタグに対応させる辞書で検索。どう解釈したかを毎回見せる。</div>
+    <div data-show="48-58">タグの入り具合も表示。0件のときは「OSM上で0件」と書く。</div>
+    <div data-show="58-66">コースは自前のValhallaで引き、合否はOSMのタグで機械的に判定する。</div>
+    <div data-show="66-76">1回目はトンネルが足りない。プログラムが経由地の候補を作り、引き直す。</div>
+    <div data-show="76-85">2回目で条件を満たす。タグのない区間は「判定不能」と正直に出す。</div>
+    <div data-show="85-92">資料用の画像には、出典とデータ時点を焼き込む。</div>
+    <div data-show="92-100">共有リンクを別のブラウザで開いても、同じ地図とデータ時点が出る。</div>
+    <div data-show="100-108">運転した人の「ここは右折できなかった」から、OSMノートを下書き。</div>
+    <div data-show="108-115">Googleで見た情報や社内の事情は入れない。投稿は現地を見た本人が行う。</div>
+    <div data-show="115-123">同じ操作はMCPでも使える。</div>
+    <div data-show="123-130">23区の区役所の住所一覧を渡すと、まとめてピンを立て、資料用の画像まで作る。</div>
+    <div data-show="130-137.6">開発はClaude Codeが中心。公開タイルを使おうとするとhookが止める。</div>
+    <div data-show="137.6-145.2">サブエージェントが、評価と辞書の点検を並行して進める。</div>
+    <div data-show="145.2-152.6">評価セットは、プロンプトを調整する前にコミットした。</div>
+    <div data-show="152.6-160">改善のたびに正答率を記録する。</div>
+    <div data-show="160-168">Claudeが止まっても、保存したレシピを再実行すれば同じ地図と合否表が出る。</div>
+    <div data-show="168-176">違いは、渡せる成果物、出典の焼き込み、自社で動くこと、判定不能の表示。</div>
+    <div data-show="176-180.5">絵コンテ（イメージ）。画面と数値は、撮影時に実物へ置き換えます。</div>
+  </div>
+</div>
+
+<div class="mock">絵コンテ（イメージ）・画面と数値は架空</div>
+
+<script>
+const SCENES=[[0,'冒頭（再現）'],[4,'冒頭：1文で全部'],[16,'ひとこと'],[20,'(a) 場所・住所'],[38,'(b) 地物の絞り込み'],[58,'(c) ルート・試走コース'],[85,'(d) 資料用の地図・共有'],[100,'OSMノートの下書き'],[115,'MCP'],[130,'Claude Codeでの開発'],[160,'レシピの再実行'],[168,'先行例との違い'],[176,'おわり']];
+const els=[...document.querySelectorAll('[data-show]')].map(el=>({el,d:el.style.display,w:el.dataset.show.split(',').map(s=>s.split('-').map(Number))}));
+const typers=[...document.querySelectorAll('[data-type]')].map(el=>{const [t0,cps]=el.dataset.type.split(':').map(Number);return {el,t0,cps,text:el.dataset.text}});
+const draws=[...document.querySelectorAll('[data-draw]')].map(el=>({el,w:el.dataset.draw.split(',').map(s=>s.split('-').map(Number))}));
+const label=document.getElementById('sceneLabel');
+const F=0.3;
+function render(t){
+  for(const {el,d,w} of els){
+    let o=0;
+    for(const [a,b] of w){ if(t>=a&&t<b){ o=Math.max(o,Math.min(1,a===0?1:(t-a)/F,(b-t)/F)); } }
+    el.style.opacity=o; el.style.visibility=o>0?'visible':'hidden'; el.style.display=o>0?d:'none';
+  }
+  for(const p of typers){
+    const n=Math.max(0,Math.min(p.text.length,Math.floor((t-p.t0)*p.cps)));
+    const done=n>=p.text.length;
+    p.el.innerHTML='';
+    p.el.appendChild(document.createTextNode(p.text.slice(0,n)));
+    if(!done||Math.floor(t*2)%2===0){const c=document.createElement('span');c.className='caret';p.el.appendChild(c);}
+  }
+  for(const {el,w} of draws){
+    let prog=0;
+    for(const [a,b] of w){ if(t>=a) prog=Math.min(1,(t-a)/(b-a)); }
+    // pick the window we are in (latest started)
+    let cur=null; for(const [a,b] of w){ if(t>=a) cur=[a,b]; }
+    prog=cur?Math.min(1,Math.max(0,(t-cur[0])/(cur[1]-cur[0]))):0;
+    el.style.strokeDasharray='1'; el.style.strokeDashoffset=String(1-prog);
+  }
+  let s=SCENES[0][1]; for(const [a,n] of SCENES){ if(t>=a) s=n; } label.textContent=s;
+}
+window.render=render;
+render(0);
+</script>
+</body></html>

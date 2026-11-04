@@ -1,0 +1,29 @@
+# OSM data and derived databases (never commit)
+*.osm.pbf
+*.osm.bz2
+*.pmtiles
+data/
+ovp/
+custom_files/
+abr-data/
+
+# Storyboard render frames
+docs/storyboard/frames/
+docs/storyboard/prev/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+.cache/
+
+# OS
+.DS_Store
+
+# Private notes (contain workplace context; never commit)
+private/
