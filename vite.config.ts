@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 
-const api = 'http://localhost:8787';
+const api = 'http://127.0.0.1:8787';
 export default defineConfig({
   root: 'src/web',
   build: { outDir: '../../dist', emptyOutDir: true, assetsDir: 'static' },

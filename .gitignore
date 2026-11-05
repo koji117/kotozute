@@ -34,3 +34,4 @@ docs/storyboard/voice/
 !docs/storyboard/data/
 docs/storyboard/maps/
 docs/storyboard/*.mp4
+logs/ops.jsonl
