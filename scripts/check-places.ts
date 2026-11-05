@@ -32,7 +32,8 @@ await check('郵便局と手土産（画面の範囲）', async () => {
   assert.equal(out.area.label, '画面の範囲');
   assert.ok(po.count > 0, '郵便局が0件');
   assert.ok(po.items.every((p) => isRef(p.ref) && p.kind === 'post_office'));
-  assert.equal(po.interpretation, '郵便局＝amenity=post_office');
+  assert.equal(po.interpretation, '郵便局＝amenity=post_office（ヤマト運輸・佐川急便など宅配便の営業所は除く）');
+  assert.ok(po.items.every((p) => !/ヤマト|佐川|クロネコ/.test(p.name ?? '')), '宅配便の営業所が郵便局に入っている');
   assert.equal(sv.word, 'souvenir');
   assert.deepEqual(session.layers.post_office?.refs, po.items.map((p) => p.ref));
   assert.equal(session.places.get(po.items[0].ref), po.items[0]);

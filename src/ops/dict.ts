@@ -13,11 +13,14 @@ export interface DictEntry {
   interpretation: string;
 }
 
+const COURIER = 'ヤマト|佐川|FedEx|UPS|DHL|Postal Service';
+
 export const DICT = {
   post_office: {
     label: '郵便局', aliases: ['郵便局', 'ポスト以外の郵便窓口'],
-    queries: [{ elements: 'nwr', filter: '["amenity"="post_office"]' }],
-    interpretation: '郵便局＝amenity=post_office',
+    // OSM では宅配便の営業所にも amenity=post_office が付いている（関東で約80件）。operator・brand・name で除く
+    queries: [{ elements: 'nwr', filter: `["amenity"="post_office"]["operator"!~"${COURIER}",i]["brand"!~"${COURIER}",i]["name"!~"${COURIER}|クロネコ|Yamato",i]` }],
+    interpretation: '郵便局＝amenity=post_office（ヤマト運輸・佐川急便など宅配便の営業所は除く）',
   },
   souvenir: {
     label: '手土産', aliases: ['手土産', 'お土産', '菓子折り', '和菓子', '洋菓子', 'ケーキ屋'],
