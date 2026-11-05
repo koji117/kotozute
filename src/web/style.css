@@ -129,8 +129,6 @@ ol.names li { padding: 1px 0; }
 .btn { display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 14px 0 12px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface); font-size: var(--fs-ui); font-weight: 700; white-space: nowrap; }
 body:not(.has-route) [data-act="gpx"] { display: none; } /* ルートがあるときだけ */
 .btn.primary { background: var(--teal-600); border-color: var(--teal-600); color: var(--white); }
-a.btn { text-decoration: none; }
-.note.warn { color: var(--unk-700); font-weight: 700; }
 /* 外部通信の記録（この操作の間） */
 .net .t svg { color: var(--text-2); }
 .net .row { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; font-size: var(--fs-small); }

@@ -117,7 +117,14 @@ let id = '';
 // 4. コマンドで再実行（別のプロセス、API キーなし）
 {
   const { ANTHROPIC_API_KEY: _, ...env } = process.env;
-  const p = spawnSync('npx', ['tsx', 'scripts/run-recipe.ts', id], { env, encoding: 'utf8', timeout: 120_000 });
+  const run = () => spawnSync('npx', ['tsx', 'scripts/run-recipe.ts', id], { env, encoding: 'utf8', timeout: 120_000 });
+  let p = run();
+  // 別のプロセスなので A の結果の覚えがなく、同じ問い合わせを Overpass に送り直す。自社の Overpass は
+  // 同じ問い合わせが続くと30秒ほど断る（duplicate_query）ので、断られたら待ってもう一度だけ試す
+  if (p.status !== 0 && p.stdout.includes('混んでいます')) {
+    await new Promise((r) => setTimeout(r, 40_000));
+    p = run();
+  }
   assert.equal(p.status, 0, p.stdout + p.stderr);
   const lines = p.stdout.trim().split('\n');
   assert.ok(lines.some((l) => l.startsWith('1. 場所の検索（search_place）')), p.stdout);

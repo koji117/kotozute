@@ -341,6 +341,11 @@ function save(blob: Blob, filename: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 }
+/** 書き出しは画面で行う（ルートのファイルは Blob で保存、画像は地図が落ち着いてから作る） */
+async function saveExports(steps: OpResult[]) {
+  for (const s of steps) if (s.ok && s.op === 'export_route') saveRoute(s.output as ExportRouteOutput);
+  if (steps.some((s) => s.ok && s.op === 'export_png')) { await idle(); await exportPng(); }
+}
 /** 地図の描画が落ち着くまで待つ（印の反映や、動いている途中の地図を画像に写さない） */
 const idle = () => new Promise((r) => { map.once('idle', r); map.triggerRepaint(); });
 // ===== レシピ：この画面で成功した操作の並びを保存する。再実行は Claude を使わない =====
@@ -361,6 +366,7 @@ async function runRecipe(id: string) {
     const cam = apply(res.steps);
     show(renderRecipe(res, res.recipe.context.here?.accuracy_m));
     fit(cam);
+    await saveExports(res.steps); // 書き出しの手順も同じようにやり直す（カードの「画像にしました」と合わせる）
   } catch (err) { show(renderError(`レシピを再実行できません：${(err as Error).message}`)); }
 }
 
@@ -433,9 +439,7 @@ form.addEventListener('submit', async (e) => {
     show(renderChat(text, res, st.here?.accuracy_m));
     fit(cam);
     q.value = '';
-    // 書き出しは画面で行う（ルートのファイルは Blob で保存、画像は地図が落ち着いてから作る）
-    for (const s of res.steps) if (s.ok && s.op === 'export_route') saveRoute(s.output as ExportRouteOutput);
-    if (res.steps.some((s) => s.ok && s.op === 'export_png')) { await idle(); await exportPng(); }
+    await saveExports(res.steps);
   } catch (err) { show(renderError((err as Error).message)); }
   send.disabled = false;
 });

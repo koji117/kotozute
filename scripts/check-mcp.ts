@@ -23,7 +23,7 @@ const ok = (name: string) => console.log(`ok ${++n} ${name}`);
     seen.add(file);
     const src = readFileSync(file, 'utf8');
     assert.ok(!src.includes('@anthropic-ai/sdk') && !src.includes('ANTHROPIC_API_KEY'), `${file} が Claude API を使う`);
-    for (const [, rel] of src.matchAll(/^import [^;]*?from '(\.[^']+)'/gm)) walk(resolve(dirname(file), rel.endsWith('.ts') ? rel : `${rel}.ts`));
+    for (const [, rel] of src.matchAll(/^import [^;]*?from '(\.[^']+)'/gm)) walk(resolve(dirname(file), /\.(ts|json)$/.test(rel) ? rel : `${rel}.ts`));
   };
   walk(SERVER);
   assert.ok(!seen.has(join(ROOT, 'src/server/claude.ts')));
