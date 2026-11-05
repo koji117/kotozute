@@ -5,11 +5,12 @@ import { REGION_LABEL, TOKYO_BBOX } from '../services/region';
 // ponytail: メモリだけ。サーバを止めると消える。続きが要るならファイルに書く
 const sessions = new Map<string, Session>();
 
-export function getSession(id: string): Session {
+/** reset：前の状態を捨てて作り直す（レシピの再実行で result:N の番号を 1 から振り直すため） */
+export function getSession(id: string, reset = false): Session {
   if (!/^[\w-]{8,64}$/.test(id)) throw new OpError('bad_input', 'セッションIDが不正です');
   let s = sessions.get(id);
-  if (!s) {
-    s = { id, clicks: [], places: new Map(), nextResult: 1, nextAbr: 1, layers: {}, pins: [] };
+  if (!s || reset) {
+    s = { id, clicks: [], places: new Map(), nextResult: 1, nextAbr: 1, layers: {}, pins: [], history: [] };
     sessions.set(id, s);
   }
   return s;

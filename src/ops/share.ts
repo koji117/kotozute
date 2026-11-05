@@ -7,8 +7,9 @@ import { OSM_DATA_AS_OF } from '../attribution';
 import { resolveRef } from '../server/session';
 
 const DIR = 'data/shares'; // data/ は .gitignore 済み
-const ID = /^[0-9A-Za-z]{10}$/;
+export const ID = /^[0-9A-Za-z]{10}$/; // レシピの ID も同じ形
 const B62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+export const newId = () => Array.from({ length: 10 }, () => B62[randomInt(62)]).join('');
 // ponytail: メモリとファイルの両方に置く。ファイルは消さない。増えすぎたら期限で消す
 const shares = new Map<string, ShareState>();
 
@@ -21,7 +22,7 @@ export const makeShareLink = defineOp({
   async run({ session }): Promise<ShareOutput> {
     const visible = Object.values(session.layers).filter((l): l is Layer => !!l?.visible);
     const state: ShareState = {
-      id: Array.from({ length: 10 }, () => B62[randomInt(62)]).join(''),
+      id: newId(),
       created_at: new Date().toISOString(),
       layers: visible.map((l) => ({ word: l.word, items: l.refs.map((r) => resolveRef(session, r)) })),
       osm_as_of: OSM_DATA_AS_OF,

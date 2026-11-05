@@ -127,6 +127,8 @@ try {
     const n = Number(panelText.match(/郵便局 (\d+)件/)?.[1]);
     const drawn = await page.evaluate(async () => (await window.map.getSource('feat').getData()).features.length);
     check('札：件数と地図の印の数が同じ', n === drawn, `${n} / ${drawn}`);
+    const net = await text(page, '#panel .net');
+    check('外部通信の記録：札の結果の下にある', net.includes('外部通信の記録（この操作の間）') && /api\.anthropic\.com\s?0件/.test(net) && /その他の外部\s?0件/.test(net), net);
   } else {
     check('札：API がないときはエラーを出す', panelText.includes('サーバに接続できません'), panelText.slice(0, 80));
   }
@@ -246,6 +248,25 @@ try {
     const cam1 = await page2.evaluate(() => [window.map.getCenter().toArray(), window.map.getZoom()]);
     check('2回目：set_view の view: で地図が動かない', JSON.stringify(cam0) === JSON.stringify(cam1), `${JSON.stringify(cam0)} → ${JSON.stringify(cam1)}`);
     check('2回目：住所のピンとルートは残る', await page2.evaluate(async () => (await window.map.getSource('marks').getData()).features.some((f) => f.properties.n === '終')));
+
+    // レシピ：保存して /?r=<id> を開くと、新しいセッションで Claude を使わずに同じ操作をやり直す
+    await page2.click('#panel [data-act=recipe]');
+    await page2.locator('#panel .recipe a').waitFor();
+    const href = await page2.locator('#panel .recipe a').getAttribute('href');
+    const rc = await text(page2, '#panel .recipe');
+    check('レシピ：/?r=<id> の再実行リンク', /^\/\?r=[0-9A-Za-z]{10}$/.test(href ?? ''), href);
+    check('レシピ：現在地が入っている注意', rc.includes('現在地が入っています'), rc);
+    for (const [name, vp] of [['desktop', { width: 1280, height: 720 }], ['mobile', { width: 390, height: 844 }]]) {
+      const rp = await open({ viewport: vp, ...(name === 'mobile' ? { deviceScaleFactor: 2, isMobile: true, hasTouch: true } : {}) }, href);
+      await rp.locator('#panel .net').waitFor({ timeout: 60000 });
+      const rt = await text(rp, '#panel');
+      check(`レシピ（${name}）：Claude を使わずに再実行`, rt.includes('Claude を使わずに再実行') && rt.includes('手順') && !rt.includes('エラー'), rt.slice(0, 160));
+      check(`レシピ（${name}）：同じルートが出る`, await until(rp, async () => (await window.map.getSource('marks').getData()).features.some((f) => f.properties.n === '終')));
+      check(`レシピ（${name}）：外部通信は Claude 0件・その他 0件`, /api\.anthropic\.com\s?0件/.test(rt) && /その他の外部\s?0件/.test(rt), rt.match(/外部通信の記録.*/)?.[0]);
+      check(`レシピ（${name}）：パネルに横スクロールなし`, await rp.evaluate(() => { const p = document.querySelector('#panel'); return p.scrollWidth <= p.clientWidth; }));
+      await until(rp, () => !window.map.isMoving() && window.map.areTilesLoaded());
+      await rp.screenshot({ path: `${OUT}/${name}-recipe.png` });
+    }
 
     // 3回目：ピン（1回目の東京タワーの検索結果。ルートの上の場所は経路の印で出す）、GPX、画像。書き出しは画面が Blob と canvas で行う
     chatRes = { stop: 'done', steps: await page2.evaluate(async () => {

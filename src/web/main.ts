@@ -18,9 +18,11 @@ import { ATTRIBUTION, attributionParts, dataAsOfText } from '../attribution';
 import { CHIPS, DICT, type DictKey } from '../ops/dict';
 import type {
   AddPinOutput, BBox, ChatResponse, CheckRouteOutput, ContextResponse, CourseOutput, ExportRouteOutput, FindFeaturesOutput, GeocodeOutput,
-  LngLat, OpResult, Place, RouteOutput, SearchPlaceOutput, Session, SetViewOutput, ShareState, TunnelRun,
+  LngLat, OpResult, Place, RecipeRunResponse, RecipeSaved, RouteOutput, SearchPlaceOutput, Session, SetViewOutput, ShareState, TunnelRun,
 } from '../ops/types';
-import { CHIP_ICON, COLOR, html, nm, type Raw, renderChat, renderDirect, renderError, renderWait, stepHtml } from './panel';
+import {
+  CHIP_ICON, COLOR, html, nm, type Raw, recipeCard, renderChat, renderDirect, renderError, renderRecipe, renderWait, stepHtml,
+} from './panel';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const r6 = (x: number) => Math.round(x * 1e6) / 1e6;
@@ -55,6 +57,8 @@ const chipSteps = new Map<DictKey, OpResult>();
 const shareId = new URLSearchParams(location.search).get('s');
 /** ?png=1：export_png（MCP）がサーバから headless で開き、出典を焼き込んだ画像を window.kotozutePng で受け取る */
 const pngMode = new URLSearchParams(location.search).get('png') === '1';
+/** /?r=<id>：保存したレシピを、この画面の新しいセッションで再実行する */
+const recipeId = new URLSearchParams(location.search).get('r');
 /** 共有リンクを作ったときの OSM のデータ時点（共有の画面だけ） */
 let shareOsmAsOf: string | undefined;
 
@@ -141,6 +145,7 @@ map.on('load', () => {
       return (await pngCanvas()).toDataURL('image/png');
     }) });
   }
+  else if (recipeId) runRecipe(recipeId); // セッションは再実行が作り直す
   // 読み込み直した画面には現在地を出していないので、サーバに残った現在地も消す
   else api('/api/context', { sessionId, here: null, view: viewNow() }).catch(() => {});
 });
@@ -300,6 +305,7 @@ panel.addEventListener('click', (e) => {
   if (b.dataset.act === 'png') exportPng();
   if (b.dataset.act === 'share') shareLink(b);
   if (b.dataset.act === 'gpx') gpxFile(b);
+  if (b.dataset.act === 'recipe') saveRecipe(b);
   if (b.dataset.act === 'copy') copy(b.parentElement!.querySelector('input')!);
 });
 
@@ -332,6 +338,26 @@ function save(blob: Blob, filename: string) {
 }
 /** 地図の描画が落ち着くまで待つ（印の反映や、動いている途中の地図を画像に写さない） */
 const idle = () => new Promise((r) => { map.once('idle', r); map.triggerRepaint(); });
+// ===== レシピ：この画面で成功した操作の並びを保存する。再実行は Claude を使わない =====
+async function saveRecipe(b: HTMLButtonElement) {
+  b.disabled = true;
+  try {
+    const r = await api<RecipeSaved>('/api/recipe', { sessionId });
+    panel.querySelector('.foot')?.insertAdjacentHTML('beforebegin', recipeCard(r).s);
+    [...panel.querySelectorAll('.recipe')].at(-1)?.scrollIntoView({ block: 'nearest' });
+  } catch (err) { toast((err as Error).message); }
+  b.disabled = false;
+}
+async function runRecipe(id: string) {
+  show(renderWait());
+  try {
+    const res = await api<RecipeRunResponse>(`/api/recipe/${encodeURIComponent(id)}/run`, { sessionId });
+    st.clicks = res.recipe.context.clicks.map((coord, i) => ({ coord, n: String(i + 1) })); // click:N の番号どおり
+    const cam = apply(res.steps);
+    show(renderRecipe(res, res.recipe.context.here?.accuracy_m));
+    fit(cam);
+  } catch (err) { show(renderError(`レシピを再実行できません：${(err as Error).message}`)); }
+}
 
 async function copy(input: HTMLInputElement) {
   try {

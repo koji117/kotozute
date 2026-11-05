@@ -1,9 +1,10 @@
 // 結果パネルの文章。すべて操作の結果（OpResult）からテンプレートで作る。Claude の文章は出さない。
-import { ATTRIBUTION } from '../attribution';
+import { ATTRIBUTION, OSM_DATA_AS_OF } from '../attribution';
 import { DICT, type DictKey } from '../ops/dict';
 import type {
   AddPinOutput, ChatResponse, CheckOutput, CheckRouteOutput, CheckRow, CourseOutput, ExportPngOutput, ExportRouteOutput, FindFeaturesOutput,
-  GeocodeOutput, OpResult, Place, RouteOutput, SearchPlaceOutput, SetViewOutput, ShareOutput, UnknownWordsOutput, Verdict,
+  GeocodeOutput, NetLog, OpResult, Place, RecipeRunResponse, RecipeSaved, RouteOutput, SearchPlaceOutput, SetViewOutput, ShareOutput,
+  UnknownWordsOutput, Verdict,
 } from '../ops/types';
 
 // ===== 差し込み。OSM の名前などはすべてエスケープする（Raw だけそのまま） =====
@@ -259,6 +260,27 @@ function routeFile(o: ExportRouteOutput) {
     <div class="note">${o.filename}</div><div class="note warn">${o.warning}</div></div>`;
 }
 
+export function recipeCard(o: RecipeSaved) {
+  return html`<div class="card recipe"><h3>レシピ</h3>
+    <div class="od">ID <span class="mono">${o.id}</span>・操作 ${o.steps.length}回</div>
+    <div class="share"><a class="btn primary" href="${o.url}" target="_blank" rel="noopener">再実行</a></div>
+    <div class="note">Claude を使わずに、同じ操作を同じ順にやり直します（いまの OSM のデータで）</div>
+    ${o.includes_here ? html`<div class="note warn">このレシピには、あなたの現在地が入っています</div>` : ''}</div>`;
+}
+
+const NOT_OTHER = ['localhost', '127.0.0.1', '[::1]', 'api.anthropic.com']; // src/server/netlog.ts の分け方と同じ
+const count = (n: number, bad = false) => html`<b class="${n === 0 ? 'ok' : bad ? 'ng' : ''}">${n}<small>件</small></b>`;
+/** 外部通信の記録（この操作の間にサーバが出した要求の数） */
+export function netCard(n?: NetLog) {
+  if (!n) return '';
+  const others = Object.keys(n.hosts).filter((h) => !NOT_OTHER.includes(h));
+  return html`<div class="card net"><div class="t"><svg width="16" height="16" aria-hidden="true"><use href="#i-shield"/></svg><h3>外部通信の記録（この操作の間）</h3></div>
+    <div class="row"><span>自社のサービス（地図・検索・ルート・住所）</span>${count(n.self)}</div>
+    <div class="row"><span class="mono">api.anthropic.com</span>${count(n.anthropic)}</div>
+    <div class="row"><span>その他の外部${others.length ? html`：<span class="mono">${others.join('、')}</span>` : ''}</span>${count(n.other, true)}</div>
+    <div class="note">このサーバが外へ出した要求の数です。画面（ブラウザ）はこのサーバとだけ通信します</div></div>`;
+}
+
 export function stepHtml(s: OpResult, hereAcc?: number): Raw {
   if (!s.ok) return html`<div class="card err"><h3>${s.title}</h3><div>${s.error.message}</div></div>`;
   switch (s.op) {
@@ -290,18 +312,34 @@ const close = raw('<button class="x" type="button" data-act="close" aria-label="
 const foot = raw(`<div class="foot">
   <button class="btn primary" type="button" data-act="share"><svg width="18" height="18" aria-hidden="true"><use href="#i-link"/></svg>共有リンク</button>
   <button class="btn" type="button" data-act="png"><svg width="18" height="18" aria-hidden="true"><use href="#i-dl"/></svg>画像</button>
-  <button class="btn" type="button" data-act="gpx"><svg width="18" height="18" aria-hidden="true"><use href="#i-dl"/></svg>GPX（社内用）</button></div>`);
+  <button class="btn" type="button" data-act="gpx"><svg width="18" height="18" aria-hidden="true"><use href="#i-dl"/></svg>GPX（社内用）</button>
+  <button class="btn" type="button" data-act="recipe"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9a5.5 5.5 0 1 0 1.6-3.9M3.5 2.8v2.6h2.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>レシピ</button></div>`);
+
+/** 操作ごとの「名前：入力」と、結果のカード */
+const opsHtml = (steps: OpResult[], hereAcc: number | undefined, h2: string, od: string) => html`
+  ${steps.length ? html`<div class="ph-h" style="margin-top:10px"><h2>${h2}</h2><span class="od">${od}</span></div>
+    <div class="kv">${steps.map((s) => html`<div><b>${s.title}</b><span>${shownInput(s)}</span></div>`)}</div>` : ''}
+  ${steps.map((s) => stepHtml(s, hereAcc))}`;
 
 /** 日本語の依頼の結果：依頼、解釈（操作と入力）、操作ごとのカード、止まった理由 */
 export function renderChat(text: string, res: ChatResponse, hereAcc?: number) {
   res.steps.forEach((s) => s.ok && remember(s.output));
   const stop = STOP[res.stop];
   return html`${close}<div class="req"><b>依頼</b>　${text}</div>
-    ${res.steps.length ? html`<div class="ph-h" style="margin-top:10px"><h2>解釈</h2><span class="od">頼まれた言葉をこう受け取りました</span></div>
-      <div class="kv">${res.steps.map((s) => html`<div><b>${s.title}</b><span>${shownInput(s)}</span></div>`)}</div>` : ''}
-    ${res.steps.map((s) => stepHtml(s, hereAcc))}
+    ${opsHtml(res.steps, hereAcc, '解釈', '頼まれた言葉をこう受け取りました')}
     ${stop ? html`<div class="card err"><div>${stop}${res.stop === 'error' && res.error ? `：${res.error}` : ''}</div></div>` : ''}
-    ${foot}`;
+    ${foot}${netCard(res.net)}`;
+}
+
+/** レシピの再実行（/?r=<id>）の結果。日本語の依頼の結果と同じ形で、Claude を使っていないことを見出しに出す */
+export function renderRecipe(res: RecipeRunResponse, hereAcc?: number) {
+  res.steps.forEach((s) => s.ok && remember(s.output));
+  const r = res.recipe;
+  return html`${close}<div class="ph-h"><h2>レシピ</h2><span class="badge b-ok">Claude を使わずに再実行</span></div>
+    <div class="od">ID <span class="mono">${r.id}</span>・保存 ${r.created_at.slice(0, 10)}・保存したときの OSM ${r.osm_as_of.slice(0, 10)}${
+      r.osm_as_of !== OSM_DATA_AS_OF ? '（いまのデータで実行したので、結果が違うことがあります）' : ''}</div>
+    ${opsHtml(res.steps, hereAcc, '手順', '保存した操作を同じ順にやり直しました')}
+    ${foot}${netCard(res.net)}`;
 }
 
 /** 札（AI を通さない）の結果 */
@@ -310,7 +348,7 @@ export function renderDirect(steps: OpResult[]) {
   return html`${close}<div class="ph-h"><h2>この画面の範囲</h2><span class="badge b-ok">AIを通さない</span></div>
     ${steps.map((s) => stepHtml(s))}
     <div class="note">札は AI を通さずに、自社の Overpass へ直接たずねます</div>
-    ${foot}`;
+    ${foot}${netCard((steps.at(-1) as { net?: NetLog } | undefined)?.net)}`;
 }
 
 export const renderError = (msg: string) => html`${close}<div class="card err" style="margin-top:0"><div>${msg}</div></div>${foot}`;

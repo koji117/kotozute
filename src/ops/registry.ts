@@ -27,6 +27,7 @@ export async function runOp(name: string, ctx: OpContext, rawInput: unknown): Pr
   const op = findOp(name);
   const base = { op: name, title: op?.title ?? name, source: ctx.source };
   const fail = (input: unknown, code: OpError['code'], message: string): OpResult => ({ ...base, input, ok: false, error: { code, message } });
+  const view = ctx.session.view ?? null; // 操作の前の画面の範囲（set_view が変える前）
   let r: OpResult;
   if (!op) r = fail(rawInput, 'bad_input', '知らない操作です');
   else {
@@ -47,6 +48,9 @@ export async function runOp(name: string, ctx: OpContext, rawInput: unknown): Pr
     }
   }
   logOp(ctx.session, r);
+  // レシピ用に成功した操作だけ順に覚える。同じ順に呼び直せば result:N の番号も同じになる
+  // ponytail: 途中で失敗した操作が番号を進めていたら、再実行で番号がずれる。起きたら失敗も記録する
+  if (r.ok) ctx.session.history.push({ op: name, input: r.input, source: ctx.source, view });
   return r;
 }
 

@@ -49,10 +49,13 @@ export interface Session {
   route?: RouteOutput;
   /** add_pin で立てたピン（共有リンクに入る） */
   pins: Place[];
+  /** 成功した操作の並び（レシピにする） */
+  history: RecipeStep[];
 }
 
 // ===== 操作の定義 =====
-export type Source = 'ai' | 'direct' | 'mcp';
+/** recipe：保存したレシピの再実行（Claude を使わない） */
+export type Source = 'ai' | 'direct' | 'mcp' | 'recipe';
 export interface OpContext { session: Session; source: Source }
 
 export type OpErrorCode = 'not_found' | 'out_of_area' | 'bad_ref' | 'limit' | 'service' | 'bad_input';
@@ -167,7 +170,26 @@ export interface ShareState {
 
 // ===== 画面とサーバのやりとり（src/server/main.ts と src/web が同じ形を使う） =====
 export interface ChatRequest { sessionId: string; text: string; view?: Session['view'] }
-export interface ChatResponse { steps: OpResult[]; stop: 'done' | 'max_steps' | 'no_tool' | 'refusal' | 'error'; error?: string }
+export interface ChatResponse { steps: OpResult[]; stop: 'done' | 'max_steps' | 'no_tool' | 'refusal' | 'error'; error?: string; net?: NetLog }
 export interface OpRequest { sessionId: string; input: unknown; view?: Session['view'] }
 export interface ContextRequest { sessionId: string; here?: Session['here'] | null; view?: Session['view']; click?: LngLat }
 export interface ContextResponse { clickRef?: string }
+
+// ===== レシピ（Claude を使わずに再実行できる操作の並び。src/server/recipe.ts） =====
+/** view：その操作の前の画面の範囲（view: の解決に使う） */
+export interface RecipeStep { op: string; input: unknown; source: Source; view: Session['view'] | null }
+export interface Recipe {
+  id: string; created_at: string;
+  /** 保存したときの OSM のデータ時点（再実行はいまのデータで行う） */
+  osm_as_of: string;
+  /** here は操作が here: を使ったときだけ入る */
+  context: { here: Session['here'] | null; clicks: LngLat[] };
+  steps: RecipeStep[];
+}
+/** POST /api/recipe */
+export interface RecipeSaved { id: string; url: string; steps: RecipeStep[]; includes_here: boolean }
+/** POST /api/recipe/:id/run */
+export interface RecipeRunResponse { steps: OpResult[]; recipe: Recipe; net?: NetLog }
+
+/** 外部通信の記録：API の要求1件の間にサーバが出した要求の数（src/server/netlog.ts） */
+export interface NetLog { hosts: Record<string, number>; self: number; anthropic: number; other: number }

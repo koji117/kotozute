@@ -7,14 +7,17 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { z } from 'zod';
 import { chat } from './claude';
+import { installNetlog, withNetlog } from './netlog';
+import { loadRecipe, runRecipe, saveRecipe } from './recipe';
 import { getSession } from './session';
 import { findOp, runOp } from '../ops/registry';
 import { loadShare } from '../ops/share';
-import { OpError, type ChatResponse, type ContextResponse, type Session } from '../ops/types';
+import { OpError, type ChatResponse, type ContextResponse, type RecipeRunResponse, type Session } from '../ops/types';
 import { inTokyo } from '../services/region';
 
 const ASSETS = 'data/basemaps-assets-src/basemaps-assets-main';
 export const app = new Hono();
+installNetlog(); // 外部通信の記録（サーバが出す fetch を数える）
 
 // ===== 画面とのやりとり（型は src/ops/types.ts） =====
 const SessionId = z.string().regex(/^[\w-]{8,64}$/);
@@ -77,13 +80,32 @@ app.post('/api/op/:name', async (c) => {
   const op = findOp(c.req.param('name'));
   if (!op?.direct) return c.json({ error: 'その操作はありません' }, 404);
   const req = await body(c, OpReq);
-  return c.json(await runOp(op.name, { session: withView(req.sessionId, req.view), source: 'direct' }, req.input));
+  const [r, net] = await withNetlog(() => runOp(op.name, { session: withView(req.sessionId, req.view), source: 'direct' }, req.input));
+  return c.json({ ...r, net });
 });
 
 app.post('/api/chat', async (c) => {
   const req = await body(c, ChatReq);
-  const res: ChatResponse = await chat(withView(req.sessionId, req.view), req.text);
-  return c.json(res);
+  const [res, net] = await withNetlog(() => chat(withView(req.sessionId, req.view), req.text));
+  return c.json({ ...res, net } satisfies ChatResponse);
+});
+
+// レシピ：このセッションで成功した操作の並びを保存する。再実行は Claude を使わない
+const SessionReq = z.object({ sessionId: SessionId });
+app.post('/api/recipe', async (c) => {
+  const req = await body(c, SessionReq);
+  return c.json(saveRecipe(getSession(req.sessionId)));
+});
+app.get('/api/recipe/:id', (c) => {
+  const r = loadRecipe(c.req.param('id'));
+  return r ? c.json(r) : c.json({ error: 'レシピが見つかりません' }, 404);
+});
+app.post('/api/recipe/:id/run', async (c) => {
+  const recipe = loadRecipe(c.req.param('id'));
+  if (!recipe) return c.json({ error: 'レシピが見つかりません' }, 404);
+  const req = await body(c, SessionReq);
+  const [steps, net] = await withNetlog(() => runRecipe(req.sessionId, recipe));
+  return c.json({ steps, recipe, net } satisfies RecipeRunResponse);
 });
 
 app.get('/api/share/:id', (c) => {
