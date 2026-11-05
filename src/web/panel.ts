@@ -124,6 +124,7 @@ function features(o: FindFeaturesOutput) {
 function search(o: SearchPlaceOutput) {
   return html`<div class="card">
     <h3>「${o.query}」 ${o.items.length ? `${o.total}件${o.capped ? '以上' : ''}` : ''}</h3>
+    ${o.widened ? html`<div class="note">画面の中になかったので、東京都全体から探しました</div>` : ''}
     ${o.items.length === 0 ? html`<div class="zero">OSM上で見つかりません（現地にないとは限らない）</div>` : html`
       ${o.truncated ? html`<div class="note">多いので近い${o.items.length}件だけ${o.capped ? '（上限で切ったので、近い順は一部の中で）' : ''}</div>` : ''}
       <ol class="names">${o.items.map((p) => html`<li>${nm(p)}</li>`)}</ol>`}

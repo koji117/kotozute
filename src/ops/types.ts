@@ -89,8 +89,8 @@ export interface GeocodeOutput {
   /** 精度の日本語（言い換えない：住居番号の位置／街区の代表点／町字の代表点 など） */
   precision: string;
 }
-/** capped：Overpass の件数の上限で切れた（total は本当の件数ではなく「以上」） */
-export interface SearchPlaceOutput { query: string; items: Place[]; total: number; truncated: boolean; capped: boolean }
+/** capped：Overpass の件数の上限で切れた（total は本当の件数ではなく「以上」）。widened：画面の中になかったので東京都全体から探した */
+export interface SearchPlaceOutput { query: string; items: Place[]; total: number; truncated: boolean; capped: boolean; widened: boolean }
 export interface FeatureGroup { word: DictKey; label: string; interpretation: string; count: number; items: Place[]; truncated: boolean }
 /** area.radius_m：場所の周りを探したときの半径。範囲（画面や公園）で探したときは null */
 export interface FindFeaturesOutput { area: { ref: string; label: string; bbox: BBox; radius_m: number | null }; groups: FeatureGroup[] }

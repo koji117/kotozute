@@ -5,7 +5,7 @@ import { findFeatures } from '../src/ops/find_features';
 import { searchPlace } from '../src/ops/search_place';
 import { OpError } from '../src/ops/types';
 import { getSession } from '../src/server/session';
-import { bboxKm2 } from '../src/services/region';
+import { bboxKm2, inTokyo } from '../src/services/region';
 
 const session = getSession('check-places-0001');
 session.view = { bbox: [139.735, 35.645, 139.755, 35.665], zoom: 15 };
@@ -117,6 +117,22 @@ await check('注入できない（QL と正規表現の記号）', async () => {
 await check('空の名前と知らない参照', async () => {
   await assert.rejects(searchPlace.run(ctx, { name: '\n\t', area: 'view:' }), (e) => e instanceof OpError && e.code === 'bad_input');
   await assert.rejects(searchPlace.run(ctx, { name: '東京', area: 'result:99999' }), (e) => e instanceof OpError && e.code === 'bad_ref');
+});
+
+await check('画面の中になければ東京都全体から探す（東京スカイツリー）', async () => {
+  const out = await searchPlace.run(ctx, { name: '東京スカイツリー', area: 'view:' });
+  assert.equal(out.widened, true);
+  assert.ok(out.items.some((p) => p.osm === 'way/288269147'), 'スカイツリーがない');
+  const near = await searchPlace.run(ctx, { name: '芝公園', area: 'view:' });
+  assert.equal(near.widened, false);
+});
+
+await check('地域の判定は都の境界（川崎駅は外、蒲田駅は中）', async () => {
+  assert.equal(inTokyo([139.697, 35.531]), false);
+  assert.equal(inTokyo([139.716, 35.5625]), true);
+  assert.equal(inTokyo([139.7454, 35.6586]), true);
+  const out = await searchPlace.run(ctx, { name: '川崎駅', area: tower });
+  assert.ok(out.items.every((p) => inTokyo(p.coord)), '東京都の外の結果がある');
 });
 
 await check('画面が東京都の外なら out_of_area', async () => {

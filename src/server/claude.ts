@@ -103,6 +103,7 @@ function contextBlock(s: Session): string {
     `現在地（here:）：${s.here ? `あり（精度 半径${Math.round(s.here.accuracy_m)}m）` : 'なし'}`,
     `画面の範囲（view:）：${s.view ? 'あり' : 'なし（東京都全体）'}`,
     `クリックした点：${s.clicks.length ? `click:1〜click:${s.clicks.length}` : 'なし'}`,
+    `地図に出ているルート：${s.route ? `あり（${s.route.from.name ?? '名前なし'} → ${s.route.to.name ?? '名前なし'}、寄り先${s.route.stops.length}か所）` : 'なし'}`,
     `地図に出ている印：${layers.join('、') || 'なし'}`,
     `最近の結果：${recent.join('、') || 'なし'}`,
   ].join('\n');

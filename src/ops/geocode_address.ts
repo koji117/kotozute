@@ -24,9 +24,10 @@ export const geocodeAddress = defineOp({
     if (!address) throw new OpError('bad_input', '住所が空です');
     if (OTHER_PREF.test(address)) throw new OpError('out_of_area', OUT);
     const m = await geocode(address);
-    // 都道府県にしか一致せず残りがある＝住所として読めなかった
-    if (!m || m.match_level === 'unknown' || (m.match_level === 'pref' && m.unmatched)) {
-      throw new OpError('not_found', '住所が見つかりません（ABR で一致しませんでした）');
+    if (!m || m.match_level === 'unknown') throw new OpError('not_found', '住所が見つかりません（ABR で一致しませんでした）');
+    // 都道府県か市区町村にしか一致せず残りがある＝町名から先が読めなかった（例：他県の「中央区大手前」が東京都中央区に一致する）
+    if ((m.match_level === 'pref' || m.match_level === 'city') && m.unmatched) {
+      throw new OpError('not_found', `住所が見つかりません（ABR で一致したのは「${m.matched}」まで）`);
     }
     if (!inTokyo(m.coord)) throw new OpError('out_of_area', OUT);
     // 座標が一致した深さより粗い点のとき（例：町字まで一致、座標は市区町村の代表点）、名前に精度を入れる。ピン・ルート・共有・画像のどこでも細かく見せない

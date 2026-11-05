@@ -54,6 +54,8 @@ await check('住所（芝公園4-2-8）', async () => {
 await check('住所：東京都の外と、読めない住所', async () => {
   await fails(() => geo('大阪府大阪市北区梅田1-1'), ['out_of_area', 'not_found']);
   await fails(() => geo('あいうえお'), ['not_found']);
+  // 他県の住所から都道府県と市を外すと、東京都の同じ名前の区にだけ一致する。町名から先が読めないので見つからない扱い
+  await fails(() => geo('中央区大手前2丁目1-22'), ['not_found']);
 });
 
 let normalMin = 0;

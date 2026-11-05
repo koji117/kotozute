@@ -35,8 +35,8 @@ export const searchPlace = defineOp({
   title: '場所の検索',
   description:
     '名前で場所（建物、駅、公園、店など）を OSM から探す。住所（丁目・番地）はこの操作では探さない。' +
-    '完全一致を先に探し、なければ名前の一部で探す。area が view: なら画面の範囲だけ、' +
-    'それ以外は東京都全体から探して、その場所に近い順に並べる。結果は result:N の参照で返る（最大10件）。',
+    '完全一致を先に探し、なければ名前の一部で探す。area が view: なら画面の範囲から探し、' +
+    '画面に1件もなければ東京都全体から探す（widened_to_tokyo）。それ以外の参照なら東京都全体から探す。どちらもその場所に近い順に並べる。結果は result:N の参照で返る（最大10件）。',
   input: z.object({
     name: z.string().min(1).max(40).describe('探す名前（例：東京タワー）'),
     area: Ref.describe('探す範囲と並べ方の基準。view: は画面の範囲'),
@@ -52,16 +52,23 @@ export const searchPlace = defineOp({
     const [W, S, E, N] = TOKYO_BBOX;
     const bbox: BBox = v ? [Math.max(v[0], W), Math.max(v[1], S), Math.min(v[2], E), Math.min(v[3], N)] : TOKYO_BBOX;
     if (!(bbox[0] < bbox[2] && bbox[1] < bbox[3])) throw new OpError('out_of_area', `画面の範囲が${REGION_LABEL}の外です`);
-    let { elements } = await overpass(nameQuery(name, bbox, true));
-    if (!elements.length) ({ elements } = await overpass(nameQuery(name, bbox, false)));
-    // ponytail: Overpass は上限 +1 件で切るので、それより多いと近い順が全体の近い順とは限らない。total も上限で止まる
-    const found = elements
-      .map((e) => toPlace(e, 'place'))
-      .filter((p) => inTokyo(p.coord))
-      .sort((a, b) => distM(a.coord, center.coord) - distM(b.coord, center.coord))
-      .slice(0, LIMITS.max_items);
+    const search = async (b: BBox) => {
+      let { elements } = await overpass(nameQuery(name, b, true));
+      if (!elements.length) ({ elements } = await overpass(nameQuery(name, b, false)));
+      // ponytail: Overpass は上限 +1 件で切るので、それより多いと近い順が全体の近い順とは限らない。total も上限で止まる
+      const found = elements
+        .map((e) => toPlace(e, 'place'))
+        .filter((p) => inTokyo(p.coord))
+        .sort((a, b) => distM(a.coord, center.coord) - distM(b.coord, center.coord))
+        .slice(0, LIMITS.max_items);
+      return { found, capped: elements.length > LIMITS.max_items };
+    };
+    let { found, capped } = await search(bbox);
+    // 画面の中に1件もなければ、東京都全体から画面の中心に近い順に探す（画面の外の駅や名所を、地図を動かさずに探せるように）
+    const widened = !!v && found.length === 0;
+    if (widened) ({ found, capped } = await search(TOKYO_BBOX));
     const items = found.slice(0, MAX).map((p) => addResult(session, p));
-    return { query: name, items, total: found.length, truncated: found.length > items.length, capped: elements.length > LIMITS.max_items };
+    return { query: name, items, total: found.length, truncated: found.length > items.length, capped, widened };
   },
-  llm: (out) => ({ query: out.query, total: out.total, total_is_lower_bound: out.capped, truncated: out.truncated, items: out.items.map((p) => ({ ref: p.ref, name: p.name })) }),
+  llm: (out) => ({ query: out.query, widened_to_tokyo: out.widened, total: out.total, total_is_lower_bound: out.capped, truncated: out.truncated, items: out.items.map((p) => ({ ref: p.ref, name: p.name })) }),
 });
