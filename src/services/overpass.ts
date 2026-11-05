@@ -38,10 +38,11 @@ export function areaClause(area: Area): string {
  * `out bb`：点は lat/lon、線と面は範囲（bounds）が付く。Overpass の center は範囲の中心と同じなので、toPlace で範囲から作る
  */
 export function featureQuery(word: DictKey, area: Area): string {
-  const a = areaClause(area);
-  const parts = DICT[word].queries.map((q) => `${q.elements}${q.filter}${a};`).join('');
-  return `[out:json][timeout:${LIMITS.timeout_s}];(${parts});out bb tags ${LIMITS.max_items + 1};`;
+  return `[out:json][timeout:${LIMITS.timeout_s}];(${featureParts(word, areaClause(area))});out bb tags ${LIMITS.max_items + 1};`;
 }
+
+/** 言葉の検索部分（範囲の書き方 a つき）。scripts/tag-audit.ts も同じものを数える */
+export const featureParts = (word: DictKey, a: string) => DICT[word].queries.map((q) => `${q.elements}${q.filter}${a};`).join('');
 
 // 同じ検索文の結果を少しのあいだ覚える。札を2回押したときなどに同じ問い合わせを送らない
 // （自社の Overpass は同じ問い合わせが続くと duplicate_query で断る設定のため）

@@ -1,0 +1,117 @@
+{
+ "at": "2026-11-05T12:23:57.581Z",
+ "osm_base": "2026-11-03T21:24:04Z",
+ "bbox": {
+  "tokyo": [
+   138.9,
+   35.48,
+   139.95,
+   35.92
+  ],
+  "kanto": [
+   134.045154,
+   18.625054,
+   155.605818,
+   37.15988
+  ]
+ },
+ "low_below": 10,
+ "rows": [
+  {
+   "word": "post_office",
+   "label": "郵便局",
+   "interpretation": "郵便局＝amenity=post_office（ヤマト運輸・佐川急便など宅配便の営業所は除く）",
+   "tokyo": 2245,
+   "kanto": 4900,
+   "flag": null
+  },
+  {
+   "word": "souvenir",
+   "label": "手土産",
+   "interpretation": "手土産＝和菓子・洋菓子の店（shop=confectionery、shop=pastry）",
+   "tokyo": 1691,
+   "kanto": 2811,
+   "flag": null
+  },
+  {
+   "word": "convenience",
+   "label": "コンビニ",
+   "interpretation": "コンビニ＝shop=convenience",
+   "tokyo": 10492,
+   "kanto": 18357,
+   "flag": null
+  },
+  {
+   "word": "cafe",
+   "label": "カフェ",
+   "interpretation": "カフェ＝amenity=cafe",
+   "tokyo": 6340,
+   "kanto": 8973,
+   "flag": null
+  },
+  {
+   "word": "parking",
+   "label": "駐車場",
+   "interpretation": "駐車場＝amenity=parking（駐輪場は含まない）",
+   "tokyo": 82525,
+   "kanto": 150599,
+   "flag": null
+  },
+  {
+   "word": "fuel",
+   "label": "ガソリンスタンド",
+   "interpretation": "ガソリンスタンド＝amenity=fuel",
+   "tokyo": 1553,
+   "kanto": 4023,
+   "flag": null
+  },
+  {
+   "word": "toilets",
+   "label": "トイレ",
+   "interpretation": "トイレ＝amenity=toilets（店の中のトイレは含まない）",
+   "tokyo": 5902,
+   "kanto": 10305,
+   "flag": null
+  },
+  {
+   "word": "park",
+   "label": "公園",
+   "interpretation": "公園＝leisure=park",
+   "tokyo": 14283,
+   "kanto": 30914,
+   "flag": null
+  },
+  {
+   "word": "station",
+   "label": "駅",
+   "interpretation": "駅＝railway=station",
+   "tokyo": 1107,
+   "kanto": 2195,
+   "flag": null
+  },
+  {
+   "word": "hospital",
+   "label": "病院",
+   "interpretation": "病院＝amenity=hospital（診療所は含まない）",
+   "tokyo": 1200,
+   "kanto": 2530,
+   "flag": null
+  },
+  {
+   "word": "level_crossing",
+   "label": "踏切",
+   "interpretation": "踏切＝railway=level_crossing（歩行者専用の railway=crossing は含まない）",
+   "tokyo": 2947,
+   "kanto": 9239,
+   "flag": null
+  },
+  {
+   "word": "tunnel",
+   "label": "トンネル",
+   "interpretation": "トンネル＝道路の tunnel=yes（建物の通り抜けと暗渠は含まない）",
+   "tokyo": 2435,
+   "kanto": 8535,
+   "flag": null
+  }
+ ]
+}
