@@ -1,0 +1,5 @@
+{"at":"2026-11-04T11:59:39.876Z","tool":"Bash","host":"fonts.googleapis.com","reason":"Google の公開API（地図・フォント）"}
+{"at":"2026-11-04T14:46:04.795Z","tool":"Bash","host":"google.com","reason":"Google の公開サービス"}
+{"at":"2026-11-04T15:16:19.216Z","tool":"Write","file":"(outside)/panels-f.tpl.html","host":"fonts.googleapis.com","reason":"Google の公開API（地図・フォント）"}
+{"at":"2026-11-04T15:27:44.476Z","tool":"Bash","host":"fonts.googleapis.com","reason":"Google の公開API（地図・フォント）"}
+{"at":"2026-11-04T15:27:50.248Z","tool":"Write","file":"(outside)/palt.html","host":"fonts.googleapis.com","reason":"Google の公開API（地図・フォント）"}
