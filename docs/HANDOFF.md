@@ -34,7 +34,7 @@
 
 ## 動かし方
 
-**1〜3 はリポジトリの直下、ABR だけは `../abr-geocoder` で実行する。**
+**すべてリポジトリの直下で実行する（ABR のコマンドはサブシェルで `../abr-geocoder` に移る）。**
 
 ### 1. Overpass と Valhalla（Docker）
 
@@ -48,11 +48,11 @@ docker start overpass valhalla
 ### 2. 住所（ABR、:3002）
 
 ```bash
-cd ../abr-geocoder && docker compose up -d abrg_app
+(cd ../abr-geocoder && docker compose up -d abrg_app)
 ```
 
 - compose のプロジェクトはリポジトリの外の `../abr-geocoder`（既存のコードをリポジトリに入れないため）。`abrg_app` を上げると `postgres` も上がる。DB は 127.0.0.1:55432、API は 127.0.0.1:3002 だけで待ち受ける。
-- 取り込み直すときは `../abr-geocoder/kotozute-import.sh`（東京都、住居表示、`--pos`。DB のパスワードはこのスクリプトが作り、表示しない）。
+- 取り込み直すときは `scripts/abr-import.sh ../abr-geocoder`（東京都、住居表示、`--pos`。DB のパスワードはこのスクリプトが作り、表示しない）。
 - 前の quickstart（:3001、町字レベル）はアプリでは使っていない。ただし絵コンテのデータを作る `docs/storyboard/data/build-ex1.js` はまだ :3001 を使う。
 
 ### 3. アプリのサーバ
@@ -103,7 +103,7 @@ curl -s -m 5 -o /dev/null -w '%{http_code}\n' 'http://127.0.0.1:3002/geocode?add
 | `npx tsx scripts/check-mcp.ts` | MCP（キーなし・リポジトリの外から起動、23件の一括処理） | Overpass、ABR |
 | `npx tsx scripts/check-server.ts` | API、ツール定義、Claude のループ | Overpass、ABR。`.env` にキーがあると本物の Claude を1回呼ぶ |
 | `node scripts/check-web.mjs` | 画面の配置と動き（vite :5199 を起動して Playwright で開く） | :8787 のサーバ、Playwright |
-| `npx tsx scripts/tag-audit.ts` | 辞書の言葉ごとの件数（東京・関東） | Overpass（24回問い合わせ、1分ほど） |
+| `npx tsx scripts/tag-audit.ts` | 辞書の言葉ごとの件数（東京・関東） | Overpass（26回問い合わせ、1分ほど）。コミット済みの `logs/tag-audit.json` は `foot_crossing` を足す前の12語の結果なので、回し直す |
 | `npx tsx scripts/eval.ts` | 評価（50問） | 全部のサービスと `.env` のキー。**お金がかかる**：1回で Claude を138〜141回呼び、約 $0.4、約5分 |
 
 - Overpass は、同じ検索文を別のプロセスから約30秒以内にもう一度送ると `duplicate_query` で断る。アプリのプロセスの中では同じ検索文を120秒覚える。確認のスクリプトを続けて何度も回さない。
@@ -114,7 +114,7 @@ curl -s -m 5 -o /dev/null -w '%{http_code}\n' 'http://127.0.0.1:3002/geocode?add
 | 回 | いつ（UTC） | コミット | 何のあと | 正答 | (a) | (b) | (c) | (d) | 罠 | 捏造 | 費用 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | 11/5 12:19 | dba0608 | M1（評価セットのコミット直後） | 39/50（78%） | 9/10 | 10/10 | 6/10 | 5/10 | 9/10 | 0 | $0.38 |
-| 2 | 11/5 13:44 | 3b6ff6f | 6つの機能とレビューの修正。プロンプトは未調整 | 47/50（94%） | 10/10 | 9/10 | 10/10 | 10/10 | 8/10 | 0 | $0.43 |
+| 2 | 11/5 13:44 | 3b6ff6f | 評価1回目で落ちた問いを受けた修正（2e9f5d7：都の境界、画面の外の検索、読めない住所、Claude に渡す画面の状態にルートの有無）と、6つの機能、レビューの修正のあと。SYSTEM プロンプトは未調整 | 47/50（94%） | 10/10 | 9/10 | 10/10 | 10/10 | 8/10 | 0 | $0.43 |
 | 試し | 11/5 13:50 | 17b1ba4 | 2回目で落ちた3問だけ | 3/3 | | 1/1 | | | 2/2 | 0 | $0.04 |
 | 3 | 11/5 13:51 | 17b1ba4 | SYSTEM プロンプトに2行（b9fd0b9 でコミット） | 50/50（100%） | 10/10 | 10/10 | 10/10 | 10/10 | 10/10 | 0 | $0.42 |
 
@@ -129,8 +129,8 @@ curl -s -m 5 -o /dev/null -w '%{http_code}\n' 'http://127.0.0.1:3002/geocode?add
 - 地域の判定：境界は約20mで間引いてある。境界のすぐ近くでは判定がずれうる。
 - セッションはサーバのメモリだけ。サーバを再起動すると `result:N` などの参照は消える。共有リンクとレシピのファイルは消さない（期限なし）。
 - MCP：画面がないので `here:` と `click:N` は使えない。`export_png` は Playwright と :8787 のサーバが要る。
-- Overpass と Valhalla のコンテナは 0.0.0.0 で公開している（`docker ps`）。ABR とアプリは 127.0.0.1 だけ。[推測] 手元だけにするなら `-p 127.0.0.1:12345:80` のように作り直す。
-- Overpass の標準のヘルスチェックは、データが2日より古いと失敗する。11/5 の時点では healthy と出ている。`OVERPASS_HEALTHCHECK` は上書きしていない。11/8 の撮影前に確かめる。
+- Overpass と Valhalla のコンテナは 0.0.0.0 で公開している（`docker ps`）。ABR（`abr-abrg_app-1`、`abr-postgres-1`）とアプリは 127.0.0.1 だけ。前の ABR quickstart（コンテナ abrg-quickstart、:3001。絵コンテの build-ex1.js だけが使う）も 0.0.0.0 で公開している。使わないときは `docker stop abrg-quickstart`。[推測] 手元だけにするなら `-p 127.0.0.1:12345:80` のように作り直す。
+- Overpass のヘルスチェック（コンテナの `/app/docker-healthcheck.sh`）は、ランダムな node を1つ問い合わせて応答に Overpass があるかを見るだけで、データの古さは見ない（2026-11-05 にコンテナの中で確認）。2日は start_period（48時間）。11/5 の時点で healthy。
 - Valhalla の左側通行の判定（`drive_on_right`）は確かめていない [未確認]。
 - ABR の出典の文言は、デジタル庁の利用規約の記載例で確かめていない [未確認]（`src/attribution.ts`）。
 - 合否表の「判定不能」の区間数を、今のデータで絵コンテと比べていない [未確認]。
@@ -220,6 +220,12 @@ pmtiles extract https://build.protomaps.com/<日付>.pmtiles tokyo.pmtiles --bbo
 mkdir -p data && curl -L -o data/basemaps-assets.zip https://github.com/protomaps/basemaps-assets/archive/refs/heads/main.zip
 ```
 
+```bash
+unzip -q data/basemaps-assets.zip -d data/basemaps-assets-src
+```
+
+- 展開すると `data/basemaps-assets-src/basemaps-assets-main` ができる。サーバはここから配信する（`src/server/main.ts` の `ASSETS`）。
+
 ### 5. 住所（abr-geocoder）
 
 abr-geocoder はリポジトリの**外**に clone する。
@@ -229,11 +235,10 @@ git clone https://github.com/digital-go-jp/abr-geocoder.git ../abr-geocoder
 ```
 
 ```bash
-../abr-geocoder/kotozute-import.sh
+scripts/abr-import.sh ../abr-geocoder
 ```
 
-- スクリプトは `.env` を作り（DB のパスワードを生成）、手元だけで待ち受ける設定にして、`init --pref 13 --category rsdtdsp --pos -y` → `import` → `cache build` → `up -d abrg_app` の順に動かす。記録は `../abr-geocoder/kotozute-import.log`。
-- スクリプトはリポジトリの外にあり、Git に入っていない。clone し直したら作り直す。
+- スクリプト（`scripts/abr-import.sh`）は abr-geocoder のディレクトリを引数に取る。`.env` を作り（DB のパスワードを生成し、表示しない）、手元だけで待ち受ける設定にして、`init --pref 13 --category rsdtdsp --pos -y` → `import` → `cache build` → `up -d abrg_app` の順に動かす。11/5 に動かしたときの記録は `../abr-geocoder/kotozute-import.log`。
 
 ### 6. 都の境界
 
