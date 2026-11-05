@@ -21,6 +21,18 @@ async function fails(f: () => Promise<unknown>, codes: OpErrorCode[]) {
   assert.ok(e instanceof OpError, `OpError にならなかった: ${e}`);
   assert.ok(codes.includes(e.code), `code が ${e.code}（期待 ${codes.join('/')}）`);
 }
+/** 線の上に、長さで 20m おきに点を取る */
+function sample(cs: [number, number][]): [number, number][] {
+  const cum = [0];
+  for (let i = 1; i < cs.length; i++) cum.push(cum[i - 1] + distM(cs[i - 1], cs[i]));
+  const n = Math.max(2, Math.ceil(cum.at(-1)! / 20) + 1);
+  return Array.from({ length: n }, (_, k) => {
+    const d = (cum.at(-1)! * k) / (n - 1);
+    const i = Math.max(1, cum.findIndex((c) => c >= d));
+    const t = (d - cum[i - 1]) / (cum[i] - cum[i - 1] || 1);
+    return [cs[i - 1][0] + (cs[i][0] - cs[i - 1][0]) * t, cs[i - 1][1] + (cs[i][1] - cs[i - 1][1]) * t];
+  });
+}
 async function step(name: string, f: () => Promise<void>) {
   await f();
   console.log('ok', name);
@@ -76,7 +88,12 @@ await step('plan_course：品川駅を出て、トンネル2本、高速なし�
   const row = (k: string) => a.check.rows.find((r) => r.kind === k)!;
   assert.equal(row('tunnels').got, counted.length);
   assert.ok(counted.length >= 2);
-  assert.ok(counted.every((t, i) => counted.slice(0, i).every((u) => distM(t.mid, u.mid) >= 100)), '同じトンネルを2本と数えている');
+  // 数えたトンネルどうしは、線のどこでも 40m 以上離れている。同じトンネルの上下線は 10〜30m しか離れていないので、
+  // 真ん中が 100m 以上離れていても（SAME_TUNNEL_M では見分けられなくても）2本と数えたらここで止まる
+  for (const [i, t] of counted.entries()) for (const u of counted.slice(0, i)) {
+    const d = Math.min(...sample(t.line).flatMap((p) => sample(u.line).map((q) => distM(p, q))));
+    assert.ok(d >= 40, `同じトンネルを2本と数えている（${t.name ?? '名前なし'} と ${u.name ?? '名前なし'}、いちばん近いところで ${Math.round(d)}m）`);
+  }
   assert.ok(counted.every((t) => t.m >= 50 && t.ways.every((w) => /^way\/\d+$/.test(w))));
   assert.ok(a.check.tunnels.filter((t) => t.skip === 'short').every((t) => t.m < 50));
   assert.deepEqual([row('no_highways').result, row('no_highways').got], ['pass', 0]);

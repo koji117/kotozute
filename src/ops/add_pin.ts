@@ -18,6 +18,8 @@ export const addPin = defineOp({
   async run({ session }, { target }): Promise<AddPinOutput> {
     if (target === 'view:') throw new OpError('bad_ref', '「view:」は画面の範囲なので、ピンは立てられません。場所を検索するか、地図をクリックしてください');
     const place = resolveRef(session, target);
+    // here: は動く参照。今の現在地と違う here: のピン（動く前の現在地、レシピを保存した人の現在地）は外す
+    if (place.ref === 'here:') session.pins = session.pins.filter((p) => p.ref !== 'here:' || (p.name === place.name && p.coord[0] === place.coord[0] && p.coord[1] === place.coord[1]));
     // 同じ場所：同じ参照か、同じ OSM の要素（別の検索で result:N が変わっても1本）
     let pin = session.pins.find((p) => p.ref === place.ref || (!!place.osm && p.osm === place.osm));
     if (!pin) {

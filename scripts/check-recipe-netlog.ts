@@ -39,6 +39,7 @@ const STEPS: [string, unknown][] = [
   ['find_features', { words: ['convenience'], area: 'here:', radius_m: 300 }],
   ['set_view', { target: 'result:1', show: ['post_office'], hide: ['convenience'] }],
   ['find_features', { words: ['cafe'], area: 'view:', radius_m: 500 }], // set_view で動いた後の画面
+  ['add_pin', { target: 'here:' }],
 ];
 const orig: any[] = [];
 {
@@ -100,8 +101,10 @@ let id = '';
     assert.equal(s.source, 'recipe');
     assert.equal(s.op, orig[i].op);
     assert.deepEqual(s.input, orig[i].input);
-    // here: は B の現在地ではないので、「現在地」ではなく保存した人の現在地と書く（4番目は here: のまわり）
-    const want = i === 3 ? { ...orig[i].output, area: { ...orig[i].output.area, label: 'レシピを保存した人の現在地' } } : orig[i].output;
+    // here: は B の現在地ではないので、「現在地」ではなく保存した人の現在地と書く（4番目は here: のまわり、7番目は here: のピン）
+    const want = i === 3 ? { ...orig[i].output, area: { ...orig[i].output.area, label: 'レシピを保存した人の現在地' } }
+      : i === 6 ? { ...orig[i].output, pin: { ...orig[i].output.pin, name: 'レシピを保存した人の現在地', kind: 'place' } }
+      : orig[i].output;
     assert.deepEqual(s.output, want, `${i + 1}番目（${s.op}）の出力が違う`);
   });
   const net = r.json.net;
@@ -116,6 +119,12 @@ let id = '';
   // 再実行が終わったら、保存した人の現在地は B の here: に残さない
   assert.equal(sB.here, undefined);
   assert.equal((await op(B, 'add_pin', { target: 'here:' })).json.error?.code, 'bad_ref');
+  // B が自分の現在地を送ると、here: のピンは B の現在地になり、保存した人の現在地のピンは残らない
+  const HERE_B = { coord: [139.767125, 35.681236], accuracy_m: 20 }; // 架空の現在地（東京駅付近）
+  assert.equal((await req('/api/context', { sessionId: B, here: HERE_B })).status, 200);
+  const pinB = await op(B, 'add_pin', { target: 'here:' });
+  assert.deepEqual(pinB.json.output?.pin, { ref: 'here:', name: '現在地', coord: HERE_B.coord, kind: 'here' }, JSON.stringify(pinB.json));
+  assert.deepEqual(sB.pins.filter((p) => p.ref === 'here:').map((p) => p.coord), [HERE_B.coord]);
   ok(`再実行：${STEPS.length} 操作の出力と参照が同じ、Claude 0件・自社 ${net.self}件`);
 }
 

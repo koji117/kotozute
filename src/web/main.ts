@@ -242,6 +242,8 @@ function apply(steps: OpResult[]): LngLat[] {
       cam = st.route?.legs.flatMap((l) => l.shape) ?? [];
     } else if (s.op === 'add_pin') {
       const o = s.output as AddPinOutput;
+      // サーバの add_pin と同じ：今の現在地と違う here: のピンは外す
+      if (o.pin.ref === 'here:') st.pinned = st.pinned.filter((p) => p.ref !== 'here:' || (p.name === o.pin.name && p.coord[0] === o.pin.coord[0] && p.coord[1] === o.pin.coord[1]));
       if (!st.pinned.some((p) => p.ref === o.pin.ref)) st.pinned.push(o.pin);
       cam = [o.pin.coord];
     } else if (s.op === 'set_view') {
