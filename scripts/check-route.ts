@@ -1,11 +1,12 @@
 // 住所とルートの操作（geocode_address、route）を自社の ABR・Valhalla・Overpass に対して確かめる。
-// 実行：npx tsx scripts/check-route.ts（ABR :3001、Valhalla :8002、Overpass :12345 が動いていること）
+// 実行：npx tsx scripts/check-route.ts（ABR :3002（住居表示・座標つき）、Valhalla :8002、Overpass :12345 が動いていること）
 import assert from 'node:assert/strict';
 import { geocodeAddress } from '../src/ops/geocode_address';
 import { route } from '../src/ops/route';
 import { stepText } from '../src/ops/steps';
 import { OpError, type OpErrorCode } from '../src/ops/types';
 import { getSession } from '../src/server/session';
+import { distM } from '../src/services/region';
 
 const session = getSession('check-route-0001');
 // 架空の現在地（品川駅 高輪口付近。絵コンテと同じ）
@@ -40,9 +41,11 @@ await check('住所（芝公園4-2-8）', async () => {
   assert.equal(g.place.ref, 'abr:1');
   assert.equal(g.place.kind, 'address');
   assert.ok(g.matched.startsWith('東京都港区芝公園'), g.matched);
-  assert.ok(['machiaza', 'machiaza_detail'].includes(g.level), g.level); // 手元の ABR は住居番号の座標（--pos）なし
+  assert.equal(g.level, 'rsdtdsp_blk', g.level); // 芝公園4丁目2番は ABR に8号の住居番号がなく、街区の代表点になる
+  // 東京タワー（OSM）から 100m 以内
+  assert.ok(distM(g.place.coord, [139.7461233, 35.6583489]) < 100, String(distM(g.place.coord, [139.7461233, 35.6583489])));
   assert.ok(ja.test(g.precision) && g.precision.endsWith('代表点'), g.precision);
-  assert.equal(g.unmatched, '2-8');
+  assert.equal(g.unmatched, '-8');
   assert.equal(session.places.get('abr:1'), g.place);
   const llm = geocodeAddress.llm(g);
   assert.ok(!JSON.stringify(llm).includes('139.'), 'LLM に座標を渡している');
@@ -64,7 +67,7 @@ await check('ルート：現在地 → 郵便局 → 手土産 → 芝公園4-2-
   assert.ok(r.total.minutes >= r.direct.minutes - 0.2, '寄り道ありが寄り道なしより速い');
   assert.ok(r.tried > 1 && r.tried <= 29, `tried ${r.tried}`);
   assert.equal(r.legs[0].from, '現在地');
-  assert.equal(r.legs[2].to, '東京都港区芝公園4丁目');
+  assert.equal(r.legs[2].to, '東京都港区芝公園4丁目2');
   for (const s of r.stops) {
     assert.match(s.chosen.ref, /^result:\d+$/);
     assert.equal(session.places.get(s.chosen.ref), s.chosen);

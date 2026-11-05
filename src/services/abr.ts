@@ -1,7 +1,7 @@
 // 自社の abr-geocoder（デジタル庁のアドレス・ベース・レジストリ）への問い合わせ。公開のジオコーダは使わない。
 import { OpError, type LngLat } from '../ops/types';
 
-const URL_ = `${process.env.ABR_URL ?? 'http://localhost:3001'}/geocode`;
+const URL_ = `${process.env.ABR_URL ?? 'http://localhost:3002'}/geocode`;
 
 export interface AbrMatch {
   coord: LngLat;
