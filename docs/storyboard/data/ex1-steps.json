@@ -1,0 +1,131 @@
+{
+ "generated_at": "2026-11-05T02:49:33.852Z",
+ "language": "ja-JP",
+ "source": "Valhalla /route（自前、:8002）",
+ "legs": [
+  {
+   "minutes": 1.8,
+   "km": 0.88,
+   "steps": [
+    {
+     "type": 3,
+     "instruction": "15/第一京浜を南方向です。",
+     "street": [
+      "15",
+      "第一京浜"
+     ],
+     "km": 0.01,
+     "minutes": 0.1
+    },
+    {
+     "type": 12,
+     "instruction": "15/第一京浜を右方向、Uターンです。その先15/第一京浜です。",
+     "street": [
+      "15",
+      "第一京浜"
+     ],
+     "km": 0.87,
+     "minutes": 1.7
+    },
+    {
+     "type": 6,
+     "instruction": "目的地は左側です。",
+     "street": [],
+     "km": 0,
+     "minutes": 0
+    }
+   ]
+  },
+  {
+   "minutes": 2.9,
+   "km": 1.55,
+   "steps": [
+    {
+     "type": 3,
+     "instruction": "15/第一京浜を北方向です。",
+     "street": [
+      "15",
+      "第一京浜"
+     ],
+     "km": 1.12,
+     "minutes": 1.9
+    },
+    {
+     "type": 16,
+     "instruction": "左方向です。その先白山祝田田町線/301です。",
+     "street": [
+      "白山祝田田町線",
+      "301"
+     ],
+     "km": 0.43,
+     "minutes": 1
+    },
+    {
+     "type": 6,
+     "instruction": "目的地は左側です。",
+     "street": [],
+     "km": 0,
+     "minutes": 0
+    }
+   ]
+  },
+  {
+   "minutes": 3.2,
+   "km": 1.32,
+   "steps": [
+    {
+     "type": 3,
+     "instruction": "1/桜田通りを北方向です。",
+     "street": [
+      "1",
+      "桜田通り"
+     ],
+     "km": 0.66,
+     "minutes": 1.2
+    },
+    {
+     "type": 9,
+     "instruction": "右方向です。その先祝田通り/301です。",
+     "street": [
+      "祝田通り",
+      "301"
+     ],
+     "km": 0.43,
+     "minutes": 1
+    },
+    {
+     "type": 15,
+     "instruction": "左方向です。その先東京タワー通りです。",
+     "street": [
+      "東京タワー通り"
+     ],
+     "km": 0.06,
+     "minutes": 0.2
+    },
+    {
+     "type": 15,
+     "instruction": "左方向です。その先降車場です。",
+     "street": [
+      "降車場"
+     ],
+     "km": 0.1,
+     "minutes": 0.3
+    },
+    {
+     "type": 10,
+     "instruction": "右方向です。",
+     "street": [],
+     "km": 0.06,
+     "minutes": 0.4
+    },
+    {
+     "type": 5,
+     "instruction": "目的地は右側です。",
+     "street": [],
+     "km": 0,
+     "minutes": 0
+    }
+   ]
+  }
+ ]
+}

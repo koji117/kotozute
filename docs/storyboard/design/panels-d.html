@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ことづて 案D：会話型（ほかの操作パネル）</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=M+PLUS+1:wght@500;700;800&family=M+PLUS+1+Code:wght@400;500;700&display=block">
+<style>
+/* 本画面（option-d.html）と同じ値 */
+:root {
+  /* ── 色：灰色の地図＋柿色の差し色1つ。判定の3状態は色と形の両方で分ける ── */
+  --c-ink: #1B1E23;            /* 本文・利用者の吹き出し */
+  --c-ink-2: #474C54;          /* 補足 */
+  --c-ink-3: #5C6168;          /* ラベル・控えめ（会話の地色の上で 5.3:1） */
+  --c-on-dark: #FFFFFF;        /* 濃い面の上の文字 */
+  --c-on-dark-2: #C9CDD3;      /* 濃い面の上の補足 */
+  --c-surface: #FFFFFF;        /* カード */
+  --c-thread: #F2F1EE;         /* 会話パネルの地色 */
+  --c-sunken: #EAE8E3;         /* 押せる面・へこんだ面 */
+  --c-line: #E1DED8;           /* 罫線 */
+  --c-line-2: #C9C5BD;         /* 強い罫線・入力欄の枠 */
+  --c-glass: rgba(255,255,255,.95); /* 地図の上の白 */
+  --c-accent: #B8460B;         /* 差し色（柿）：主ボタン・文字（白地で 5.4:1） */
+  --c-accent-map: #D9560F;     /* 地図のルート（文字には使わない） */
+  --c-accent-deep: #7C2D0A;    /* ルートの縁・トンネル区間 */
+  --c-accent-soft: #FBEEE5;    /* 柿の淡い面 */
+  --c-accent-line: #EFC3A6;    /* 柿の淡い罫線 */
+  --c-pass: #17703C;  --c-pass-bg: #E6F3EA;  --c-pass-line: #A8D4B7;  /* 合格：✓・実線の枠 */
+  --c-fail: #B3261E;  --c-fail-bg: #FBE9E7;  --c-fail-line: #EDB3AD;  /* 不合格：✕・二重線の枠 */
+  --c-unk: #643FA0;   --c-unk-bg: #F3EEFA;   --c-unk-line: #B7A2DA;   /* 判定不能：？・破線の枠 */
+  --c-unk-map: #7B55B5;        /* 地図上の判定不能区間 */
+  --c-unk-bg-2: #FAF7FE;       /* 判定不能の行：斜線のもう一色 */
+  --c-unk-halo: rgba(123,85,181,.32); /* 判定不能区間の帯（地図と凡例） */
+  --c-accent-hl: #F3A877;      /* 濃い吹き出しの上の下線（解釈した語） */
+  --c-mark-dot: #E8732F;       /* ロゴの点（文の終わり＝届け先） */
+  --c-map-bg: #EFEFEC;         /* 地図の読み込み前の地色 */
+  --c-story: #111317;          /* 絵コンテの層（帯・注記） */
+  --c-story-line: #474D58;     /* 絵コンテの層の枠線 */
+  --c-story-ink: #F4F5F7;      /* 絵コンテの文字 */
+  --c-story-ink-2: #B4BAC4;    /* 絵コンテの補足 */
+
+  /* ── 角丸 ── */
+  --r-2xs: 3px; --r-xs: 4px; --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 18px; --r-pill: 999px;
+  --r-bubble: 18px 18px 4px 18px; /* 利用者の吹き出し（右下だけ角） */
+  /* ── 影 ── */
+  --sh-1: 0 1px 2px rgba(27,30,35,.07);                               /* カードの小さな浮き */
+  --sh-2: 0 4px 16px rgba(27,30,35,.12), 0 1px 3px rgba(27,30,35,.08); /* 地図の上の部品 */
+  --sh-3: 0 10px 30px rgba(17,19,23,.30);                              /* 絵コンテの注記 */
+  --sh-panel: -1px 0 0 var(--c-line), -10px 0 30px rgba(27,30,35,.10); /* 右の会話パネル */
+  /* ── 余白（4の倍数。h は半段） ── */
+  --sp-0: 2px; --sp-1: 4px; --sp-1h: 6px; --sp-2: 8px; --sp-2h: 10px;
+  --sp-0h: 3px;               /* 文字とアイコンの間 */
+  --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+  --rail: 30px;               /* 返信の左の縦線の幅 */
+  /* ── 文字 ── */
+  --f-ui: "BIZ UDPGothic", "Noto Sans JP", sans-serif;    /* 本文：UD書体 */
+  --f-brand: "M PLUS 1", "BIZ UDPGothic", sans-serif;     /* ロゴ・見出し */
+  --f-code: "M PLUS 1 Code", "Noto Sans Mono", monospace; /* 操作名・タグ */
+  --fs-xs: 12px;      /* ラベル・出典 */
+  --fs-sm: 13px;      /* ボタン・チップ */
+  --fs-code: 13px;    /* 操作名・タグ（等幅） */
+  --fs-md: 14px;      /* 本文 */
+  --fs-lg: 15px;      /* 依頼の文 */
+  --fs-xl: 16px;      /* 見出し */
+  --fs-addr: 18px;    /* 住所の結果 */
+  --fs-brand: 20px;   /* ロゴ */
+  --fs-hello: 21px;   /* 最初の画面の見出し */
+  --fs-count: 24px;   /* 件数 */
+  --fs-caption: 20px; /* 絵コンテの字幕 */
+  --lh: 1.55; --lh-tight: 1.35;
+  /* ── 寸法 ── */
+  --panel-w: 476px; --head-h: 48px;
+  --h-chip: 28px; --h-btn: 32px; --h-row: 30px; --h-op: 30px; --h-tag: 22px; --h-ctl: 36px;
+}
+:root {
+  /* ── パネル表だけの色・寸法 ── */
+  --c-sheet: #E4E2DD;          /* 表の地色 */
+  --c-sheet-ink: #2A2D33;      /* 表の見出し */
+  --c-sheet-ink-2: #555A62;    /* 表の補足（地色の上で 5.6:1） */
+  --sh-sheet: 0 1px 0 rgba(27,30,35,.06), 0 8px 24px rgba(27,30,35,.10); /* パネルの箱 */
+  --mk: 21px;                  /* 地図の印の大きさ */
+  --row1: 46px; --row2: 592px; /* 段の上端 */
+  --box1: 500px; --box2: 374px;/* 段ごとのパネルの高さ */
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--c-sheet); }
+body { font-family: var(--f-ui); color: var(--c-ink); font-size: var(--fs-md); line-height: var(--lh);
+  line-break: strict; word-break: normal; overflow-wrap: anywhere; -webkit-font-smoothing: antialiased; }
+p { margin: 0; }
+svg { display: block; flex: none; }
+.code { font-family: var(--f-code); font-weight: 500; }
+.nw { white-space: nowrap; }
+.sheet { width: 1600px; height: 1000px; position: relative; overflow: hidden; }
+
+/* ── 表の見出し ── */
+.sh-head { position: absolute; left: 24px; right: 24px; top: 0; height: 44px; display: flex; align-items: center; gap: var(--sp-3); }
+.sh-head h1 { margin: 0; font-family: var(--f-brand); font-size: var(--fs-brand); font-weight: 800; color: var(--c-sheet-ink); letter-spacing: .04em; }
+.sh-head .sub { font-size: var(--fs-md); color: var(--c-sheet-ink-2); }
+.sh-head .note { margin-left: auto; font-size: var(--fs-xs); color: var(--c-story-ink); background: var(--c-story); border-radius: var(--r-xs); padding: var(--sp-0h) var(--sp-2); }
+
+/* ── パネル ── */
+.pn { position: absolute; }
+.pn-cap { margin: 0 0 var(--sp-1h); height: 22px; display: flex; align-items: center; gap: var(--sp-2); font-family: var(--f-brand); font-size: var(--fs-md); font-weight: 700; color: var(--c-sheet-ink); }
+.pn-cap .no { width: 22px; height: 22px; border-radius: var(--r-xs); background: var(--c-story); color: var(--c-story-ink); display: grid; place-items: center; font-size: var(--fs-xs); font-family: var(--f-code); }
+.pn-cap .s { font-family: var(--f-ui); font-weight: 400; font-size: var(--fs-xs); color: var(--c-sheet-ink-2); }
+.box { position: relative; overflow: hidden; border-radius: var(--r-lg); background: var(--c-thread); box-shadow: var(--sh-sheet); }
+.r1 { top: var(--row1); } .r1 .box { height: var(--box1); }
+.r2 { top: var(--row2); } .r2 .box { height: var(--box2); }
+.r2 .box.col { display: flex; flex-direction: column; } .r2 .box.col > .card { flex: 1; display: flex; flex-direction: column; } /* カードを箱の下まで伸ばす */
+.pad { padding: var(--sp-2h) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-1h); }
+.sep { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-xs); color: var(--c-ink-3); margin-top: var(--sp-1); }
+.sep::after { content: ""; flex: 1; border-top: 1px dashed var(--c-line-2); }
+
+/* ── 会話の部品（本画面と同じ） ── */
+.th-head { height: var(--head-h); flex: none; display: flex; align-items: center; gap: var(--sp-2h); padding: 0 var(--sp-4) 0 var(--sp-5); border-bottom: 1px solid var(--c-line); background: var(--c-surface); }
+.brand { font-family: var(--f-brand); font-weight: 800; font-size: var(--fs-brand); letter-spacing: .06em; }
+.mark { width: 30px; height: 30px; border-radius: var(--r-sm); background: var(--c-ink); color: var(--c-on-dark); display: grid; place-items: center; }
+.dot { fill: var(--c-mark-dot); }
+.out { margin-left: auto; height: var(--h-chip); display: inline-flex; align-items: center; gap: var(--sp-1h); font-size: var(--fs-xs); color: var(--c-ink-2);
+  padding: 0 var(--sp-2h); border: 1px solid var(--c-line); border-radius: var(--r-pill); background: var(--c-thread); white-space: nowrap; }
+.out .code { color: var(--c-ink); font-weight: 700; }
+.user { align-self: flex-end; max-width: 92%; }
+.bubble { background: var(--c-ink); color: var(--c-on-dark); border-radius: var(--r-bubble); padding: var(--sp-2) var(--sp-4); font-size: var(--fs-lg); line-height: 1.5; font-weight: 700; }
+.bubble u { text-decoration: underline dotted 2px; text-decoration-color: var(--c-accent-hl); text-underline-offset: 5px; }
+.reply { position: relative; padding-left: var(--rail); display: flex; flex-direction: column; gap: var(--sp-1h); }
+.reply::before { content: ""; position: absolute; left: 10px; top: 26px; bottom: 14px; width: 2px; background: var(--c-line-2); }
+.reply .av { position: absolute; left: 0; top: 0; width: 22px; height: 22px; border-radius: var(--r-xs); background: var(--c-ink); color: var(--c-on-dark); display: grid; place-items: center; }
+.who { font-size: var(--fs-xs); color: var(--c-ink-3); display: flex; align-items: center; gap: var(--sp-1h); min-height: 22px; }
+.who b { color: var(--c-ink); }
+.card { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-md); box-shadow: var(--sh-1); }
+.card.strong { border-color: var(--c-line-2); }
+.oph { display: flex; align-items: center; gap: var(--sp-2); height: 32px; padding: 0 var(--sp-2h) 0 var(--sp-1h); background: var(--c-sunken); border-bottom: 1px solid var(--c-line); border-radius: var(--r-md) var(--r-md) 0 0; font-size: var(--fs-sm); white-space: nowrap; }
+.fn { font-family: var(--f-code); font-weight: 700; font-size: var(--fs-code); height: var(--h-tag); display: inline-flex; align-items: center; padding: 0 var(--sp-1h); border-radius: var(--r-xs); background: var(--c-surface); color: var(--c-ink); border: 1px solid var(--c-line); }
+.oph .arrow { color: var(--c-ink-3); }
+.oph .why { margin-left: auto; font-size: var(--fs-xs); color: var(--c-ink-3); }
+.tag { font-family: var(--f-code); font-weight: 500; font-size: var(--fs-code); background: var(--c-sunken); border-radius: var(--r-xs); padding: 0 var(--sp-1); }
+.btn { height: var(--h-btn); border-radius: var(--r-sm); display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1h); font-size: var(--fs-sm); font-weight: 700;
+  border: 1px solid var(--c-line-2); background: var(--c-surface); color: var(--c-ink); white-space: nowrap; padding: 0 var(--sp-3); }
+.btn.pri { background: var(--c-accent); border-color: var(--c-accent); color: var(--c-on-dark); }
+.badge { display: inline-flex; align-items: center; gap: var(--sp-1); height: 24px; padding: 0 var(--sp-2); border-radius: var(--r-xs); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
+.badge.ink { background: var(--c-ink); color: var(--c-on-dark); }
+.badge.line { border: 1px solid var(--c-line-2); color: var(--c-ink-2); background: var(--c-surface); font-weight: 400; }
+.badge.unk { color: var(--c-unk); background: var(--c-unk-bg); border: 1px dashed var(--c-unk); }
+
+/* 地図の切り出し */
+.map { position: relative; overflow: hidden; background: var(--c-map-bg); }
+.map img { display: block; }
+.attr { position: absolute; left: var(--sp-1h); bottom: var(--sp-1h); right: var(--sp-1h); width: max-content; max-width: calc(100% - 12px); background: var(--c-glass); border-radius: var(--r-xs);
+  padding: var(--sp-0) var(--sp-2); font-size: var(--fs-xs); color: var(--c-ink-2); line-height: 1.45; box-shadow: var(--sh-1); }
+.attr b { color: var(--c-ink); }
+
+/* ── 1 最初の画面 ── */
+.p1 .box { display: flex; flex-direction: column; }
+.p1 .body { flex: 1; padding: var(--sp-4) var(--sp-5) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
+.hello { font-family: var(--f-brand); font-size: var(--fs-hello); font-weight: 800; line-height: 1.35; letter-spacing: .02em; }
+.hello-s { font-size: var(--fs-md); color: var(--c-ink-2); margin-top: calc(-1 * var(--sp-1)); }
+.lbl { font-size: var(--fs-xs); color: var(--c-ink-3); font-weight: 700; letter-spacing: .06em; }
+.ex { display: flex; align-items: center; gap: var(--sp-2h); min-height: 42px; padding: var(--sp-1h) var(--sp-3) var(--sp-1h) var(--sp-2h); background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-md); font-size: var(--fs-md); font-weight: 700; box-shadow: var(--sh-1); }
+.ex .op { flex: none; font-family: var(--f-code); font-size: var(--fs-xs); font-weight: 700; color: var(--c-ink-2); width: 28px; height: 24px; display: grid; place-items: center; border-radius: var(--r-xs); background: var(--c-sunken); }
+.ex .go { margin-left: auto; color: var(--c-ink-3); }
+.ghost { display: grid; gap: var(--sp-1); position: relative; padding-left: var(--sp-6); }
+.ghost::before { content: ""; position: absolute; left: 8px; top: 12px; bottom: 12px; border-left: 2px dashed var(--c-line-2); }
+.ghost div { position: relative; height: 28px; display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-3); border: 1.5px dashed var(--c-line-2); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--c-ink-2); }
+.ghost div::before { content: ""; position: absolute; left: -23px; top: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--c-thread); border: 2px solid var(--c-ink-3); }
+.ghost i { font-style: normal; color: var(--c-ink-3); font-size: var(--fs-xs); }
+.composer { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--c-line); background: var(--c-surface); }
+.input { height: 44px; border: 2px solid var(--c-accent); border-radius: var(--r-pill); display: flex; align-items: center; padding: 0 var(--sp-1) 0 var(--sp-4); font-size: var(--fs-lg); color: var(--c-ink-3);
+  box-shadow: 0 0 0 4px var(--c-accent-soft); }
+.input .caret { width: 2px; height: 20px; background: var(--c-ink); margin-right: var(--sp-1); }
+.input .send { margin-left: auto; width: 34px; height: 34px; border-radius: 50%; background: var(--c-ink); color: var(--c-on-dark); display: grid; place-items: center; }
+
+/* ── 2 住所 ── */
+.addr { padding: var(--sp-2) var(--sp-3) var(--sp-2h); display: grid; gap: var(--sp-1h); }
+.addr .a { font-family: var(--f-brand); font-size: var(--fs-addr); font-weight: 700; letter-spacing: .02em; }
+.addr .row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.addr .src { font-size: var(--fs-xs); color: var(--c-ink-2); }
+.ask { font-size: var(--fs-md); font-weight: 700; display: flex; align-items: center; gap: var(--sp-1h); }
+.ask .s { font-weight: 400; color: var(--c-ink-2); }
+.cand { display: grid; }
+.cand .c { display: flex; align-items: center; gap: var(--sp-2h); height: 32px; padding: 0 var(--sp-3) 0 var(--sp-2h); font-size: var(--fs-md); }
+.cand .c + .c { border-top: 1px solid var(--c-line); }
+.cand .n { width: 22px; height: 22px; border-radius: var(--r-xs); border: 1.5px solid var(--c-ink); font-family: var(--f-code); font-weight: 700; font-size: var(--fs-xs); display: grid; place-items: center; }
+.cand .k { color: var(--c-ink-3); }
+.cand .pick { margin-left: auto; font-size: var(--fs-xs); font-weight: 700; color: var(--c-accent); }
+
+/* ── 3 絞り込み ── */
+.fsum { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) var(--sp-3); }
+.fsum .t { font-family: var(--f-brand); font-size: var(--fs-xl); font-weight: 700; }
+.mkx { position: absolute; width: var(--mk); height: var(--mk); margin: calc(var(--mk) / -2) 0 0 calc(var(--mk) / -2); border-radius: 50%; background: var(--c-ink); color: var(--c-on-dark); border: 2px solid var(--c-surface);
+  display: grid; place-items: center; font-size: var(--fs-xs); font-weight: 700; line-height: 1; box-shadow: var(--sh-1); }
+.mkt { position: absolute; width: var(--mk); height: var(--mk); margin: calc(var(--mk) / -2) 0 0 calc(var(--mk) / -2); border-radius: var(--r-xs); background: var(--c-accent-deep); color: var(--c-on-dark); border: 2px solid var(--c-surface);
+  display: grid; place-items: center; box-shadow: var(--sh-1); }
+.mkx .cnt { position: absolute; right: -9px; top: -9px; min-width: 16px; height: 16px; border-radius: var(--r-pill); background: var(--c-surface); color: var(--c-ink); border: 1px solid var(--c-ink); font-size: var(--fs-xs); display: grid; place-items: center; padding: 0 var(--sp-0h); font-family: var(--f-code); }
+.flg { position: absolute; left: var(--sp-1h); top: var(--sp-1h); background: var(--c-glass); border-radius: var(--r-xs); padding: var(--sp-1) var(--sp-2); display: grid; gap: var(--sp-0h); font-size: var(--fs-xs); box-shadow: var(--sh-1); }
+.flg span { display: flex; align-items: center; gap: var(--sp-1h); }
+.flg .mkx, .flg .mkt { position: static; margin: 0; width: 18px; height: 18px; border-width: 0; font-size: var(--fs-xs); }
+.rangelbl { position: absolute; right: calc(450px - 264px); top: 4px; border: 1.5px dashed var(--c-accent-deep); border-right: 0; border-radius: var(--r-xs) 0 0 var(--r-xs); font-size: var(--fs-xs); font-weight: 700; color: var(--c-accent-deep); background: var(--c-glass); padding: 0 var(--sp-1h); border-radius: var(--r-xs); }
+.irow { display: flex; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-1) var(--sp-3); border-top: 1px solid var(--c-line); font-size: var(--fs-md); line-height: 1.5; }
+.irow p { flex: 1; }
+.irow .k { font-weight: 700; }
+.tgl { display: flex; align-items: center; gap: var(--sp-1h); font-size: var(--fs-xs); color: var(--c-ink-2); margin-top: var(--sp-1); }
+.tgl .sw { width: 32px; height: 18px; border-radius: var(--r-pill); background: var(--c-surface); border: 1.5px solid var(--c-ink-3); position: relative; }
+.tgl .sw::after { content: ""; position: absolute; left: 2px; top: 2px; width: 11px; height: 11px; border-radius: 50%; background: var(--c-ink-3); }
+.tgl .st { font-weight: 700; color: var(--c-ink); }
+.zero { display: flex; align-items: center; gap: var(--sp-2h); height: 40px; padding: 0 var(--sp-3); border-style: dashed; border-color: var(--c-line-2); }
+.zero .q { width: 22px; height: 22px; border-radius: 50%; border: 1.5px dashed var(--c-ink-2); color: var(--c-ink-2); display: grid; place-items: center; font-weight: 700; font-size: var(--fs-xs); }
+.zero b { font-weight: 700; }
+
+/* ── 4 書き出し・共有 ── */
+.p4 .box { display: flex; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); }
+.dlg { width: 460px; flex: none; display: flex; flex-direction: column; box-shadow: var(--sh-2); }
+.dlg-h { display: flex; align-items: center; gap: var(--sp-2h); height: 46px; padding: 0 var(--sp-2) 0 var(--sp-3); border-bottom: 1px solid var(--c-line); }
+.dlg-h .t { font-family: var(--f-brand); font-size: var(--fs-xl); font-weight: 700; }
+.dlg-h .x { margin-left: auto; font-size: var(--fs-xs); color: var(--c-ink-2); font-weight: 700; }
+.dlg-b { display: grid; gap: var(--sp-2h); padding: var(--sp-2h) var(--sp-3); }
+.pv { width: 436px; border: 1px solid var(--c-line-2); background: var(--c-surface); box-shadow: var(--sh-1); }
+.pv .burn { padding: var(--sp-1h) var(--sp-2); font-size: var(--fs-xs); line-height: 1.45; color: var(--c-ink); border-top: 1px solid var(--c-line); background: var(--c-surface); }
+.opts { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-sm); white-space: nowrap; }
+.opts .ck { display: flex; align-items: center; gap: var(--sp-1); }
+.opts .bx { flex: none; width: 16px; height: 16px; border-radius: var(--r-2xs); background: var(--c-ink); color: var(--c-on-dark); display: grid; place-items: center; }
+.opts .bx.lock { background: var(--c-sunken); color: var(--c-ink-2); }
+.opts .s { font-size: var(--fs-xs); color: var(--c-ink-3); }
+.share { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2h) var(--sp-3); border-top: 1px solid var(--c-line); margin-top: auto; }
+.share .url { flex: 1; height: 32px; display: flex; align-items: center; padding: 0 var(--sp-2h); border: 1px solid var(--c-line-2); border-radius: var(--r-sm); background: var(--c-thread); font-family: var(--f-code); font-size: var(--fs-code); color: var(--c-ink); white-space: nowrap; }
+.view { flex: 1; display: flex; flex-direction: column; gap: var(--sp-1h); }
+.view .cap2 { font-size: var(--fs-xs); color: var(--c-ink-3); font-weight: 700; }
+.win { border-radius: var(--r-md); overflow: hidden; border: 1px solid var(--c-line-2); background: var(--c-surface); box-shadow: var(--sh-2); }
+.win .bar { height: 30px; display: flex; align-items: center; gap: var(--sp-1h); padding: 0 var(--sp-2); background: var(--c-sunken); border-bottom: 1px solid var(--c-line); }
+.win .dots { display: flex; gap: var(--sp-1); } .win .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--c-line-2); }
+.win .u { flex: 1; height: 20px; border-radius: var(--r-xs); background: var(--c-surface); font-family: var(--f-code); font-size: var(--fs-xs); display: flex; align-items: center; padding: 0 var(--sp-1h); color: var(--c-ink); white-space: nowrap; }
+.win .ah { height: 34px; display: flex; align-items: center; gap: var(--sp-1h); padding: 0 var(--sp-2h); border-bottom: 1px solid var(--c-line); font-size: var(--fs-xs); color: var(--c-ink-2); }
+.win .ah .brand { font-size: var(--fs-lg); color: var(--c-ink); }
+.win .ah .mark { width: 22px; height: 22px; }
+.same { position: absolute; left: var(--sp-1h); top: var(--sp-1h); display: inline-flex; align-items: center; gap: var(--sp-1); height: 24px; padding: 0 var(--sp-2); border-radius: var(--r-xs); background: var(--c-ink); color: var(--c-on-dark); font-size: var(--fs-xs); font-weight: 700; }
+
+/* ── 5 OSMノート ── */
+.note-c { margin: var(--sp-3) var(--sp-4); }
+.frow { display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: var(--sp-2); padding: var(--sp-1h) var(--sp-3); border-top: 1px solid var(--c-line); }
+.frow:first-of-type { border-top: 0; }
+.frow .l { font-size: var(--fs-xs); font-weight: 700; color: var(--c-ink-2); }
+.fld { min-height: 32px; display: flex; align-items: center; gap: var(--sp-1h); padding: 0 var(--sp-2h); border: 1px solid var(--c-line-2); border-radius: var(--r-sm); background: var(--c-surface); font-size: var(--fs-md); }
+.fld .id { margin-left: auto; font-size: var(--fs-xs); color: var(--c-ink-2); display: inline-flex; align-items: center; gap: var(--sp-0h); }
+.radios { display: grid; gap: var(--sp-1h); }
+.rd { display: flex; align-items: center; gap: var(--sp-2); min-height: 32px; padding: 0 var(--sp-2h); border: 1px solid var(--c-line-2); border-radius: var(--r-sm); font-size: var(--fs-md); background: var(--c-surface); }
+.rd.on { border: 2px solid var(--c-ink); font-weight: 700; }
+.rd .o { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--c-ink-3); flex: none; }
+.rd.on .o { border: 5px solid var(--c-ink); }
+.rd .date { margin-left: auto; display: inline-flex; align-items: center; gap: var(--sp-1h); font-size: var(--fs-xs); font-weight: 700; color: var(--c-ink-2); }
+.rd .date .dv { height: 24px; display: inline-flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-1h) 0 var(--sp-2); border: 1px solid var(--c-line-2); border-radius: var(--r-xs); background: var(--c-thread); font-family: var(--f-code); font-weight: 400; color: var(--c-ink-3); }
+.warn { display: flex; align-items: center; gap: var(--sp-2); margin: 0 var(--sp-3) var(--sp-2h); padding: var(--sp-1h) var(--sp-2h); border-radius: var(--r-sm); background: var(--c-accent-soft); border: 1px solid var(--c-accent-line); font-size: var(--fs-sm); font-weight: 700; color: var(--c-accent-deep); }
+.final { margin-top: auto; display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1h) var(--sp-2); padding: var(--sp-3); border-top: 1px solid var(--c-line); font-size: var(--fs-sm);
+  background: var(--c-thread); border-radius: 0 0 var(--r-md) var(--r-md); } /* 最後の手順はカードの足もとに固定 */
+.final .arrow { color: var(--c-ink-3); font-weight: 700; }
+.final .s { color: var(--c-ink-2); font-size: var(--fs-xs); }
+
+/* ── 6 外部通信 ── */
+.net { margin: var(--sp-3) var(--sp-4); }
+.net-h { display: flex; align-items: center; gap: var(--sp-1h); padding: var(--sp-2h) var(--sp-3); border-bottom: 1px solid var(--c-line); font-family: var(--f-brand); font-weight: 700; font-size: var(--fs-md); }
+.nrow { flex: 1; display: flex; align-items: center; gap: var(--sp-2h); padding: var(--sp-3); border-bottom: 1px solid var(--c-line); } /* 行で箱の高さを分ける */
+.nrow .h { font-size: var(--fs-md); font-weight: 700; }
+.nrow .h.code { font-size: var(--fs-code); }
+.nrow .n { margin-left: auto; font-family: var(--f-brand); font-weight: 800; font-size: var(--fs-count); line-height: 1; }
+.nrow .n small { font-size: var(--fs-sm); font-weight: 700; margin-left: var(--sp-0); }
+.nrow .why2 { display: block; font-size: var(--fs-xs); color: var(--c-ink-3); margin-top: var(--sp-0); }
+.nrow .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.nrow .dot.on { background: var(--c-accent-map); }
+.nrow .dot.off { border: 2px solid var(--c-ink-3); }
+.nrow.zero0 .n { color: var(--c-ink-2); }
+.net-f { margin-top: auto; padding: var(--sp-2h) var(--sp-3); font-size: var(--fs-xs); color: var(--c-ink-2); line-height: 1.5; background: var(--c-thread); border-radius: 0 0 var(--r-md) var(--r-md); }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <header class="sh-head">
+    <h1>案D：会話型</h1>
+    <span class="sub">ほかの操作パネル。本画面（(c) ルートの結果）と同じ部品・同じ色で作る</span>
+    <span class="note">絵コンテ（イメージ）・画面と数値は架空</span>
+  </header>
+
+  <!-- 1 最初の画面 -->
+  <section class="pn r1 p1" style="left:24px; width:476px">
+    <h2 class="pn-cap"><span class="no">1</span>最初の画面（入力前）<span class="s">右の会話パネル。左は地図</span></h2>
+    <div class="box">
+      <div class="th-head">
+        <span class="mark"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5.5h12M3 10h6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="13.2" cy="10" r="2.3" class="dot"/><path d="M3 14.5h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55"/></svg></span>
+        <span class="brand">ことづて</span>
+        <span class="out"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1.5l4.5 1.8v3.4c0 2.8-1.9 4.8-4.5 5.8-2.6-1-4.5-3-4.5-5.8V3.3z"/></svg>外部通信：<span class="code">api.anthropic.com</span> のみ</span>
+      </div>
+      <div class="body">
+        <div>
+          <p class="hello">頼みごとは、日本語の1文で。</p>
+          <p class="hello-s">返事には毎回、解釈・実行した操作・結果が順に出ます。</p>
+        </div>
+        <p class="lbl">例</p>
+        <div class="ex"><span class="op">(a)</span>訪問先の住所「港区芝公園4-2-8」を地図に出して<svg class="go" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 10l6-6M5 4h5v5"/></svg></div>
+        <div class="ex"><span class="op">(b)</span>この範囲の踏切とトンネルを出して<svg class="go" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 10l6-6M5 4h5v5"/></svg></div>
+        <div class="ex"><span class="op">(d)</span>資料用の画像と、共有リンクを作って<svg class="go" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 10l6-6M5 4h5v5"/></svg></div>
+        <p class="lbl" style="margin-top:var(--sp-1)">返事の形</p>
+        <div class="ghost">
+          <div>解釈<i>言葉を、どのタグ・条件として読んだか</i></div>
+          <div>操作ログ<i>実行した型つきの操作</i></div>
+          <div>結果<i>合否表・件数・住所など</i></div>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="input"><span class="caret"></span>日本語で頼んでください<span class="send"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M7 12V2.5M3 6.5l4-4 4 4"/></svg></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 住所 -->
+  <section class="pn r1" style="left:524px; width:514px">
+    <h2 class="pn-cap"><span class="no">2</span>(a) 住所の結果<span class="s">住所は ABR、名前は OSM の候補から選ぶ</span></h2>
+    <div class="box pad">
+      <div class="user"><div class="bubble">訪問先の住所<u>「港区芝公園4-2-8」</u>を地図に出して</div></div>
+      <div class="reply">
+        <span class="av"><svg width="12" height="12" viewBox="0 0 18 18" fill="none"><path d="M3 5.5h12M3 10h6.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="13.2" cy="10" r="2.8" class="dot"/></svg></span>
+        <div class="card strong">
+          <div class="oph"><span class="fn">geocode_address</span>港区芝公園4-2-8<span class="arrow">→</span><b>住居番号の位置</b><span class="why">「住所」から</span></div>
+          <div class="map"><img src="crop-d-addr.png" width="450" height="132" alt="">
+            <div class="attr"><span class="nw"><b>© OpenStreetMap contributors</b> ｜ Protomaps</span><br><span class="nw">住所：アドレス・ベース・レジストリ</span><br><span class="nw">データ時点：OSM 2026-11-03／地図 2026-11-04</span></div>
+          </div>
+          <div class="addr">
+            <p class="a">東京都港区芝公園四丁目2番8号</p>
+            <div class="row">
+              <span class="badge ink"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="4.3"/><circle cx="6" cy="6" r="1.4" fill="currentColor"/></svg>座標の精度：住居番号の位置</span>
+              <span class="src">出典：アドレス・ベース・レジストリ</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="sep">名前で探したとき（聞き返し）</p>
+      <div class="reply">
+        <span class="av"><svg width="12" height="12" viewBox="0 0 18 18" fill="none"><path d="M3 5.5h12M3 10h6.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="13.2" cy="10" r="2.8" class="dot"/></svg></span>
+        <p class="ask">どれですか？<span class="s">（候補はOSMが返したものだけ）</span></p>
+        <div class="card strong cand">
+          <div class="oph"><span class="fn">search_place</span>「東京タワー」の候補（OSM）</div>
+          <div class="c"><span class="n">1</span><span>東京タワー<span class="k">（観光名所）</span></span><span class="pick">これにする</span></div>
+          <div class="c"><span class="n">2</span><span>東京タワー前<span class="k">（バス停）</span></span></div>
+          <div class="c"><span class="n">3</span><span>東京タワー通り<span class="k">（道路）</span></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 絞り込み -->
+  <section class="pn r1" style="left:1062px; width:514px">
+    <h2 class="pn-cap"><span class="no">3</span>(b) 地物の絞り込み<span class="s">解釈を出し、含める範囲を切り替えられる</span></h2>
+    <div class="box pad">
+      <div class="user"><div class="bubble">この範囲の<u>踏切</u>と<u>トンネル</u>を出して</div></div>
+      <div class="reply">
+        <span class="av"><svg width="12" height="12" viewBox="0 0 18 18" fill="none"><path d="M3 5.5h12M3 10h6.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="13.2" cy="10" r="2.8" class="dot"/></svg></span>
+        <div class="card strong">
+          <div class="oph"><span class="fn">find_features</span>踏切・トンネル（この範囲）<span class="why">「踏切とトンネル」から</span></div>
+          <div class="fsum"><span class="t">踏切 4件・トンネル 3件（OSM上）</span></div>
+          <div class="map"><img src="crop-d-filter.png" width="450" height="204" alt="">
+            <span class="rangelbl">この範囲</span>
+            <span class="mkx" style="left:350px; top:144px">踏</span>
+            <span class="mkx" style="left:341px; top:64px">踏</span>
+            <span class="mkx" style="left:336px; top:21px">踏<span class="cnt">2</span></span>
+            <span class="mkt" style="left:360px; top:38px"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 10.5V6a4 4 0 0 1 8 0v4.5M1 10.5h10"/></svg></span>
+            <span class="mkt" style="left:317px; top:44px"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 10.5V6a4 4 0 0 1 8 0v4.5M1 10.5h10"/></svg></span>
+            <span class="mkt" style="left:296px; top:54px"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 10.5V6a4 4 0 0 1 8 0v4.5M1 10.5h10"/></svg></span>
+            <div class="flg">
+              <span><span class="mkx">踏</span>踏切</span>
+              <span><span class="mkt"><svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 10.5V6a4 4 0 0 1 8 0v4.5M1 10.5h10"/></svg></span>トンネル</span>
+            </div>
+            <div class="attr"><b>© OpenStreetMap contributors</b> ｜ Protomaps<br><span class="nw">データ時点：OSM 2026-11-03／</span><span class="nw">地図 2026-11-04</span></div>
+          </div>
+          <div class="irow">
+            <p><span class="k">解釈：</span>踏切＝<span class="tag">railway=level_crossing</span><span class="nw">（歩行者専用の踏切は含まない）</span>
+              <span class="tgl"><span class="sw"></span>歩行者専用の踏切も含める<span class="st">オフ</span></span></p>
+          </div>
+          <div class="irow">
+            <p>トンネル＝道路の <span class="tag">tunnel=yes</span>（建物の通り抜けは除く）</p>
+          </div>
+          <div class="irow" style="padding-bottom:var(--sp-2)">
+            <span class="badge unk"><b>?</b>車線数タグの入力率 38%（この範囲）</span>
+          </div>
+        </div>
+        <div class="card zero"><span class="q">0</span><span><b>OSM上で0件</b>（現地にないとは限らない）</span><span style="margin-left:auto" class="who">0件のときの出し方</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 書き出しと共有 -->
+  <section class="pn r2 p4" style="left:24px; width:760px">
+    <h2 class="pn-cap"><span class="no">4</span>(d) 書き出しと共有<span class="s">出典とデータ時点は画像に焼き込み、外せない</span></h2>
+    <div class="box">
+      <div class="card dlg">
+        <div class="dlg-h"><span class="t">画像を書き出す</span><span class="fn">export_png</span><span class="x">閉じる</span><span class="btn pri"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 1.5v7.5M3.8 6L7 9.2 10.2 6M2 12.5h10"/></svg>PNGで保存</span></div>
+        <div class="dlg-b">
+          <div class="pv">
+            <img src="crop-d-export.png" width="434" height="132" alt="" style="display:block">
+            <p class="burn">© OpenStreetMap contributors<br><span class="nw">（openstreetmap.org/copyright）／ Protomaps ／ 経路：Valhalla ／</span><br><span class="nw">データ時点：OSM 2026-11-03／地図 2026-11-04</span></p>
+          </div>
+          <div class="opts">
+            <span class="lbl">入るもの</span>
+            <span class="ck"><span class="bx"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 5.2l2 2 4-4.4"/></svg></span>コース</span>
+            <span class="ck"><span class="bx"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 5.2l2 2 4-4.4"/></svg></span>ピン</span>
+            <span class="ck"><span class="bx lock"><svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6.2" width="8" height="6" rx="1.2"/><path d="M4.8 6.2V4.6a2.2 2.2 0 0 1 4.4 0v1.6"/></svg></span>出典・データ時点<span class="s">（外せません）</span></span>
+          </div>
+        </div>
+        <div class="share">
+          <span class="fn">make_share_link</span>
+          <span class="url">https://…/s/k7Q2…</span>
+          <span class="btn">コピー</span>
+        </div>
+      </div>
+      <div class="view">
+        <span class="cap2">共有リンクを別のブラウザで開いたところ</span>
+        <div class="win">
+          <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="u">https://…/s/k7Q2…</span></div>
+          <div class="ah"><span class="mark"><svg width="14" height="14" viewBox="0 0 18 18" fill="none"><path d="M3 5.5h12M3 10h6.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="13.2" cy="10" r="2.5" class="dot"/></svg></span><span class="brand">ことづて</span><span style="margin-left:auto">共有リンク（見るだけ）</span></div>
+          <div class="map"><img src="crop-d-share.png" width="254" height="248" alt="">
+            <span class="same"><svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 5.2l2 2 4-4.4"/></svg>同じ表示範囲・コース・ピン</span>
+            <div class="attr"><b>© OpenStreetMap contributors</b><br>Protomaps ｜ 経路：Valhalla<br><span class="nw">データ時点：OSM 2026-11-03／</span><br>地図 2026-11-04</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 OSMノート -->
+  <section class="pn r2" style="left:808px; width:432px">
+    <h2 class="pn-cap"><span class="no">5</span>OSMノートの下書き<span class="s">アプリは投稿しない。下書きを作るだけ</span></h2>
+    <div class="box col">
+      <div class="card strong note-c">
+        <div class="oph"><span class="fn">draft_osm_note</span>下書き</div>
+        <div class="frow"><span class="l">何が</span><span class="fld">右折禁止の規制がOSMにない可能性</span></div>
+        <div class="frow"><span class="l">どこで</span><span class="fld">交差点（OSM要素IDを添付）<span class="id"><svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 8a2.6 2.6 0 0 0 3.7 0l2-2a2.6 2.6 0 0 0-3.7-3.7l-.8.8M8 6a2.6 2.6 0 0 0-3.7 0l-2 2a2.6 2.6 0 0 0 3.7 3.7l.8-.8"/></svg>添付</span></span></div>
+        <div class="frow" style="align-items:start"><span class="l" style="padding-top:8px">確認方法</span>
+          <div class="radios">
+            <span class="rd on"><span class="o"></span>現地で見た<span class="date">見た日<span class="dv">年 / 月 / 日<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="9" height="8" rx="1.2"/><path d="M1.5 5h9M4 1.2v2.4M8 1.2v2.4"/></svg></span></span></span>
+            <span class="rd"><span class="o"></span>自分で撮った写真</span>
+          </div>
+        </div>
+        <div class="warn"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 1.8l6.5 11.6h-13z"/><path d="M8 6.2v3.4M8 11.3v.4"/></svg>社名・「試走」などの語は入れない</div>
+        <div class="final">
+          <span class="btn pri">下書きをコピー</span><span class="arrow">→</span><span class="btn">OSMのノート画面へ</span><span class="s">（投稿は現地を見た本人）</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 外部通信 -->
+  <section class="pn r2" style="left:1264px; width:312px">
+    <h2 class="pn-cap"><span class="no">6</span>外部通信の記録（この操作の間）</h2>
+    <div class="box col">
+      <div class="card strong net">
+        <div class="net-h"><svg width="15" height="15" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1.5l4.5 1.8v3.4c0 2.8-1.9 4.8-4.5 5.8-2.6-1-4.5-3-4.5-5.8V3.3z"/></svg>外に出た通信</div>
+        <div class="nrow"><span class="dot on"></span><span><span class="h code">api.anthropic.com</span><span class="why2">依頼の文と、操作の結果</span></span><span class="n">3<small>件</small></span></div>
+        <div class="nrow zero0"><span class="dot off"></span><span><span class="h">Google のサービス</span><span class="why2">地図・検索・ルート・住所は自前</span></span><span class="n">0<small>件</small></span></div>
+        <div class="nrow zero0"><span class="dot off"></span><span><span class="h">OSM の公開サーバ</span><span class="why2">ノートも投稿しない（下書きだけ）</span></span><span class="n">0<small>件</small></span></div>
+        <p class="net-f">アプリのサーバが外へ出した通信を、<span class="nw">通信先ごとに数える。</span></p>
+      </div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

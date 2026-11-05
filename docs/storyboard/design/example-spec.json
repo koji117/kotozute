@@ -1,0 +1,11 @@
+{ "shots": [ {
+  "out": "design/example-map.png", "width": 1280, "height": 640, "dpr": 2,
+  "center": [139.742, 35.644], "zoom": 14, "flavor": "light", "flavorOverrides": {},
+  "fit": { "bounds": [[139.7380, 35.6280], [139.7460, 35.6590]], "padding": { "top": 60, "right": 60, "bottom": 60, "left": 460 } },
+  "sources": { "route": "__ROUTE__" },
+  "layers": [
+    { "id": "route-casing", "type": "line", "source": "route", "paint": { "line-color": "#ffffff", "line-width": 9 }, "layout": { "line-join": "round", "line-cap": "round" } },
+    { "id": "route", "type": "line", "source": "route", "paint": { "line-color": "#0C6680", "line-width": 5.5 }, "layout": { "line-join": "round", "line-cap": "round" } }
+  ],
+  "project": { "start": [139.7387, 35.6285], "goal": [139.7454, 35.6586] }
+} ] }

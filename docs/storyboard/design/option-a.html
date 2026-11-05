@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>ことづて 案A 地図アプリらしい操作感</title>
+<!-- 絵コンテ用。アプリでは同じフォントを自前で配信する -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Zen+Maru+Gothic:wght@700&display=block">
+<style>
+:root{
+  /* 色：藍（主色）と朱（到着・ブランドの差し色）。地図は温かい紙色 */
+  --ai-800:#143A55;      /* 藍・濃：淡い藍の上の文字 */
+  --ai-600:#1F5679;      /* 藍：主ボタン、ルート、点灯した約束 */
+  --ai-200:#B9D3E6;      /* 藍・明：藍の面の上の強調文字 */
+  --ai-100:#E3ECF3;      /* 藍・淡：解釈、選択中 */
+  --ai-50:#F1F6FA;       /* 藍・ごく淡：ホバー、地の差 */
+  --shu-600:#C8461E;     /* 朱：到着、ロゴの点 */
+  --shu-50:#FBEDE7;      /* 朱・淡：到着タグ */
+  --ink:#17222C;         /* 文字・主 */
+  --ink-2:#44505C;       /* 文字・副 */
+  --ink-3:#5C6773;       /* 文字・補助（12px でも AA） */
+  --surface:#FFFFFF;     /* カード */
+  --surface-2:#F5F6F3;   /* カードの中の沈んだ面 */
+  --line:#E2E5E1;        /* 区切り線 */
+  --line-2:#CDD2CC;      /* 入力枠、ボタン枠 */
+  --map-paper:#F3F1EC;   /* 地図の地（読み込み前の背景も同じ色） */
+  --ok-700:#1C6B45;  --ok-50:#E3F2E9;    /* 合格：塗りの丸に ✓ */
+  --ng-700:#A4262C;  --ng-50:#F9E4E4;    /* 不合格：四角に ✕ */
+  --unk-700:#734600; --unk-50:#FCF1DC; --unk-line:#C98F1E; /* 判定不能：点線の丸に ？ */
+  --white:#FFFFFF;       /* 藍・朱・常磐の面の上の文字と記号 */
+  --shu-700:#9E3412;     /* 朱・濃：到着タグの文字 */
+  --shu-300:#F0825A;     /* 朱・明：ロゴの点（藍の面の上） */
+  --line-3:#9AA3AC;      /* 未達の約束の点線の丸 */
+  --ctrl-mute:#B3BAC1;   /* 方位の南側 */
+  --unk-halo:#E9AE45;    /* 地図の判定不能区間の縁（凡例の見本も同じ） */
+  --glass:rgba(255,255,255,.94);  /* 地図の上の出典の地 */
+  --code-bg:rgba(255,255,255,.75);/* 解釈の中のタグ */
+  --cap-bg:#121B24;      /* 絵コンテの字幕帯 */
+  --cap-ink:#C5CED6;     /* 字幕帯の補助文字 */
+  --cap-line:#3A4754;    /* 字幕帯の枠 */
+  /* 地図のルート（spec-a.json の線の色と同じ。白い縁、藍の線、トンネルは白の破線） */
+  --route:var(--ai-600); --route-casing:var(--white);
+  /* 角丸（2xs：タグとコード、xs：小さな札、sm：ボタン、md：印と操作、lg：カード） */
+  --r-2xs:4px; --r-xs:6px; --r-sm:8px; --r-md:12px; --r-lg:16px; --r-pill:999px;
+  /* 影：地図の上に浮く面 */
+  --sh-float:0 1px 2px rgba(16,32,48,.10), 0 6px 20px rgba(16,32,48,.12);
+  --sh-raise:0 1px 2px rgba(16,32,48,.14), 0 10px 28px rgba(16,32,48,.18);
+  --sh-hair:0 1px 2px rgba(16,32,48,.12);  /* 出典の地 */
+  --sh-seal:0 0 0 3px var(--ai-600),0 0 0 4.5px rgba(255,255,255,.7); /* 印の二重の輪 */
+  --sh-label:0 1px 2px rgba(16,32,48,.18), 0 3px 8px rgba(16,32,48,.14);
+  /* 余白（4 の倍数） */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px;
+  --panel-w:448px;       /* 左の検索と結果の幅 */
+  --gap-card:8px;        /* 左の2枚のカードの間 */
+  --pad-card:16px;       /* カードの内側の余白 */
+  --edge:16px;           /* 画面端からの余白 */
+  /* 文字 */
+  --f-ui:"IBM Plex Sans JP","Hiragino Sans",sans-serif;
+  --f-brand:"Zen Maru Gothic","IBM Plex Sans JP",sans-serif;
+  --f-mono:"IBM Plex Mono","IBM Plex Sans JP",ui-monospace,monospace;
+  --fs-label:12px;       /* 補助ラベル、ログ、出典 */
+  --fs-small:13px;       /* チップ、副ボタン */
+  --fs-body:14px;        /* 本文 */
+  --fs-input:15px;       /* 依頼文、表の条件 */
+  --fs-title:17px;       /* カードの見出し */
+  --fs-code:14px;        /* 解釈の中のタグ（本文と同じ大きさ） */
+  --fs-brand:18px;       /* ワードマーク */
+  --fs-seal:19px;        /* 印の数字 */
+  --fs-caption:22px;     /* 字幕 */
+  --lh:1.5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:720px;overflow:hidden}
+body{background:var(--cap-bg);color:var(--ink);font-family:var(--f-ui);font-size:var(--fs-body);line-height:var(--lh);line-break:strict;word-break:auto-phrase;-webkit-font-smoothing:antialiased;font-feature-settings:"palt"}
+.abs{position:absolute}
+.nw{white-space:nowrap}
+svg{display:block}
+
+/* ===== 地図（主役） ===== */
+.app{position:absolute;left:0;top:0;width:1280px;height:640px;overflow:hidden;background:var(--map-paper) url(map-a.png) 0 0/1280px 640px no-repeat}
+
+/* ===== 左：検索 ===== */
+.left{left:var(--edge);top:var(--edge);width:var(--panel-w);display:flex;flex-direction:column;gap:var(--gap-card)}
+.search{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--sh-raise);padding:14px var(--pad-card) var(--pad-card)}
+.head{display:flex;align-items:center;gap:var(--sp-2);height:28px}
+.wordmark{font-family:var(--f-brand);font-weight:700;font-size:var(--fs-brand);letter-spacing:.06em;color:var(--ink)}
+.chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:var(--r-pill);font-size:var(--fs-small);font-weight:500;white-space:nowrap}
+.chip-scope{margin-left:auto;background:var(--surface-2);color:var(--ink-2)}
+.query{margin-top:10px;display:flex;gap:var(--sp-2);align-items:flex-start;border:1.5px solid var(--ai-600);border-radius:var(--r-md);padding:9px 8px 9px 12px;background:var(--surface)}
+.query p{flex:1;font-feature-settings:normal;font-size:var(--fs-input);line-height:1.5;font-weight:500;color:var(--ink)}
+.send{flex:none;width:32px;height:32px;border-radius:var(--r-sm);background:var(--ai-600);display:grid;place-items:center;margin-top:3px}
+.interp{display:flex;margin-top:var(--sp-2);background:var(--ai-100);border-radius:var(--r-sm);padding:8px 12px;color:var(--ai-800);font-size:var(--fs-body);line-height:1.5}
+.interp b{flex:none;margin-right:2px}
+.interp span{white-space:nowrap}
+.interp b{font-weight:700}
+code{font-family:var(--f-mono);font-size:var(--fs-code);background:var(--code-bg);padding:0 4px;border-radius:var(--r-2xs)}
+
+/* ===== 左：結果カード ===== */
+.result{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--sh-float);padding:14px var(--pad-card) 12px}
+.rhead{display:flex;align-items:center;gap:var(--sp-2);height:28px}
+.rhead h2{font-size:var(--fs-title);font-weight:700;letter-spacing:.02em}
+.trip{display:flex;align-items:center;gap:5px;color:var(--ink-2);font-size:var(--fs-small);font-weight:500;white-space:nowrap}
+.trip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.trip .s{border:2.5px solid var(--ai-600);background:var(--white)}
+.trip .g{background:var(--shu-600)}
+.overall{margin-left:auto;display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 12px 0 8px;border-radius:var(--r-pill);background:var(--ok-700);color:var(--white);font-weight:700;font-size:var(--fs-body)}
+
+.checks{list-style:none;margin-top:var(--sp-3);border-top:1px solid var(--line)}
+.checks li{display:grid;grid-template-columns:1fr auto 104px;align-items:center;gap:var(--sp-3);height:38px;border-bottom:1px solid var(--line);padding:0 2px}
+.cond{display:flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-input);font-weight:500;white-space:nowrap}
+.val{font-size:var(--fs-body);color:var(--ink-2);white-space:nowrap;font-feature-settings:"tnum"}
+.checks li.is-unk{background:linear-gradient(90deg,var(--unk-50),transparent 80%)}
+.checks li.is-unk .val{color:var(--unk-700);font-weight:500}
+/* 判定バッジ：色だけでなく形と記号でも分ける */
+.vd{justify-self:end;display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px 0 6px;border-radius:var(--r-pill);font-size:var(--fs-small);font-weight:700;white-space:nowrap}
+.vd-ok{background:var(--ok-50);color:var(--ok-700)}
+.vd-ng{background:var(--ng-50);color:var(--ng-700);border-radius:var(--r-xs)}
+.vd-unk{background:var(--unk-50);color:var(--unk-700);border:1.5px dashed var(--unk-line);padding-left:5px}
+.ic{width:16px;height:16px;flex:none}
+/* 地図の描き方の見本（表が凡例を兼ねる） */
+.sw{display:inline-block;position:relative;width:26px;height:12px;flex:none}
+.sw::before{content:"";position:absolute;left:0;right:0;top:3px;height:6px;border-radius:3px;background:var(--route);box-shadow:0 0 0 1.5px var(--route-casing)}
+.sw-tunnel::after{content:"";position:absolute;left:3px;right:3px;top:5px;border-top:2px dashed var(--white)}
+.sw-unk{height:16px}
+.sw-unk::before{top:5px}
+.sw-unk::after{content:"";position:absolute;left:0;right:0;top:1px;height:14px;z-index:-1;background:var(--unk-halo);border-radius:2px}
+.sw-unk{z-index:0;isolation:isolate}
+
+.legend{display:flex;align-items:center;gap:var(--sp-3);margin-top:var(--sp-2);font-size:var(--fs-label);color:var(--ink-3)}
+.legend .vd{height:20px;font-size:var(--fs-label);padding:0;background:none;border:0;color:var(--ink-3);font-weight:500}
+.legend .vd + .vd{margin-left:4px}
+.legend .ic{width:14px;height:14px}
+
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2);margin-top:var(--sp-3)}
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;height:36px;border-radius:var(--r-sm);font-size:var(--fs-body);font-weight:500;white-space:nowrap;border:1.5px solid var(--line-2);background:var(--surface);color:var(--ink)}
+.btn-primary{background:var(--ai-600);border-color:var(--ai-600);color:var(--white);font-weight:700}
+.btn .sub{color:var(--ink-3);font-weight:500}
+
+.log{margin-top:var(--sp-3);padding-top:var(--sp-2);border-top:1px solid var(--line)}
+.log-h{display:flex;align-items:center;gap:6px;font-size:var(--fs-label);font-weight:700;color:var(--ink-3);letter-spacing:.04em}
+.log-line{margin-top:3px;font-family:var(--f-mono);font-size:var(--fs-label);color:var(--ink-2);white-space:nowrap;letter-spacing:-.01em}
+.log-line b{color:var(--ai-600);font-weight:500}
+.log-line .ok{color:var(--ok-700);font-weight:500}
+
+/* ===== 右上：約束 ===== */
+.promises{right:var(--edge);top:var(--edge);display:flex;align-items:center;gap:2px;height:40px;padding:0 6px 0 14px;background:var(--surface);border-radius:var(--r-pill);box-shadow:var(--sh-float)}
+.promises .lbl{font-size:var(--fs-label);font-weight:700;color:var(--ink-3);letter-spacing:.12em;margin-right:6px}
+.pr{display:flex;align-items:center;gap:6px;height:30px;padding:0 11px 0 5px;border-radius:var(--r-pill);font-size:var(--fs-small);font-weight:500;color:var(--ink-3);white-space:nowrap}
+.pr .n{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:var(--fs-label);font-weight:700;border:1.5px dashed var(--line-3);color:var(--ink-3);font-feature-settings:"tnum"}
+.pr.lit{color:var(--ai-800);font-weight:700;background:var(--ai-100)}
+.pr.lit .n{border:0;background:var(--ai-600);color:var(--white)}
+.pr.now{background:var(--ai-600);color:var(--white)}
+.pr.now .n{background:var(--white);color:var(--ai-600)}
+
+/* 絵コンテの印：この場面で守る約束（③の下に吊るす） */
+.stamp{right:var(--edge);top:66px;width:316px;display:flex;gap:var(--sp-3);align-items:center;padding:12px 16px 12px 12px;background:var(--ai-600);color:var(--white);border-radius:var(--r-md);box-shadow:var(--sh-raise)}
+.stamp::before{content:"";position:absolute;top:-6px;right:58px;width:14px;height:14px;background:var(--ai-600);transform:rotate(45deg);border-radius:2px}
+.seal{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--white);color:var(--ai-600);font-weight:700;font-size:var(--fs-seal);box-shadow:var(--sh-seal)}
+.stamp .t{font-size:var(--fs-input);font-weight:700;color:var(--white);line-height:1.4;white-space:nowrap}
+.stamp .t em{font-style:normal;color:var(--ai-200);margin-right:6px}
+.stamp small{display:block;margin-top:2px;font-size:var(--fs-small);color:var(--ai-100);font-weight:500}
+
+/* ===== 右：地図の操作 ===== */
+.ctrls{right:var(--edge);top:236px;display:flex;flex-direction:column;gap:var(--sp-2)}
+.cg{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--sh-float);overflow:hidden}
+.cb{width:40px;height:40px;display:grid;place-items:center}
+.cg .cb + .cb{border-top:1px solid var(--line)}
+
+/* ===== 地図の上のラベル ===== */
+.pin{display:flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 5px;background:var(--surface);border-radius:var(--r-sm);box-shadow:var(--sh-label);font-size:var(--fs-body);font-weight:700;white-space:nowrap}
+.pin .tg{height:20px;padding:0 6px;border-radius:var(--r-2xs);font-size:var(--fs-label);font-weight:700;display:grid;place-items:center}
+.pin-s .tg{background:var(--ai-100);color:var(--ai-800)}
+.pin-g .tg{background:var(--shu-50);color:var(--shu-700)}
+.unk{width:22px;height:22px;border-radius:50%;background:var(--surface);box-shadow:var(--sh-label);display:grid;place-items:center}
+.tun{display:flex;align-items:center;gap:4px;height:24px;padding:0 8px 0 5px;background:var(--surface);border-radius:var(--r-pill);box-shadow:var(--sh-label);font-size:var(--fs-label);font-weight:700;color:var(--ai-800);white-space:nowrap}
+
+/* ===== 右下：外部通信と出典（常に表示） ===== */
+.trust{right:var(--edge);bottom:8px;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.chip-net{background:var(--surface);color:var(--ai-800);box-shadow:var(--sh-label);height:28px;padding:0 12px 0 9px}
+.attr{background:var(--glass);border-radius:var(--r-sm);padding:4px 10px;font-size:var(--fs-label);line-height:1.5;color:var(--ink-2);text-align:right;box-shadow:var(--sh-hair)}
+.attr .l2{display:flex;align-items:center;justify-content:flex-end;gap:12px}
+.scale{display:flex;align-items:center;gap:6px;color:var(--ink-2)}
+.scale i{display:block;width:71px;height:6px;border:1.5px solid var(--ink-2);border-top:0}
+
+/* ===== 絵コンテの字幕帯 ===== */
+.cap{left:0;top:640px;width:1280px;height:80px;background:var(--cap-bg);display:flex;align-items:center;gap:var(--sp-4);padding:0 24px}
+.scene{flex:none;height:30px;display:grid;place-items:center;padding:0 14px;border-radius:var(--r-pill);background:var(--ai-100);color:var(--ai-800);font-weight:700;font-size:var(--fs-body)}
+.captext{flex:1;color:var(--white);font-size:var(--fs-caption);font-weight:500;line-height:1.4;white-space:nowrap}
+.mock{flex:none;font-size:var(--fs-label);font-weight:500;color:var(--cap-ink);border:1px solid var(--cap-line);border-radius:var(--r-xs);padding:3px 9px}
+</style></head>
+<body>
+<div class="app">
+
+  <!-- 検索：依頼文と解釈 -->
+  <div class="abs left">
+  <div class="search">
+    <div class="head">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="8" style="fill:var(--ai-600)"/><path d="M7.5 18.5c0-6 11-3.5 11-10" fill="none" stroke-width="2.4" stroke-linecap="round" style="stroke:var(--white)"/><circle cx="7.5" cy="18.5" r="2.4" style="fill:var(--white)"/><circle cx="18.5" cy="8" r="2.9" style="fill:var(--shu-300)"/></svg>
+      <span class="wordmark">ことづて</span>
+      <span class="chip chip-scope"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.5s4.5-4.2 4.5-7.8a4.5 4.5 0 0 0-9 0c0 3.6 4.5 7.8 4.5 7.8z" fill="none" stroke-width="1.5" style="stroke:var(--ink-2)"/><circle cx="8" cy="6.7" r="1.6" style="fill:var(--ink-2)"/></svg>東京都（島しょ部を除く）</span>
+    </div>
+    <div class="query">
+      <p><span class="nw">出発から到着まで、</span><span class="nw">トンネルを2本通り、</span><br><span class="nw">高速なし、</span><span class="nw">60分以内</span></p>
+      <span class="send"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4l4 4-4 4" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--white)"/></svg></span>
+    </div>
+    <div class="interp"><b>解釈：</b><span>トンネル＝道路の <code>tunnel=yes</code>（連続する区間は1本）／<br>高速＝高速道路と有料道路を除外</span></div>
+  </div>
+
+  <!-- 結果：合否表、書き出し、ログ -->
+  <div class="result">
+    <div class="rhead">
+      <h2>合否表</h2>
+      <span class="trip"><i class="s"></i>品川駅<span aria-hidden="true">→</span><i class="g"></i>東京タワー</span>
+      <span class="overall"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" style="fill:var(--white)"/><path d="M4.8 8.2l2.1 2.1 4.3-4.4" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--ok-700)"/></svg>合格</span>
+    </div>
+    <ul class="checks">
+      <li><span class="cond">トンネル 2本<i class="sw sw-tunnel" title="地図の描き方"></i></span><span class="val">2/2</span>
+        <span class="vd vd-ok"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" style="fill:var(--ok-700)"/><path d="M4.8 8.2l2.1 2.1 4.3-4.4" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--white)"/></svg>合格</span></li>
+      <li><span class="cond">高速を使わない</span><span class="val"></span>
+        <span class="vd vd-ok"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" style="fill:var(--ok-700)"/><path d="M4.8 8.2l2.1 2.1 4.3-4.4" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--white)"/></svg>合格</span></li>
+      <li><span class="cond">60分以内</span><span class="val">52分</span>
+        <span class="vd vd-ok"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" style="fill:var(--ok-700)"/><path d="M4.8 8.2l2.1 2.1 4.3-4.4" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--white)"/></svg>合格</span></li>
+      <li class="is-unk"><span class="cond">車線数<i class="sw sw-unk" title="地図の描き方"></i></span><span class="val">3区間（タグなし）</span>
+        <span class="vd vd-unk"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" stroke-width="1.4" stroke-dasharray="2.2 1.6" style="fill:var(--white);stroke:var(--unk-700)"/><path d="M6.2 6.3a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4" fill="none" stroke-width="1.6" stroke-linecap="round" style="stroke:var(--unk-700)"/><circle cx="8" cy="11.6" r=".95" style="fill:var(--unk-700)"/></svg>判定不能</span></li>
+    </ul>
+    <div class="legend">
+      <span class="vd vd-ok"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" style="fill:var(--ok-700)"/><path d="M4.8 8.2l2.1 2.1 4.3-4.4" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--white)"/></svg>合格</span>
+      <span class="vd vd-ng"><svg class="ic" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="3" style="fill:var(--ng-700)"/><path d="M5.2 5.2l5.6 5.6M10.8 5.2l-5.6 5.6" stroke-width="1.9" stroke-linecap="round" style="stroke:var(--white)"/></svg>不合格</span>
+      <span class="vd vd-unk"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" stroke-width="1.4" stroke-dasharray="2.2 1.6" style="fill:var(--white);stroke:var(--unk-700)"/><path d="M6.2 6.3a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4" fill="none" stroke-width="1.6" stroke-linecap="round" style="stroke:var(--unk-700)"/><circle cx="8" cy="11.6" r=".95" style="fill:var(--unk-700)"/></svg>判定不能</span>
+    </div>
+    <div class="actions">
+      <span class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v7M4.8 6.6L8 9.8l3.2-3.2M3 12.8h10" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--white)"/></svg>画像を書き出す</span>
+      <span class="btn"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.6 9.4l2.8-2.8M7.4 4.6l1-1a2.6 2.6 0 0 1 3.7 3.7l-1 1M8.6 11.4l-1 1a2.6 2.6 0 0 1-3.7-3.7l1-1" fill="none" stroke-width="1.7" stroke-linecap="round" style="stroke:var(--ai-600)"/></svg>共有リンク</span>
+      <span class="btn"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.2" y="7" width="9.6" height="7" rx="1.6" fill="none" stroke-width="1.6" style="stroke:var(--ink-2)"/><path d="M5.4 7V5.2a2.6 2.6 0 0 1 5.2 0V7" fill="none" stroke-width="1.6" style="stroke:var(--ink-2)"/></svg>GPX<span class="sub">（社内用）</span></span>
+      <span class="btn"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.8h8v10.8L8 11l-4 2.6z" fill="none" stroke-width="1.7" stroke-linejoin="round" style="stroke:var(--ai-600)"/></svg>レシピを保存</span>
+    </div>
+    <div class="log">
+      <div class="log-h"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2.5L7.5 6 4 9.5" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--ink-3)"/></svg>操作ログ</div>
+      <div class="log-line"><b>route</b> Valhalla（高速除外）→ <b>check_route</b> トンネル 2/2 → <span class="ok">合格</span></div>
+    </div>
+  </div>
+  </div>
+
+  <!-- 右上：約束と、この場面の印 -->
+  <div class="abs promises">
+    <span class="lbl">約束</span>
+    <span class="pr" aria-label="①"><span class="n">1</span>1社に頼らない</span>
+    <span class="pr lit" aria-label="②"><span class="n">2</span>詳しくなくても</span>
+    <span class="pr lit now" aria-label="③"><span class="n">3</span>確かめられる</span>
+  </div>
+  <div class="abs stamp">
+    <span class="seal" aria-label="③">3</span>
+    <span><span class="t"><em>解決</em>合否はタグで機械的に判定</span><small>タグがなければ「判定不能」</small></span>
+  </div>
+
+  <!-- 右：地図の操作 -->
+  <div class="abs ctrls">
+    <div class="cg">
+      <span class="cb"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke-width="1.8" stroke-linecap="round" style="stroke:var(--ink)"/></svg></span>
+      <span class="cb"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 8h10" stroke-width="1.8" stroke-linecap="round" style="stroke:var(--ink)"/></svg></span>
+    </div>
+    <div class="cg"><span class="cb"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M10 2.5l3 7.5h-6z" style="fill:var(--shu-600)"/><path d="M10 17.5l-3-7.5h6z" style="fill:var(--ctrl-mute)"/></svg></span></div>
+    <div class="cg"><span class="cb"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 2.5l6.5 3.4L9 9.3 2.5 5.9z" fill="none" stroke-width="1.5" stroke-linejoin="round" style="stroke:var(--ink)"/><path d="M2.5 9.1L9 12.5l6.5-3.4M2.5 12.3L9 15.7l6.5-3.4" fill="none" stroke-width="1.5" stroke-linejoin="round" style="stroke:var(--ink)"/></svg></span></div>
+  </div>
+
+  <!-- 地図の上のラベル（位置は map-a.json の project から） -->
+  <div class="abs pin pin-s" style="right:535px;top:557px"><span class="tg">出発</span>品川駅</div>
+  <div class="abs pin pin-g" style="right:442px;top:73px"><span class="tg">到着</span>東京タワー</div>
+  <div class="abs tun" style="left:775px;top:507px"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 12V7a5 5 0 0 1 10 0v5" fill="none" stroke-width="1.7" style="stroke:var(--ai-600)"/><path d="M5 12V8a2 2 0 0 1 4 0v4" fill="none" stroke-width="1.4" style="stroke:var(--ai-600)"/></svg>トンネル 1</div>
+  <div class="abs tun" style="right:474px;top:333px"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 12V7a5 5 0 0 1 10 0v5" fill="none" stroke-width="1.7" style="stroke:var(--ai-600)"/><path d="M5 12V8a2 2 0 0 1 4 0v4" fill="none" stroke-width="1.4" style="stroke:var(--ai-600)"/></svg>トンネル 2</div>
+
+  <div class="abs unk" style="left:796px;top:419px"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" stroke-width="1.4" stroke-dasharray="2.2 1.6" style="fill:var(--white);stroke:var(--unk-700)"/><path d="M6.2 6.3a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4" fill="none" stroke-width="1.6" stroke-linecap="round" style="stroke:var(--unk-700)"/><circle cx="8" cy="11.6" r=".95" style="fill:var(--unk-700)"/></svg></div>
+  <div class="abs unk" style="left:867px;top:208px"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" stroke-width="1.4" stroke-dasharray="2.2 1.6" style="fill:var(--white);stroke:var(--unk-700)"/><path d="M6.2 6.3a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4" fill="none" stroke-width="1.6" stroke-linecap="round" style="stroke:var(--unk-700)"/><circle cx="8" cy="11.6" r=".95" style="fill:var(--unk-700)"/></svg></div>
+  <div class="abs unk" style="left:880px;top:133px"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" stroke-width="1.4" stroke-dasharray="2.2 1.6" style="fill:var(--white);stroke:var(--unk-700)"/><path d="M6.2 6.3a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4" fill="none" stroke-width="1.6" stroke-linecap="round" style="stroke:var(--unk-700)"/><circle cx="8" cy="11.6" r=".95" style="fill:var(--unk-700)"/></svg></div>
+
+  <!-- 右下：外部通信と出典・データ時点 -->
+  <div class="abs trust">
+    <span class="chip chip-net"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8l5 2v4c0 3.2-2.2 5.4-5 6.4-2.8-1-5-3.2-5-6.4v-4z" stroke-width="1.5" stroke-linejoin="round" style="fill:var(--ai-100);stroke:var(--ai-600)"/><path d="M5.6 8l1.7 1.7 3.2-3.3" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--ai-600)"/></svg>外部通信：api.anthropic.com のみ</span>
+    <div class="attr">
+      <div>© OpenStreetMap contributors ｜ Protomaps ｜ 経路：Valhalla</div>
+      <div class="l2"><span class="scale"><i></i>1 km</span><span>データ時点：OSM 2026-11-03／地図 2026-11-04</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 絵コンテの字幕帯 -->
+<div class="abs cap">
+  <span class="scene">(c) ルート・試走コース</span>
+  <div class="captext">2回目で合格。タグのない区間は「判定不能」と、正直に出します。</div>
+  <span class="mock">絵コンテ（イメージ）・画面と数値は架空</span>
+</div>
+</body></html>

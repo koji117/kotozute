@@ -1,359 +1,705 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Sans+JP:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=block">
+<title>ことづて 絵コンテ</title>
+<!-- 絵コンテ用。アプリでは同じフォントを自前で配信する -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+1:wght@400;500;700;800&family=Noto+Sans+Mono:wght@400;500&display=block">
+<script src="maps/pos.js"></script>
 <style>
+/* 色・角丸・文字は案E（design/option-e.html の :root）と同じ */
 :root{
-  --paper:#F2F4F1; --surface:#FFFFFF; --sunken:#E8ECE8; --ink:#17262B; --muted:#4F5F64; --line:#CBD5D2;
-  --accent:#0C6680; --accent-soft:#DCEDF2; --road:#E3A008; --road-soft:#FFF2CC; --road-ink:#5C4100;
-  --ok:#1D6B45; --ok-bg:#DDF1E5; --ng:#B3261E; --ng-bg:#F8E1DF; --unk:#8A4F00; --unk-bg:#FBEBD2;
-  --f-display:"IBM Plex Sans JP","Hiragino Sans",sans-serif;
-  --f-body:"BIZ UDPGothic","Hiragino Sans",sans-serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+  --sumi-900:#111518; --sumi-800:#1B2126; --sumi-700:#12343B; --sumi-line:#2E363D;
+  --on-sumi:#F2F5F6; --on-sumi-2:#AEB8BF;
+  --teal-600:#0B6E78; --teal-700:#085862; --teal-300:#7CCFD3; --teal-50:#E4F2F2;
+  --text:#161B1F; --text-2:#434C53; --text-3:#5A646B;
+  --surface:#FFFFFF; --surface-2:#F3F5F6; --line:#E2E6E9; --line-2:#C7CED3; --line-3:#8E989F;
+  --map-bg:#F2F1EE; --glass:rgba(255,255,255,.93); --glass-line:rgba(17,21,24,.08);
+  --ok-700:#18703E; --ok-50:#E5F3EA; --ng-700:#B3261E; --ng-50:#FBE7E5;
+  --unk-700:#734700; --unk-50:#FFF4DA; --unk-line:#B98012; --unk-25:#FFFCF3; --unk-hatch:rgba(185,128,18,.10);
+  --sv-700:#8A5A00; /* 手土産の店の候補の印（scenes.js と同じ） */
+  --cap-bg:#0E1215; --cap-ink:#C3CCD2; --cap-line:#39434A; --white:#FFFFFF; --ink-sep:#6A747B; --grab:#C9D0D5;
+  --r-xs:5px; --r-sm:8px; --r-md:10px; --r-lg:14px; --r-xl:22px; --r-pill:999px;
+  --sh-pill:0 1px 2px rgba(10,20,25,.10), 0 4px 14px rgba(10,20,25,.10);
+  --sh-sheet:0 -1px 0 rgba(10,20,25,.06), 0 -10px 34px rgba(10,20,25,.16);
+  --sh-bar:0 2px 6px rgba(10,20,25,.20), 0 10px 28px rgba(10,20,25,.18);
+  --sh-label:0 1px 2px rgba(10,20,25,.18), 0 3px 10px rgba(10,20,25,.14);
+  --sh-win:0 12px 40px rgba(10,20,25,.24);
+  --edge:16px; --panel-w:440px; /* 左の検索と結果パネルの幅。スマホでは全幅の下部シートにする */
+  --sh-float:0 1px 3px rgba(10,20,25,.16), 0 6px 20px rgba(10,20,25,.14); --sh-chip:0 1px 2px rgba(10,20,25,.18), 0 2px 6px rgba(10,20,25,.10);
+  --frost:rgba(255,255,255,.86); --frost-blur:blur(16px) saturate(1.3); /* シートのすりガラス。中のカードは白のまま */
+  --f-ui:"M PLUS 1","Hiragino Sans",sans-serif; --f-mono:"Noto Sans Mono","M PLUS 1",ui-monospace,monospace;
+  --fs-label:12px; --fs-small:13px; --fs-body:14px; --fs-ui:15px; --fs-input:16px; --fs-title:18px; --fs-value:22px; --fs-caption:23px;
 }
-*{box-sizing:border-box}
-html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:var(--paper);color:var(--ink);font-family:var(--f-body)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:720px;overflow:hidden;background:var(--cap-bg)}
+body{font-family:var(--f-ui);color:var(--text);font-size:var(--fs-body);line-height:1.5;line-break:strict;-webkit-font-smoothing:antialiased}
 [data-show]{opacity:0;visibility:hidden}
 .abs{position:absolute}
-/* app chrome */
-.topbar{left:0;top:0;width:1280px;height:48px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 18px}
-.brand{font-family:var(--f-display);font-weight:700;font-size:18px}
-.chip{font-family:var(--f-display);font-weight:500;font-size:13px;padding:3px 10px;border-radius:999px;background:var(--sunken);color:var(--muted)}
-.mock{position:absolute;right:14px;top:10px;font-family:var(--f-display);font-weight:700;font-size:13px;color:var(--road-ink);background:var(--road-soft);border:1px solid var(--road);padding:4px 10px;border-radius:6px;z-index:50}
-.map{left:0;top:48px;width:820px;height:592px;overflow:hidden;background:#EEF1EC}
-.map svg{display:block}
-.mapnote{left:12px;bottom:10px;font-size:12px;color:var(--muted);background:rgba(255,255,255,.85);padding:2px 8px;border-radius:4px}
-.attrib{right:10px;bottom:10px;font-size:12px;color:var(--ink);background:rgba(255,255,255,.9);padding:2px 8px;border-radius:4px}
-.side{left:820px;top:48px;width:460px;height:592px;background:var(--surface);border-left:1px solid var(--line);padding:14px 16px;overflow:hidden}
-.input{height:92px;border:2px solid var(--accent);border-radius:10px;font-size:16.5px;line-height:1.5;position:relative;background:#fff}
-.input > span{position:absolute;left:12px;right:12px;top:9px}
-.input .ph{color:#9AA6A9}
-.caret{display:inline-block;width:2px;height:1.1em;background:var(--accent);vertical-align:-.15em;margin-left:1px}
-.label{font-family:var(--f-display);font-weight:500;font-size:12px;color:var(--muted);letter-spacing:.06em;margin:12px 0 6px}
-.log{font-family:var(--f-mono);font-size:13px;line-height:1.55;color:var(--ink)}
-.log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.log b{color:var(--accent);font-weight:500}
-.card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;font-size:15px;line-height:1.55}
-.card h5{margin:0 0 4px;font-family:var(--f-display);font-weight:700;font-size:15px}
-.badge{display:inline-block;font-family:var(--f-display);font-weight:500;font-size:12px;padding:1px 8px;border-radius:4px}
-.b-ok{background:var(--ok-bg);color:var(--ok)}
-.b-ng{background:var(--ng-bg);color:var(--ng)}
-.b-unk{background:var(--unk-bg);color:var(--unk)}
-.b-acc{background:var(--accent-soft);color:var(--accent)}
-.tbl{width:100%;border-collapse:collapse;font-size:14px}
-.tbl td{border-bottom:1px solid var(--line);padding:6px 4px;vertical-align:top}
-.tbl tr:last-child td{border-bottom:0}
-.tbl small{color:var(--muted);font-size:11.5px}
-.speed{left:18px;top:60px;font-family:var(--f-display);font-weight:700;font-size:15px;color:#fff;background:var(--ink);padding:4px 12px;border-radius:999px;z-index:30}
-/* caption */
-.cap{left:0;top:640px;width:1280px;height:80px;background:var(--ink);color:#fff;display:flex;align-items:center;gap:16px;padding:0 24px;z-index:40}
-.scene{flex:none;font-family:var(--f-display);font-weight:700;font-size:14px;color:var(--ink);background:var(--road);padding:4px 12px;border-radius:999px}
-.captext{position:relative;flex:1;height:80px}
-.captext > div{position:absolute;left:0;top:0;height:80px;display:flex;align-items:center;font-size:22px;line-height:1.4}
-/* full-screen scenes */
-.full{left:0;top:0;width:1280px;height:640px;background:var(--paper);z-index:20}
-.slide{left:190px;top:70px;width:900px;height:506px;background:#fff;border:1px solid var(--line);box-shadow:0 6px 30px rgba(0,0,0,.12);padding:36px 44px}
-.slide h3{font-family:var(--f-display);font-size:28px;margin:0 0 18px}
-.shot{width:520px;height:300px;background:repeating-linear-gradient(45deg,#E4E7E4 0 14px,#EDEFEC 14px 28px);display:grid;place-items:center;color:var(--muted);font-size:16px;border:1px dashed #A9B3B0}
-.reenact{position:absolute;left:190px;top:30px;font-family:var(--f-display);font-weight:700;font-size:14px;color:#fff;background:var(--ng);padding:3px 10px;border-radius:4px}
-.pitch{left:140px;top:150px;width:1000px;text-align:center}
-.pitch p{font-family:var(--f-display);font-weight:700;font-size:38px;line-height:1.55;margin:0}
-.pitch small{display:block;margin-top:22px;font-size:18px;color:var(--muted)}
-.win{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.10);overflow:hidden}
-.win .bar{height:34px;background:var(--sunken);display:flex;align-items:center;padding:0 12px;font-family:var(--f-display);font-weight:500;font-size:13px;color:var(--muted)}
-.term{background:#0F1A1E;color:#D6E2E2;font-family:var(--f-mono);font-size:15px;line-height:1.6;padding:16px 18px}
-.term .r{color:#F19A8F}.term .g{color:#8FD6A8}.term .y{color:#F2C46B}.term .c{color:#7CC3DA}.term .m{color:#9FB0B3}
-.bubble{border-radius:12px;padding:10px 14px;font-size:16px;line-height:1.55;max-width:560px}
-.u{background:var(--accent-soft);margin-left:auto}
-.a{background:var(--sunken)}
-.cmp{border-collapse:collapse;font-size:17px;background:#fff}
-.cmp th,.cmp td{border:1px solid var(--line);padding:10px 14px;text-align:left}
-.cmp th{font-family:var(--f-display);font-weight:500;color:var(--muted);background:var(--sunken)}
-.cmp td.me{background:var(--road-soft);font-weight:700}
-.end h2{font-family:var(--f-display);font-size:44px;margin:0 0 10px}
 .mono{font-family:var(--f-mono)}
+svg{display:block;flex:none}
+.stage{position:absolute;left:0;top:0;width:1280px;height:640px;overflow:hidden;background:var(--map-bg)}
+
+/* ===== 地図（scenes.js が描いた自前の地図。2倍の解像度） ===== */
+.mapw{position:absolute;left:0;top:0;width:1280px;height:640px;transform-origin:0 0}
+.mapw img{position:absolute;left:0;top:0;width:1280px;height:640px}
+.mapw.tall,.mapw.tall img{height:790px} /* 上へ寄せても下に隙間が出ないよう高く描いた地図 */
+.place{position:absolute;display:flex;align-items:center;gap:6px;height:30px;padding:0 11px 0 5px;border-radius:var(--r-pill);background:var(--surface);box-shadow:var(--sh-label);font-size:var(--fs-small);font-weight:700;white-space:nowrap}
+.place .tg{height:21px;padding:0 7px;border-radius:var(--r-pill);font-size:var(--fs-label);font-weight:700;display:grid;place-items:center;background:var(--sumi-700);color:var(--on-sumi)}
+.place .tg.lt{background:var(--teal-50);color:var(--teal-700)}
+.place .tg.ng{background:var(--ng-50);color:var(--ng-700)}
+.a-r{transform:translate(14px,-50%)} .a-l{transform:translate(calc(-100% - 14px),-50%)} .a-t{transform:translate(-50%,calc(-100% - 14px))} .a-b{transform:translate(-50%,14px)}
+.tun{position:absolute;display:flex;align-items:center;gap:5px;height:24px;padding:0 9px 0 6px;border-radius:var(--r-pill);background:var(--sumi-700);color:var(--on-sumi);font-size:var(--fs-label);font-weight:700;white-space:nowrap;box-shadow:var(--sh-label)}
+.unk{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:var(--unk-50);border:1.5px dashed var(--unk-line);color:var(--unk-700);font-size:var(--fs-small);font-weight:800;display:grid;place-items:center;line-height:1;box-shadow:var(--sh-label)}
+
+/* ===== 上に浮く札 ===== */
+.pill{display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:var(--r-pill);background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--sh-pill);font-size:var(--fs-small);font-weight:500;white-space:nowrap;color:var(--text)}
+.top-left{left:var(--edge);top:14px;display:flex;gap:8px;z-index:30}
+.brand{background:var(--sumi-900);border-color:var(--sumi-900);color:var(--on-sumi);padding:0 14px 0 6px;gap:10px}
+.brand b{font-size:var(--fs-title);font-weight:800;letter-spacing:.04em}
+.pill .k{color:var(--text-3)} .pill .host{font-family:var(--f-mono)}
+.tracker{right:var(--edge);top:14px;padding:0 5px 0 14px;gap:6px;z-index:30}
+.tracker .lab{font-weight:700;color:var(--text-2);margin-right:4px}
+.step{position:relative;display:flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 6px;border-radius:var(--r-pill);font-size:var(--fs-small);color:var(--text-3)}
+.step .num{width:18px;height:18px;border:1.5px dashed var(--line-3);border-radius:50%;display:grid;place-items:center;font-size:var(--fs-label);line-height:1}
+.step .on{position:absolute;inset:0;display:flex;align-items:center;gap:6px;padding:0 10px 0 6px;border-radius:var(--r-pill);background:var(--sumi-800);color:var(--on-sumi);font-weight:700}
+.step .on .num{border:0;background:var(--teal-300);color:var(--sumi-900);font-weight:800}
+
+/* 絵コンテの印：約束のどれを守った場面か（--pt で吊るす位置を変える） */
+.stamp{right:var(--edge);top:60px;z-index:45;display:flex;align-items:center;gap:12px;padding:10px 16px 10px 10px;border-radius:var(--r-lg);background:var(--sumi-800);color:var(--on-sumi);box-shadow:var(--sh-bar)}
+.stamp::before{content:"";position:absolute;top:-6px;right:var(--pt,58px);width:12px;height:12px;background:var(--sumi-800);transform:rotate(45deg);border-radius:2px}
+.stamp .tag{display:flex;flex-direction:column;align-items:center;justify-content:center;width:46px;height:44px;border-radius:var(--r-md);background:var(--teal-300);color:var(--sumi-900);font-weight:800;line-height:1.1}
+.stamp .tag .n{font-size:var(--fs-ui)} .stamp .tag .w{font-size:var(--fs-label)}
+.stamp .t{font-size:var(--fs-ui);font-weight:700;line-height:1.35} .stamp .s{font-size:var(--fs-small);color:var(--on-sumi-2);line-height:1.4}
+.p1{--pt:318px} .p2{--pt:190px} .p3{--pt:58px}
+
+/* 出典（地図の上に常に出す） */
+.attr{z-index:25;padding:5px 10px;border-radius:var(--r-sm);background:var(--glass);border:1px solid var(--glass-line);font-size:var(--fs-label);line-height:1.45;color:var(--text-2);text-align:right;white-space:nowrap}
+.attr .sep{color:var(--ink-sep);margin:0 3px}
+.attr.low,.attr.up{right:var(--edge);bottom:var(--edge)} /* シートが左寄せなので、右下は地図のまま */
+
+/* コマンドバー（シートを閉じているとき） */
+.cmd{display:flex;align-items:center;gap:12px;height:54px;padding:0 8px 0 18px;border-radius:16px;background:var(--sumi-900);color:var(--on-sumi);box-shadow:var(--sh-bar)}
+.cmd .q{flex:1;position:relative;height:24px;font-size:var(--fs-input);font-weight:500;white-space:nowrap;overflow:hidden}
+.cmd .q > span{position:absolute;left:0;top:0}
+.cmd .ph{color:var(--on-sumi-2)}
+.caret{display:inline-block;width:2px;height:1.05em;background:var(--teal-300);vertical-align:-.12em;margin-left:1px}
+.send{width:38px;height:38px;border-radius:12px;background:var(--teal-600);display:grid;place-items:center}
+.cmd-low{left:var(--sheet-x);width:var(--sheet-w);bottom:22px;z-index:35}
+
+/* ===== 下部シート ===== */
+.sheet{left:var(--sheet-x);width:var(--sheet-w);bottom:0;z-index:20;background:var(--frost);-webkit-backdrop-filter:var(--frost-blur);backdrop-filter:var(--frost-blur);border:1px solid var(--glass-line);border-bottom:0;border-radius:var(--r-xl) var(--r-xl) 0 0;box-shadow:var(--sh-sheet);padding:16px 24px 20px}
+.grab{position:absolute;top:7px;left:50%;width:40px;height:5px;margin-left:-20px;border-radius:3px;background:var(--grab)}
+.sheet .cmd{height:46px;margin-top:6px}
+.sheet .cmd .q{font-size:var(--fs-ui)}
+.req{margin-top:4px;font-size:var(--fs-small);color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.req .lab{font-weight:700;color:var(--text)}
+.interp{display:flex;gap:6px;margin-top:9px;font-size:var(--fs-body);color:var(--text-2);line-height:1.6}
+.interp .lab{flex:none;font-weight:700;color:var(--text)}
+code{font-family:var(--f-mono);font-size:var(--fs-small);background:var(--teal-50);color:var(--teal-700);border-radius:var(--r-xs);padding:1px 6px;margin:0 2px;white-space:nowrap}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:12px}
+.head h2{font-size:var(--fs-title);font-weight:800}
+.head .od{display:flex;align-items:center;gap:6px;font-size:var(--fs-body);color:var(--text-2)}
+.verdict{display:flex;align-items:center;gap:6px;height:30px;padding:0 12px 0 8px;border-radius:var(--r-pill);background:var(--ok-700);color:var(--white);font-size:var(--fs-ui);font-weight:800}
+.verdict.ng{background:var(--ng-700)}
+.chipline{display:flex;gap:6px;margin-left:8px;font-size:var(--fs-small)}
+.chipline span{display:flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:var(--r-pill);border:1px solid var(--line-2);color:var(--text-3)}
+.chipline .on{border-color:var(--sumi-800);background:var(--sumi-800);color:var(--on-sumi);font-weight:700}
+.legend{margin-left:auto;display:flex;gap:16px;font-size:var(--fs-label);color:var(--text-3)}
+.legend span{display:flex;align-items:center;gap:5px}
+.badge{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 11px 0 6px;border-radius:var(--r-pill);font-size:var(--fs-small);font-weight:700;white-space:nowrap}
+.b-ok{background:var(--ok-50);color:var(--ok-700)} .b-ng{background:var(--ng-50);color:var(--ng-700)}
+.b-unk{background:var(--surface);color:var(--unk-700);border:1.5px dashed var(--unk-line)}
+.b-acc{background:var(--teal-50);color:var(--teal-700);padding:0 11px}
+.grid{display:grid;margin-top:10px;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.grid > div{position:relative;padding:0 14px;display:flex;align-items:center;gap:8px;border-left:1px solid var(--line);min-width:0}
+.grid .rh{border-left:0;padding:0 4px 0 12px;white-space:nowrap;font-size:var(--fs-label);color:var(--text-3);background:var(--surface-2)}
+.grid .r1{height:34px;background:var(--surface-2);font-size:var(--fs-ui);font-weight:700;border-bottom:1px solid var(--line)}
+.grid .r2{height:40px;font-size:var(--fs-value);font-weight:800}
+.grid .r2 small{margin-left:3px;font-size:var(--fs-body);font-weight:500;color:var(--text-2)}
+.grid .r2.muted{font-size:var(--fs-body);font-weight:500;color:var(--text-2)}
+.grid .r3{height:42px}
+.grid .u{background-image:repeating-linear-gradient(135deg,transparent 0 7px,var(--unk-hatch) 7px 9px);background-color:var(--unk-25)}
+.grid .r1.u{background-color:var(--unk-50)}
+.grid .rh.r1,.grid .rh.r2,.grid .rh.r3{font-size:var(--fs-label);font-weight:500;color:var(--text-3)}
+.grid .stack{position:absolute;inset:0;padding:0 14px;display:flex;align-items:center;gap:8px}
+.sw{width:28px;height:8px;border-radius:4px;flex:none}
+.sw-tun{background:repeating-linear-gradient(90deg,var(--white) 0 4px,var(--sumi-700) 4px 7px);border:2.5px solid var(--sumi-700);height:10px;width:30px;border-radius:3px}
+.sw-route{background:var(--teal-600);height:6px}
+.sw-unk{background:rgba(226,165,46,.55);border:1.5px dashed var(--unk-line);height:12px}
+.foot{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.btn{display:flex;align-items:center;gap:7px;height:40px;padding:0 14px 0 12px;border-radius:var(--r-md);border:1px solid var(--line-2);background:var(--surface);font-size:var(--fs-ui);font-weight:700;color:var(--text);white-space:nowrap}
+.btn.primary{background:var(--teal-600);border-color:var(--teal-600);color:var(--white)}
+.btn small{font-size:var(--fs-small);font-weight:500;color:var(--text-3)}
+.btn.hit{box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--teal-600)}
+.log{margin-left:auto;display:flex;align-items:center;gap:8px;height:40px;padding:0 14px 0 10px;border-radius:var(--r-md);background:var(--surface-2);font-size:var(--fs-label);color:var(--text-2);white-space:nowrap}
+.log .lab{font-size:var(--fs-small);font-weight:700;color:var(--text)}
+.log .mono b{font-weight:500;color:var(--text)}
+.card{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);padding:12px 14px}
+.card h3{font-size:var(--fs-ui);font-weight:800}
+.cands{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+.cand{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:var(--r-md);font-size:var(--fs-body)}
+.cand .n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:var(--white);font-size:var(--fs-label);font-weight:800;flex:none}
+.cand .x{margin-left:auto;font-family:var(--f-mono);font-size:var(--fs-small);color:var(--text-2)}
+.cand.pick{background:var(--teal-50);box-shadow:inset 0 0 0 1.5px var(--teal-600);font-weight:700}
+.legs{display:grid;grid-template-columns:repeat(3,1fr);margin-top:10px;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.leg{padding:10px 14px;border-left:1px solid var(--line)}
+.leg:first-child{border-left:0}
+.leg .to{display:flex;align-items:center;gap:8px;font-size:var(--fs-ui);font-weight:700}
+.leg .v{margin-top:4px;font-size:var(--fs-value);font-weight:800}
+.leg .v small{font-size:var(--fs-body);font-weight:500;color:var(--text-2);margin-left:3px}
+.dotn{width:22px;height:22px;border-radius:50%;background:var(--sumi-700);color:var(--white);display:grid;place-items:center;font-size:var(--fs-label);font-weight:800;flex:none}
+
+/* 地図の上に重ねる窓（許可、別のブラウザ、外部通信、書き出し） */
+.win{z-index:40;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--sh-win);overflow:hidden;border:1px solid var(--glass-line)}
+.win .bar{height:36px;display:flex;align-items:center;gap:8px;padding:0 14px;background:var(--surface-2);border-bottom:1px solid var(--line);font-size:var(--fs-small);color:var(--text-2)}
+.win .url{flex:1;height:24px;display:flex;align-items:center;padding:0 10px;border-radius:var(--r-pill);background:var(--surface);border:1px solid var(--line);font-family:var(--f-mono);font-size:var(--fs-label);color:var(--text-2)}
+.row{display:flex;align-items:center;gap:12px;height:44px;border-top:1px solid var(--line);font-size:var(--fs-ui)}
+.row:first-child{border-top:0}
+.row .n{margin-left:auto;font-size:var(--fs-value);font-weight:800}
+.row .n small{font-size:var(--fs-body);font-weight:500;color:var(--text-2);margin-left:2px}
+.toast{z-index:46;left:560px;top:560px;display:flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:var(--r-pill);background:var(--sumi-900);color:var(--on-sumi);font-size:var(--fs-small);font-weight:700;box-shadow:var(--sh-bar)}
+
+/* ===== 全画面の場面 ===== */
+.full{left:0;top:0;width:1280px;height:640px;background:var(--surface-2);z-index:60}
+.full.dark{background:var(--sumi-900);color:var(--on-sumi)}
+.hero{left:0;width:1280px;text-align:center;font-weight:800}
+.h3{font-size:30px;font-weight:800}
+.sub{font-size:17px;color:var(--text-2);margin-top:6px}
+.src{font-size:12.5px;color:var(--text-3);line-height:1.6}
+.cases{display:flex;flex-direction:column;gap:4px}
+.case{display:flex;align-items:center;gap:18px;padding:7px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);font-size:16px}
+.case .yr{flex:none;width:56px;font-family:var(--f-mono);font-weight:500;font-size:20px;color:var(--teal-700)}
+.case b{flex:none;width:250px;font-weight:800}
+.case.jp{border:2px solid var(--teal-600);background:var(--teal-50)}
+.term{background:var(--sumi-900);color:#D6E2E2;font-family:var(--f-mono);font-size:15px;line-height:1.6;padding:16px 18px}
+.term .r{color:#F19A8F}.term .g{color:#8FD6A8}.term .y{color:#F2C46B}.term .c{color:var(--teal-300)}.term .m{color:#9FB0B3}
+.xrow{display:flex;align-items:center;gap:18px;padding:16px 20px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);font-size:20px}
+.xrow .x{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--ng-50);color:var(--ng-700);font-weight:800;font-size:20px}
+.xrow b{min-width:250px;font-weight:800}
+.promise{width:330px;flex:none;border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-pill);padding:18px 20px}
+.promise .no{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--sumi-800);color:var(--teal-300);font-weight:800;font-size:20px;margin-bottom:10px}
+.promise h4{font-size:22px;font-weight:800;margin-bottom:6px}
+.promise div{font-size:15px;line-height:1.6;color:var(--text-2)}
+.bubble{border-radius:var(--r-lg);padding:10px 14px;font-size:16px;line-height:1.55;max-width:560px}
+.bu{background:var(--teal-50);margin-left:auto}
+.ba{background:var(--surface-2)}
+.cmp{border-collapse:collapse;font-size:16px;background:var(--surface)}
+.cmp th,.cmp td{border:1px solid var(--line);padding:10px 14px;text-align:left}
+.cmp th{font-weight:700;color:var(--text-2);background:var(--surface-2)}
+.cmp td.me{background:var(--teal-50);font-weight:800}
+
+
+/* ===== 地図アプリでおなじみの配置：左上の検索、カテゴリの札、左の結果パネル、右の地図ボタン ===== */
+.search{left:var(--edge);top:14px;width:var(--panel-w);min-height:76px;z-index:36;display:flex;align-items:center;gap:12px;padding:12px 10px 12px 14px;border-radius:24px;background:var(--surface);box-shadow:var(--sh-float)}
+.search .q{flex:1;position:relative;align-self:stretch;font-size:var(--fs-body);line-height:1.5;color:var(--text)}
+.search .q > span{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%)}
+.search .ph{color:var(--text-3)}
+.chips{left:calc(var(--edge) + var(--panel-w) + 12px);top:20px;z-index:30;display:flex;gap:8px}
+.chip{display:flex;align-items:center;gap:6px;height:36px;padding:0 14px 0 11px;border-radius:18px;background:var(--surface);box-shadow:var(--sh-chip);font-size:var(--fs-body);font-weight:500;color:var(--text);white-space:nowrap}
+.chip{position:relative} .chip .on{position:absolute;inset:0;display:flex;align-items:center;gap:6px;padding:0 14px 0 11px;border-radius:18px;background:var(--teal-600);color:var(--white);font-weight:700}
+.chip .on svg{color:var(--white)} .chip.hit{box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--teal-600)}
+.chip svg{color:var(--text-2)}
+.tracker{top:66px}
+.stamp{top:112px}
+.panel{left:var(--edge);top:100px;width:var(--panel-w);max-height:524px;z-index:20;overflow:hidden;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--sh-float);padding:16px 18px}
+.ph-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.ph-h h2{font-size:var(--fs-title);font-weight:800}
+.od{font-size:var(--fs-small);color:var(--text-2)}
+.kv{display:flex;flex-direction:column;gap:6px;margin-top:10px;font-size:var(--fs-body);color:var(--text-2);line-height:1.6}
+.kv > div{display:grid;grid-template-columns:72px 1fr;gap:8px}
+.kv b{color:var(--text);font-weight:700}
+.sec{margin:12px 0 2px;font-size:var(--fs-ui);font-weight:800}
+.sec small{font-size:var(--fs-small);font-weight:500;color:var(--text-3)}
+.panel .cand{height:32px}
+.tl{margin-top:10px;display:flex;flex-direction:column}
+.tl .st{display:flex;align-items:center;gap:10px;height:34px;font-size:var(--fs-ui)}
+.tl .st small{margin-left:auto;font-size:var(--fs-small);color:var(--text-3)}
+.tl .lg{margin-left:10px;padding:4px 0 4px 20px;border-left:3px solid var(--teal-600);font-size:var(--fs-small);font-family:var(--f-mono);color:var(--text-2)}
+.dot.here{width:22px;height:22px;border-radius:50%;background:var(--teal-600);box-shadow:0 0 0 5px rgba(11,110,120,.18);flex:none}
+.logline{margin-top:8px;font-size:var(--fs-label);color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logline b{color:var(--text)}
+.vt{display:grid;grid-template-columns:164px 1fr 104px;margin-top:10px;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.vt > div{position:relative;height:42px;display:flex;align-items:center;gap:8px;padding:0 10px;border-top:1px solid var(--line);font-size:var(--fs-ui)}
+.vt > div:nth-child(-n+3){border-top:0}
+.vt .c{font-weight:700;font-size:var(--fs-body);white-space:nowrap}
+.vt .v{font-size:var(--fs-value);font-weight:800;white-space:nowrap}
+.vt .v small{font-size:var(--fs-body);font-weight:500;color:var(--text-2);margin-left:2px}
+.vt .muted{font-size:var(--fs-body);font-weight:500;color:var(--text-3)}
+.vt .j{justify-content:flex-end;padding:0 8px}
+.vt .u{background-image:repeating-linear-gradient(135deg,transparent 0 7px,var(--unk-hatch) 7px 9px);background-color:var(--unk-25)}
+.vt .stk{position:absolute;inset:0;display:flex;align-items:center;gap:4px;padding:0 10px}
+.vt .j .stk{justify-content:flex-end}
+.mapbtns{right:var(--edge);bottom:116px;z-index:25;display:flex;flex-direction:column;align-items:center;gap:10px}
+.mb{width:40px;height:40px;border-radius:50%;background:var(--surface);box-shadow:var(--sh-chip);display:grid;place-items:center}
+.mapbtns .zoom{display:flex;flex-direction:column;width:40px;border-radius:20px;background:var(--surface);box-shadow:var(--sh-chip);overflow:hidden}
+.mapbtns .zoom span{height:40px;display:grid;place-items:center}
+.mapbtns .zoom span+span{border-top:1px solid var(--line)}
+.status{right:var(--edge);bottom:64px;z-index:25;display:flex;gap:8px}
+.pill.sm{height:30px;font-size:var(--fs-label);padding:0 10px;gap:6px}
+.attr{right:var(--edge);bottom:var(--edge)}
+.dir{left:var(--edge);top:14px;width:var(--panel-w);z-index:36;padding:8px 52px 8px 14px;border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--sh-float)}
+.dir .pt{display:flex;align-items:center;gap:10px;height:30px;font-size:var(--fs-body);font-weight:500;border-bottom:1px solid var(--line)}
+.dir .pt:last-of-type{border-bottom:0}
+.dir .pt small{margin-left:auto;font-size:var(--fs-label);color:var(--text-3)}
+.dir .dot.here,.dir .dotn{transform:scale(.86)}
+.dir .swap{position:absolute;right:12px;top:50%;margin-top:-17px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center}
+.panel.route{top:160px;max-height:464px;padding:14px 18px}
+.big{font-size:var(--fs-value);font-weight:800;color:var(--teal-700)}
+.steps{margin-top:6px;display:flex;flex-direction:column}
+.stp{display:flex;align-items:center;gap:10px;height:24px;font-size:var(--fs-small);color:var(--text)}
+.stp svg{color:var(--text-2)}
+.stp small{margin-left:auto;font-family:var(--f-mono);font-size:var(--fs-label);color:var(--text-3)}
+.stp.stop{height:28px;font-size:var(--fs-body);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:2px 0}
+.stp.stop .dotn{width:20px;height:20px;margin-left:-2px}
+.eta{position:absolute;transform:translateX(-50%);height:30px;padding:0 12px;display:flex;align-items:center;border-radius:8px;background:var(--teal-600);color:#fff;font-weight:800;font-size:var(--fs-ui);box-shadow:var(--sh-label)}
+.eta::after{content:"";position:absolute;left:50%;bottom:-5px;margin-left:-5px;width:10px;height:10px;background:var(--teal-600);transform:rotate(45deg)}
+/* ===== 字幕帯（下 80px） ===== */
+.cap{left:0;top:640px;width:1280px;height:80px;background:var(--cap-bg);display:flex;align-items:center;gap:18px;padding:0 24px;color:var(--white);z-index:80}
+.scene{flex:none;height:34px;padding:0 14px;border-radius:var(--r-pill);background:var(--teal-300);color:var(--sumi-900);font-size:var(--fs-ui);font-weight:800;display:flex;align-items:center;white-space:nowrap}
+.captext{position:relative;flex:1;height:80px}
+.captext > div{position:absolute;left:0;top:0;height:80px;display:flex;align-items:center;font-size:21px;font-weight:700;line-height:1.35}
+.note{flex:none;font-size:11px;line-height:1.35;color:var(--cap-ink);border:1px solid var(--cap-line);border-radius:var(--r-sm);padding:4px 8px;white-space:nowrap;text-align:center}
 </style></head>
 <body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-ok" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M5.6 10.2l3 3 5.8-6.2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-unk" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 2"/><path d="M7.6 7.7a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-ng" viewBox="0 0 20 20"><rect x="1.5" y="1.5" width="17" height="17" rx="3" fill="currentColor"/><path d="M6.5 6.5l7 7M13.5 6.5l-7 7" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-logo" viewBox="0 0 26 26"><rect width="26" height="26" rx="8" fill="#7CCFD3"/><path d="M6.5 16.5c2.6-6 6.4-1.2 9.2-6.6" fill="none" stroke="#111518" stroke-width="2.4" stroke-linecap="round"/><circle cx="18.4" cy="8.6" r="2.4" fill="#111518"/><circle cx="6.5" cy="17" r="1.6" fill="#111518"/></symbol>
+    <symbol id="i-send" viewBox="0 0 18 18"><path d="M9 14V4M4.5 8.5L9 4l4.5 4.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-link" viewBox="0 0 18 18"><path d="M7.6 10.4a3 3 0 0 0 4.3 0l2.4-2.4a3 3 0 0 0-4.3-4.3l-.9.9M10.4 7.6a3 3 0 0 0-4.3 0L3.7 10a3 3 0 0 0 4.3 4.3l.9-.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-dl" viewBox="0 0 18 18"><path d="M9 2.5v9M5 7.8l4 3.9 4-3.9M3 14.8h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 16 16"><path d="M8 14.5s5-4.4 5-8.2A5 5 0 0 0 3 6.3c0 3.8 5 8.2 5 8.2z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6.3" r="1.7" fill="currentColor"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 1.6l5.2 2v4.1c0 3.3-2.3 5.7-5.2 6.7-2.9-1-5.2-3.4-5.2-6.7V3.6z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.6 8l1.7 1.7L10.6 6.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-tun" viewBox="0 0 14 14"><path d="M2 12V7a5 5 0 0 1 10 0v5" fill="none" stroke="#7CCFD3" stroke-width="1.8"/></symbol>
+  </defs>
+</svg>
 
-<!-- ============ APP CHROME (visible 4-115) ============ -->
-<div data-show="4-115" class="abs" style="left:0;top:0;width:1280px;height:640px">
-  <div class="abs topbar">
-    <span class="brand">ことづて</span>
-    <span class="chip">東京都（島しょ部を除く）</span>
-    <span class="chip">データ時点：撮影時の値を表示</span>
-    <span class="chip">地図・検索・ルート・住所は自社で稼働</span>
+<div class="stage">
+
+<!-- ============ 例1の前：いつもの操作＋日本語の地図（50-63）。札で地物を出し、日本語で芝公園へ寄せる ============ -->
+<!-- 2枚の地図は同じ向き。拡大の間、両方に同じ動きをつけて途中で入れ替える（倍率と位置は maps/nl-0-base.json と nl-1-zoom.json から計算） -->
+<div data-show="50-60.2" class="mapw" data-cam="50:1:0:0,59.4:1:0:0,60.4:2.974:-2618.2:-826.7">
+  <img src="maps/nl-0-base.png" alt="">
+  <img data-show="51.5-60.2" src="maps/nl-0-po.png" alt="">
+  <img data-show="52.9-59.8" src="maps/nl-0-all.png" alt="">
+</div>
+<div data-show="59.7-63.4" class="mapw" data-cam="59.4:0.3363:880.5:278,60.4:1:0:0">
+  <img src="maps/nl-1-zoom.png" alt="">
+</div>
+
+<!-- ============ 例1の地図（63-115） ============ -->
+<div data-show="63-115.3" class="mapw">
+  <img data-show="63-70.2" src="maps/ex1-1-here.png" alt="">
+  <img data-show="69.5-78" src="maps/ex1-2-dest.png" alt="">
+  <img data-show="77.5-90.5" src="maps/ex1-3-cand.png" alt="">
+  <img data-show="89.2-115.3" data-wipe="89.3-92" src="maps/ex1-4-route.png" alt="">
+  <div data-show="66.6-115.3" class="place a-t" data-at="ex1-4-route:here"><span class="tg lt">現在地</span>半径30m</div>
+  <div data-show="70-115.3" class="place a-t" data-at="ex1-4-route:dest"><span class="tg">目的地</span>芝公園4-2-8</div>
+  <div data-show="91.4-115.3" class="place a-t" data-at="ex1-4-route:s1"><span class="dotn" style="width:20px;height:20px">1</span>泉岳寺駅前郵便局</div>
+  <div data-show="91.9-115.3" class="place a-b" data-at="ex1-4-route:s2"><span class="dotn" style="width:20px;height:20px">2</span>文銭堂</div>
+  <div data-show="92.4-115.3" class="eta" data-at="ex1-4-route:l1" data-dy="-44">7.9分</div>
+</div>
+
+<!-- ============ 例2 (b) の地図（102-122） ============ -->
+<div data-show="115-135.3" class="mapw">
+  <img src="maps/ex2-0-base.png" alt="">
+  <img data-show="121.6-135.3" src="maps/ex2-1-feat.png" alt="">
+  <div data-show="122.4-135.3" class="place a-r" data-at="ex2-1-feat:x0"><span class="tg ng">踏切</span>品川第1踏切</div>
+  <div data-show="122.7-135.3" class="place a-r" data-at="ex2-1-feat:x1"><span class="tg ng">踏切</span>品川第2踏切</div>
+  <div data-show="123-135.3" class="place a-r" data-at="ex2-1-feat:x2"><span class="tg ng">踏切</span>北品川第一踏切</div>
+  <div data-show="123.3-135.3" class="place a-l" data-at="ex2-1-feat:t0"><span class="tg">トンネル</span>環状六号線</div>
+  <div data-show="123.6-135.3" class="place a-l" data-at="ex2-1-feat:t1" data-dy="-14"><span class="tg">トンネル</span>名前なし</div>
+</div>
+
+<!-- ============ 例2 (c)(d) とノートの地図（122-171） ============ -->
+<div data-show="135-184.3" class="mapw" data-cam="135:1:0:0,147.8:1:0:0,148.8:1.6:-246:-384,150.6:1.6:-246:-384,151.6:1:0:0,169:1:0:0,170.5:1.5:-640:-108,184.3:1.5:-640:-108">
+  <img src="maps/ex2-2-base.png" alt="">
+  <img data-show="139.2-148" data-wipe="139.3-141.8" src="maps/ex2-2-try1.png" alt="">
+  <img data-show="147.6-184.3" data-wipe="147.7-150" src="maps/ex2-3-try2.png" alt="">
+  <div class="place a-l" data-at="ex2-3-try2:start"><span class="tg">出発・到着</span>品川駅</div>
+  <div data-show="140.8-184.3" class="tun" data-at="ex2-3-try2:a2t1" data-dx="16" data-dy="-12"><svg width="14" height="14"><use href="#i-tun"/></svg>東京港トンネル</div>
+  <div data-show="149.4-184.3" class="tun" data-at="ex2-3-try2:a2t0" data-dx="18" data-dy="10"><svg width="14" height="14"><use href="#i-tun"/></svg>仙台坂トンネル</div>
+  <div data-show="152.2-169" class="unk" data-at="ex2-3-try2:u7">?</div>
+  <div data-show="152.4-169" class="unk" data-at="ex2-3-try2:u6">?</div>
+  <div data-show="152.6-169" class="unk" data-at="ex2-3-try2:u5" data-dx="8">?</div>
+  <div data-show="152.8-169" class="unk" data-at="ex2-3-try2:u4" data-dy="-10">?</div>
+  <div data-show="153-169" class="unk" data-at="ex2-3-try2:u1" data-dx="-16">?</div>
+  <div data-show="171-184.3" class="place a-t" data-at="ex2-3-try2:u6" style="box-shadow:0 0 0 2px var(--ng-700),var(--sh-label)"><span class="tg ng">メモ</span>右折できなかった交差点</div>
+</div>
+
+<!-- ============ アプリの枠（50-171）：地図アプリでおなじみの配置（左上の検索、カテゴリの札、左の結果パネル、右の地図ボタン） ============ -->
+<div data-show="50-184.3" class="abs" style="left:0;top:0;width:1280px;height:640px">
+  <!-- 検索（ここに日本語で頼む） -->
+  <div data-show="50-89.8,114.8-184.3" class="abs search">
+    <svg width="30" height="30"><use href="#i-logo"/></svg>
+    <div class="q">
+      <span data-show="50-57" class="ph">ことづてに、日本語で頼む</span>
+      <span data-show="56.8-63.2" data-type="57:10" data-text="芝公園のあたりを大きく。郵便局だけ残して"></span>
+      <span data-show="63-63.8" class="ph">ことづてに、日本語で頼む</span>
+      <span data-show="63.8-90" data-type="63.8:13" data-text="今いる場所から、郵便局で書類を出して、手土産を買ってから、港区芝公園4-2-8へ。ルートを共有リンクで"></span>
+      <span data-show="115-116.5" class="ph">ことづてに、日本語で頼む</span>
+      <span data-show="116.5-135.2" data-type="116.5:9" data-text="この範囲の踏切とトンネルを出して"></span>
+      <span data-show="135-169.2" data-type="135.3:12" data-text="来週の客先試走。品川駅を出て、トンネルを2本通り、高速は使わず60分以内。資料用の画像も"></span>
+      <span data-show="169-184.3" data-type="169.2:12" data-text="運転した人から：この交差点、右折できなかった"></span>
+    </div>
+    <span class="send"><svg width="18" height="18"><use href="#i-send"/></svg></span>
+  </div>
+  <!-- カテゴリの札（辞書にある業務の言葉） -->
+  <div class="abs chips">
+    <!-- 札は AI を通さずに直接動く。押した札は色が変わる（.on） -->
+    <span class="chip" data-hit="50.9"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="3.5" width="12" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 4.5L8 9l5.5-4.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>郵便局<span data-show="51.1-63.2" class="on"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="3.5" width="12" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 4.5L8 9l5.5-4.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>郵便局</span></span>
+    <span class="chip" data-hit="52.3"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="2.5" y="6.5" width="11" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 4.5h12v2H2zM8 4.5v9M8 4.5C6 1.5 4 3 5.5 4.5M8 4.5c2-3 4-1.5 2.5 0" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>手土産<span data-show="52.5-59.8" class="on"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="2.5" y="6.5" width="11" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 4.5h12v2H2zM8 4.5v9M8 4.5C6 1.5 4 3 5.5 4.5M8 4.5c2-3 4-1.5 2.5 0" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>手土産</span></span>
+    <span class="chip"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>踏切</span>
+    <span class="chip"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 13V8a6 6 0 0 1 12 0v5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>トンネル</span>
+  </div>
+  <div class="abs pill tracker">
+    <span class="lab">約束</span>
+    <span class="step"><span class="num">1</span>1社に頼らない<span data-show="53.8-184.3" class="on"><span class="num">1</span>1社に頼らない</span></span>
+    <span class="step"><span class="num">2</span>詳しくなくても<span data-show="60.4-184.3" class="on"><span class="num">2</span>詳しくなくても</span></span>
+    <span class="step"><span class="num">3</span>確かめられる<span data-show="73-184.3" class="on"><span class="num">3</span>確かめられる</span></span>
   </div>
 
-  <div class="abs map">
-    <svg width="820" height="592" viewBox="0 0 820 592" aria-hidden="true">
-      <rect width="820" height="592" fill="#EEF1EC"/>
-      <path d="M560 380 L700 360 L740 470 L600 500 Z" fill="#DCEBD5"/>
-      <path d="M120 80 L230 70 L250 160 L140 180 Z" fill="#DCEBD5"/>
-      <path d="M-10 430 C150 390,260 480,420 440 S700 370,830 410" stroke="#A9CDE0" stroke-width="20" fill="none"/>
-      <!-- expressway -->
-      <path id="xw" d="M0 150 C200 172,420 118,820 182" stroke="#E8A33A" stroke-width="8" fill="none"/>
-      <text x="40" y="146" font-size="13" fill="#8A5A00" font-family="IBM Plex Sans JP">高速道路</text>
-      <!-- roads -->
-      <g stroke="#C5CDC9" stroke-width="11" fill="none" stroke-linecap="round">
-        <path d="M60 560 L300 330 L540 300 L780 80"/><path d="M40 260 L380 260 L760 300"/>
-        <path d="M200 40 L240 300 L280 580"/><path d="M520 30 L540 300 L600 590"/>
-        <path d="M380 260 L420 580"/><path d="M522 90 L780 116"/>
-      </g>
-      <g stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round">
-        <path d="M60 560 L300 330 L540 300 L780 80"/><path d="M40 260 L380 260 L760 300"/>
-        <path d="M200 40 L240 300 L280 580"/><path d="M520 30 L540 300 L600 590"/>
-        <path d="M380 260 L420 580"/><path d="M522 90 L780 116"/>
-      </g>
-      <!-- rail -->
-      <path d="M0 340 L820 250" stroke="#5B6468" stroke-width="6" fill="none"/>
-      <path d="M0 340 L820 250" stroke="#FFFFFF" stroke-width="3" stroke-dasharray="14 14" fill="none"/>
-      <!-- tunnels -->
-      <path d="M392 318 L462 309" stroke="#7A6A55" stroke-width="13" stroke-dasharray="6 4" fill="none" opacity=".75"/>
-      <text x="398" y="345" font-size="13" fill="#5B4C38" font-family="IBM Plex Sans JP">トンネルA</text>
-      <path d="M536 250 L531 180" stroke="#7A6A55" stroke-width="13" stroke-dasharray="6 4" fill="none" opacity=".75"/>
-      <text x="548" y="222" font-size="13" fill="#5B4C38" font-family="IBM Plex Sans JP">トンネルB</text>
-      <path d="M240 520 L256 470" stroke="#7A6A55" stroke-width="13" stroke-dasharray="6 4" fill="none" opacity=".75"/>
-      <text x="262" y="500" font-size="13" fill="#5B4C38" font-family="IBM Plex Sans JP">トンネルC</text>
+  <!-- 右の地図ボタン -->
+  <div class="abs mapbtns">
+    <span class="mb"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="3" fill="var(--teal-600)"/><circle cx="9" cy="9" r="6.5" fill="none" stroke="var(--text-2)" stroke-width="1.5"/><path d="M9 0.8v2.6M9 14.6v2.6M0.8 9h2.6M14.6 9h2.6" stroke="var(--text-2)" stroke-width="1.5"/></svg></span>
+    <span class="zoom"><span><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 7h10M7 2v10" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round"/></svg></span><span><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 7h10" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round"/></svg></span></span>
+  </div>
+  <!-- 状態と出典（右下） -->
+  <div class="abs status">
+    <span class="pill sm"><svg width="14" height="14" style="color:var(--text-2)"><use href="#i-pin"/></svg>東京都（島しょ部を除く）</span>
+    <span class="pill sm"><svg width="14" height="14" style="color:var(--text-2)"><use href="#i-shield"/></svg><span><span class="k">外部通信：</span><span class="host">api.anthropic.com</span> のみ</span></span>
+  </div>
+  <div data-show="50-69.6" class="abs attr">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+  <div data-show="69.4-89.4" class="abs attr">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<span class="sep">｜</span>住所：アドレス・ベース・レジストリ<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+  <div data-show="89.2-115.3" class="abs attr">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<span class="sep">｜</span>経路：Valhalla<span class="sep">｜</span>住所：アドレス・ベース・レジストリ<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+  <div data-show="115-139.4" class="abs attr">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+  <div data-show="139.2-184.3" class="abs attr">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<span class="sep">｜</span>経路：Valhalla<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
 
-      <!-- (b) highlights -->
-      <g data-show="44-58">
-        <circle cx="243" cy="313" r="11" fill="#B3261E" stroke="#fff" stroke-width="3"/>
-        <circle cx="385" cy="298" r="11" fill="#B3261E" stroke="#fff" stroke-width="3"/>
-        <circle cx="538" cy="281" r="11" fill="#B3261E" stroke="#fff" stroke-width="3"/>
-        <circle cx="120" cy="327" r="11" fill="#B3261E" stroke="#fff" stroke-width="3"/>
-        <path d="M392 318 L462 309" stroke="#0C6680" stroke-width="16" fill="none" opacity=".55"/>
-        <path d="M536 250 L531 180" stroke="#0C6680" stroke-width="16" fill="none" opacity=".55"/>
-        <path d="M240 520 L256 470" stroke="#0C6680" stroke-width="16" fill="none" opacity=".55"/>
-      </g>
-      <!-- expressway excluded mark -->
-      <g data-show="9-16,62-100">
-        <path d="M0 150 C200 172,420 118,820 182" stroke="#B3261E" stroke-width="3" stroke-dasharray="10 8" fill="none"/>
-        <text x="600" y="140" font-size="14" font-weight="700" fill="#B3261E" font-family="IBM Plex Sans JP">高速：除外</text>
-      </g>
-      <!-- route A (first attempt) -->
-      <path data-show="64-78" data-draw="64-68" pathLength="1" d="M90 520 L300 330 L540 300 L720 110" stroke="#0C6680" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
-      <!-- route B (final) -->
-      <path data-show="8-16,73-115" data-draw="8-10,73-77" pathLength="1" d="M90 520 L300 330 L540 300 L531 180 L522 90 L720 110" stroke="#0C6680" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      <!-- start/goal -->
-      <g data-show="8-16,60-115">
-        <circle cx="90" cy="520" r="10" fill="#17262B"/><text x="70" y="550" font-size="14" font-weight="700" fill="#17262B" font-family="IBM Plex Sans JP">出発</text>
-        <circle cx="720" cy="110" r="10" fill="#17262B"/><text x="700" y="96" font-size="14" font-weight="700" fill="#17262B" font-family="IBM Plex Sans JP">到着</text>
-      </g>
-      <!-- (a) address pin -->
-      <g data-show="26-38">
-        <path d="M650 410 c-14 -22 -22 -32 -22 -44 a22 22 0 1 1 44 0 c0 12 -8 22 -22 44 z" fill="#E3A008" stroke="#5C4100" stroke-width="2"/>
-        <circle cx="650" cy="366" r="7" fill="#fff"/>
-      </g>
-      <!-- note marker -->
-      <g data-show="104-115">
-        <circle cx="522" cy="90" r="16" fill="none" stroke="#B3261E" stroke-width="4"/>
-        <text x="545" y="64" font-size="14" font-weight="700" fill="#B3261E" font-family="IBM Plex Sans JP">右折できなかった交差点</text>
-      </g>
-    </svg>
-    <div class="abs mapnote">模式図（実際の地理ではありません）</div>
-    <div class="abs attrib">© OpenStreetMap contributors ／ Protomaps</div>
+  <!-- 例1の前：札を押した結果（AI を通さない）。数は maps/nl-0-base.json で画面に入る点を数えた -->
+  <section data-show="51.8-59.7" class="abs panel slide">
+    <div class="ph-h"><h2>この画面の範囲</h2><span class="badge b-ok" style="padding:0 11px">AIを通さない</span></div>
+    <div class="kv">
+      <div><b>郵便局</b><span>43件</span></div>
+      <div data-show="53-59.7"><b>手土産</b><span>30件（和菓子・洋菓子の店）</span></div>
+    </div>
+    <div style="margin-top:10px;font-size:var(--fs-small);color:var(--text-3)">札は AI を通さずに、自社の Overpass へ直接たずねます</div>
+  </section>
+  <!-- 例1の前：日本語で地図の表示を動かす -->
+  <section data-show="59.6-63.3" class="abs panel slide">
+    <div class="ph-h"><h2>解釈</h2><span class="od">頼まれた言葉をこう受け取りました</span></div>
+    <div class="kv">
+      <div><b>場所</b><span>芝公園（OSM の公園 4区画の範囲）</span></div>
+      <div><b>表示</b><span>その範囲が入る大きさに拡大</span></div>
+      <div><b>残す</b><span>郵便局</span></div>
+      <div><b>隠す</b><span>手土産（和菓子・洋菓子の店）</span></div>
+    </div>
+    <div style="margin-top:10px;font-size:var(--fs-small);color:var(--text-3)">場所は参照で渡します。AI は座標を書きません</div>
+  </section>
+
+  <!-- 例1：現在地の許可 -->
+  <div data-show="64.6-66.6" class="abs win rise" style="left:16px;top:104px;width:440px">
+    <div style="padding:14px 16px;font-size:var(--fs-body)"><b>ことづて</b> が現在地を使おうとしています<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><span class="btn" style="height:32px">ブロック</span><span class="btn primary hit" style="height:32px">許可する</span></div></div>
   </div>
 
-  <div class="abs side">
-    <!-- input texts -->
-    <div class="input">
-      <span data-show="4-6.2" class="ph">日本語で頼んでください</span>
-      <span data-show="6.2-16" data-type="6.2:14" data-text="来週の客先試走。品川駅を出て、トンネルを2本通り、高速は使わず60分以内。資料用の画像と共有リンクも"></span>
-      <span data-show="20-29" data-type="21:7" data-text="訪問先の住所「港区芝公園4-2-8」を地図に出して"></span>
-      <span data-show="29-38" data-type="29.5:7" data-text="東京タワーにピンを立てて"></span>
-      <span data-show="38-58" data-type="39:7" data-text="この範囲の踏切とトンネルを出して"></span>
-      <span data-show="58-85" data-type="59:8" data-text="出発から到着まで、トンネルを2本通り、高速なし、60分以内"></span>
-      <span data-show="85-100" data-type="86:8" data-text="資料用の画像と、共有リンクを作って"></span>
-      <span data-show="100-115" data-type="101:8" data-text="運転した人から：この交差点、右折できなかった"></span>
+  <!-- 例1 (a)：解釈と目的地 -->
+  <section data-show="69.6-77.6" class="abs panel slide">
+    <div class="ph-h"><h2>解釈</h2><span class="od">頼まれた言葉をこう受け取りました</span></div>
+    <div class="kv">
+      <div><b>現在地</b><span>ブラウザの位置情報 <code>here:</code></span></div>
+      <div><b>郵便局</b><span><code>amenity=post_office</code></span></div>
+      <div><b>手土産</b><span>和菓子・洋菓子の店 <code>shop=confectionery</code> <code>shop=pastry</code></span></div>
+      <div><b>目的地</b><span>住所（アドレス・ベース・レジストリ）</span></div>
     </div>
+    <div data-show="71-77.6" class="card rise" style="margin-top:12px">
+      <div style="display:flex;align-items:center;gap:10px"><span class="dotn">終</span><h3>東京都港区芝公園四丁目2番8号</h3></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"><span class="badge b-ok"><svg width="18" height="18" style="color:var(--ok-700)"><use href="#i-ok"/></svg>座標の精度：住居番号の位置</span><span class="badge b-acc">現在地の精度：半径30m</span></div>
+      <div style="font-size:var(--fs-small);color:var(--text-3);margin-top:6px">出典：アドレス・ベース・レジストリ</div>
+    </div>
+  </section>
 
-    <div class="label">操作ログ</div>
-    <div class="log" style="height:132px">
-      <div data-show="10-16"><b>route</b> Valhalla（高速除外）→ check_route</div>
-      <div data-show="11-16"><b>export_png</b> 出典・データ時点を焼き込み</div>
-      <div data-show="12-16"><b>make_share_link</b> /s/k7Q2…</div>
-      <div data-show="23-38"><b>geocode_address</b> ABR → 1件</div>
-      <div data-show="31-38"><b>search_place</b> 名前「東京タワー」→ 候補3件</div>
-      <div data-show="41-58"><b>find_features</b> 辞書：踏切, トンネル</div>
-      <div data-show="42-58"><b>　→</b> 踏切 4件 ／ トンネル 3件（OSM上）</div>
-      <div data-show="62-85"><b>route</b> Valhalla（高速除外）</div>
-      <div data-show="66-85"><b>check_route</b> トンネル 1/2 → 不合格</div>
-      <div data-show="70-85"><b>候補生成</b> トンネルB経由を追加（プログラム）</div>
-      <div data-show="74-85"><b>route → check_route</b> トンネル 2/2 → 合格</div>
-      <div data-show="88-100"><b>export_png</b> 出典・データ時点を焼き込み</div>
-      <div data-show="92-100"><b>make_share_link</b> /s/k7Q2…（状態をサーバに保存）</div>
-      <div data-show="103-115"><b>draft_osm_note</b> 確認方法を選択 → 下書き</div>
-    </div>
+  <!-- 例1 (b)：寄り先の候補 -->
+  <section data-show="77.4-89.6" class="abs panel">
+    <div class="ph-h"><h2>寄り先の候補</h2><span class="od">道から300m以内・OSM上・寄り道で増える時間の少ない順</span></div>
+    <div class="sec">郵便局 <small>7件（上位4件）</small></div>
+    <div class="cand"><span class="n" style="background:var(--teal-600)">1</span>三田国際ビル内郵便局<span class="x">+0分</span></div>
+    <div class="cand" data-pick="83.2"><span class="n" style="background:var(--teal-600)">2</span>泉岳寺駅前郵便局<span class="x">+0分</span></div>
+    <div class="cand"><span class="n" style="background:var(--teal-600)">3</span>高輪郵便局<span class="x">+0分</span></div>
+    <div class="cand"><span class="n" style="background:var(--teal-600)">4</span>機械振興会館内郵便局<span class="x">+0.5分</span></div>
+    <div class="sec">手土産（和菓子・洋菓子の店） <small>12件（上位4件）</small></div>
+    <div class="cand" data-pick="83.6"><span class="n" style="background:var(--sv-700)">1</span>文銭堂<span class="x">+0分</span></div>
+    <div class="cand"><span class="n" style="background:var(--sv-700)">2</span>FiOLATTE<span class="x">+0.8分</span></div>
+    <div class="cand"><span class="n" style="background:var(--sv-700)">3</span>大坂家<span class="x">+0.9分</span></div>
+    <div class="cand"><span class="n" style="background:var(--sv-700)">4</span>寿せんべい本舗<span class="x">+1.1分</span></div>
+    <div data-show="84-89.6" class="card rise" style="margin-top:10px;background:var(--teal-50);border-color:var(--teal-50)"><b>選んだ組み合わせ</b>　泉岳寺駅前郵便局 → 文銭堂<div style="font-size:var(--fs-small);color:var(--text-2);margin-top:2px">依頼の順（郵便局が先）で36通りを計算し、合計がいちばん短いもの</div></div>
+  </section>
 
-    <!-- S1 quick results -->
-    <div data-show="9-16" class="card" style="margin-top:6px">
-      <h5>合否表</h5>
-      <table class="tbl">
-        <tr><td>トンネル 2本</td><td><span class="badge b-ok">2/2 合格</span></td></tr>
-        <tr><td>高速を使わない</td><td><span class="badge b-ok">合格</span></td></tr>
-        <tr><td>60分以内</td><td><span class="badge b-ok">52分</span></td></tr>
-        <tr><td>車線数</td><td><span class="badge b-unk">判定不能 3区間</span></td></tr>
-      </table>
+  <!-- 例1 (c)：経由地つきのルート（出発・経由・到着のカードと、曲がり方の一覧。曲がり方は Valhalla の結果からテンプレートで作る） -->
+  <div data-show="89.4-115.3" class="abs dir slide">
+    <div class="pt"><span class="dot here"></span><span>現在地</span><small>半径30m</small></div>
+    <div class="pt"><span class="dotn">1</span><span>泉岳寺駅前郵便局</span><small>郵便局</small></div>
+    <div class="pt"><span class="dotn">2</span><span>文銭堂</span><small>手土産</small></div>
+    <div class="pt"><span class="dotn">終</span><span>港区芝公園4-2-8</span><small>目的地</small></div>
+    <span class="swap"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M6 3v12M3 6l3-3 3 3M12 15V3M9 12l3 3 3-3" fill="none" stroke="var(--text-2)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+  </div>
+  <section data-show="89.4-115.3" class="abs panel route slide">
+    <div class="ph-h"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M4 12l1.6-4.4A2 2 0 0 1 7.5 6.2h5a2 2 0 0 1 1.9 1.4L16 12v3.5H4z" fill="none" stroke="var(--text)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6.8" cy="13" r="1" fill="var(--text)"/><circle cx="13.2" cy="13" r="1" fill="var(--text)"/></svg><h2>車</h2><span class="big">7.9分</span><span class="od">3.75km</span><span class="badge b-ok" style="margin-left:auto"><svg width="18" height="18" style="color:var(--ok-700)"><use href="#i-ok"/></svg>寄り道で +0分</span></div>
+    <div class="od" style="margin-top:2px">寄らない場合も 7.9分・3.75km（区間ごと 1.8分／2.9分／3.2分）</div>
+    <div class="steps">
+      <div class="stp"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 13V3M4 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>第一京浜を出発</span><small>10 m</small></div>
+      <div class="stp"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M5 13V6a3 3 0 0 1 6 0v3M8 7l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Uターンして第一京浜へ</span><small>870 m</small></div>
+      <div class="stp stop"><span class="dotn">1</span><b>泉岳寺駅前郵便局</b><small>左側</small></div>
+      <div class="stp"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 13V3M4 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>第一京浜を進む</span><small>1.1 km</small></div>
+      <div class="stp"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M11 13V9L5 3M9 3H5v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>やや左へ　白山祝田田町線</span><small>430 m</small></div>
+      <div class="stp stop"><span class="dotn">2</span><b>文銭堂</b><small>左側</small></div>
+      <div class="stp"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 13V3M4 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>桜田通りを進む</span><small>660 m</small></div>
+      <div class="stp"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M5 13V9l6-6M7 3h4v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>やや右へ　祝田通り</span><small>430 m</small></div>
+      <div class="stp"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M12 13V8a3 3 0 0 0-3-3H3M6 2L3 5l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>左折して東京タワー通りへ</span><small>60 m</small></div>
+      <div class="stp"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M12 13V8a3 3 0 0 0-3-3H3M6 2L3 5l3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>左折して降車場へ</span><small>100 m</small></div>
+      <div class="stp"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M4 13V8a3 3 0 0 1 3-3h6M10 2l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>右折</span><small>60 m</small></div>
+      <div class="stp stop"><span class="dotn">終</span><b>芝公園4-2-8</b><small>到着・右側</small></div>
     </div>
-    <div data-show="11-16" style="display:flex;gap:8px;margin-top:8px">
-      <span class="badge b-acc" style="font-size:14px;padding:4px 10px">画像（PNG）</span>
-      <span class="badge b-acc" style="font-size:14px;padding:4px 10px">GPX</span>
-      <span class="badge b-acc" style="font-size:14px;padding:4px 10px">共有リンク</span>
+    <div class="foot">
+      <span class="btn primary" data-hit="101.3"><svg width="18" height="18" style="color:#fff"><use href="#i-link"/></svg>共有リンク</span>
+      <span class="btn"><svg width="18" height="18"><use href="#i-dl"/></svg>画像</span>
+      <span class="btn">経由地を追加</span>
     </div>
+  </section>
+  <div data-show="102-107" class="abs toast rise"><svg width="16" height="16" style="color:var(--teal-300)"><use href="#i-link"/></svg>共有リンクをコピーしました　<span class="mono" style="font-weight:500">https://…/s/m3Fp…</span></div>
 
-    <!-- (a) -->
-    <div data-show="24-29" class="card" style="margin-top:6px">
-      <h5>東京都港区芝公園四丁目2番8号</h5>
-      <span class="badge b-ok">座標の精度：住居番号の位置</span> <span class="badge b-acc">出典：アドレス・ベース・レジストリ</span>
-      <div style="font-size:13px;color:var(--muted);margin-top:6px">座標の精度は住所ジオコーダーの値をそのまま表示（言い換えない）</div>
+  <!-- 例1 (d)：共有リンクを別のブラウザで開く -->
+  <div data-show="103.3-108.6" class="abs win rise" style="left:560px;top:80px;width:640px">
+    <div class="bar"><span>別のブラウザ</span><span class="url">https://…/s/m3Fp…</span></div>
+    <div style="position:relative;height:400px;background:var(--map-bg) url(maps/ex1-5-share.png) 0 0/640px 400px no-repeat">
+      <div class="place a-l" data-at="ex1-5-share:here" style="height:26px"><span class="tg lt">現在地</span>出発</div>
+      <div class="place a-r" data-at="ex1-5-share:s1" style="height:26px">泉岳寺駅前郵便局</div>
+      <div class="place a-r" data-at="ex1-5-share:s2" style="height:26px">文銭堂</div>
+      <div class="place a-r" data-at="ex1-5-share:dest" style="height:26px"><span class="tg">目的地</span>芝公園4-2-8</div>
+      <div class="abs attr" style="right:8px;bottom:8px">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<span class="sep">｜</span>経路：Valhalla<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+      <div class="abs" style="left:10px;top:10px;display:flex;gap:6px"><span class="badge b-acc">同じルート・寄り先</span><span class="badge b-acc">データ時点つき</span></div>
     </div>
-    <div data-show="32-38" class="card" style="margin-top:6px">
-      <h5>「東京タワー」の候補（OSM）</h5>
-      <table class="tbl">
-        <tr><td>1　東京タワー</td><td><small>観光名所</small></td></tr>
-        <tr><td>2　東京タワー前</td><td><small>バス停</small></td></tr>
-        <tr><td>3　東京タワー通り</td><td><small>道路</small></td></tr>
-      </table>
-      <div style="font-size:13px;color:var(--muted);margin-top:4px">どれですか？（候補はOSMが返したものだけ）</div>
-    </div>
-
-    <!-- (b) -->
-    <div data-show="43-58" class="card" style="margin-top:6px">
-      <h5>踏切 4件・トンネル 3件（OSM上）</h5>
-      <div style="font-size:14px">解釈：踏切＝<span class="mono">railway=level_crossing</span><br><small style="color:var(--muted)">歩行者専用の踏切は含まない［切り替え］</small></div>
-      <div style="font-size:14px;margin-top:4px">トンネル＝道路の<span class="mono">tunnel=yes</span>（建物の通り抜けは除く）</div>
-      <div data-show="49-58" style="margin-top:6px"><span class="badge b-unk">車線数タグの入力率 38%（この範囲）</span></div>
-      <div data-show="52-58" style="font-size:13px;color:var(--muted);margin-top:4px">0件のときは「OSM上で0件（現地にないとは限らない）」と表示</div>
-    </div>
-
-    <!-- (c) -->
-    <div data-show="64-85" class="card" style="margin-top:6px">
-      <h5>合否表</h5>
-      <table class="tbl">
-        <tr><td>トンネル 2本<br><small>連続する tunnel=yes を1本と数える</small></td>
-          <td><span data-show="66-77" class="badge b-ng">1/2 不合格</span><span data-show="77-85" class="badge b-ok">2/2 合格</span></td></tr>
-        <tr><td>高速を使わない</td><td><span data-show="66-85" class="badge b-ok">合格</span></td></tr>
-        <tr><td>60分以内</td><td><span data-show="66-77" class="badge b-ok">44分</span><span data-show="77-85" class="badge b-ok">52分</span></td></tr>
-        <tr><td>車線数</td><td><span data-show="78-85" class="badge b-unk">判定不能 3区間</span></td></tr>
-      </table>
-      <div data-show="70-77" style="font-size:14px;margin-top:6px;color:var(--accent)">候補生成（プログラム）：トンネルBを経由する案を計算中</div>
-      <div data-show="80-85" style="margin-top:6px;display:flex;gap:8px"><span class="badge b-acc" style="font-size:14px;padding:4px 10px">GPXを書き出し</span><span class="badge b-acc" style="font-size:14px;padding:4px 10px">レシピを保存</span></div>
-    </div>
-
-    <!-- (d) -->
-    <div data-show="88-100" class="card" style="margin-top:6px">
-      <h5>書き出し</h5>
-      <div style="font-size:14px">画像に焼き込む文字：</div>
-      <div class="mono" style="font-size:12.5px;background:var(--sunken);padding:6px 8px;border-radius:6px;margin-top:4px;line-height:1.5">© OpenStreetMap contributors（openstreetmap.org/copyright）／ Protomaps ／ 経路：Valhalla ／ データ時点：（撮影時の値）</div>
-      <div data-show="92-100" style="font-size:14px;margin-top:8px">共有リンク：<span class="mono">https://…/s/k7Q2…</span></div>
-    </div>
-
-    <!-- note -->
-    <div data-show="103-115" class="card" style="margin-top:6px">
-      <h5>OSMノートの下書き</h5>
-      <table class="tbl">
-        <tr><td>何が</td><td>右折禁止の規制がOSMにない可能性</td></tr>
-        <tr><td>どこで</td><td class="mono" style="font-size:13px">交差点（OSM要素IDを添付）</td></tr>
-        <tr><td>確認方法</td><td>現地で見た（日付）<br><small>「Googleマップで見た」は選べない</small></td></tr>
-      </table>
-      <div data-show="108-115" style="margin-top:6px"><span class="badge b-ng">社名・「試走」などの語は入れない</span></div>
-      <div data-show="111-115" style="font-size:13px;margin-top:6px;color:var(--muted)">下書きをコピー → OSMのノート画面へ（投稿は現地を見た本人）</div>
+  </div>
+  <div data-show="108.4-115.3" class="abs win rise" style="left:740px;top:170px;width:460px">
+    <div class="bar"><svg width="16" height="16" style="color:var(--text-2)"><use href="#i-shield"/></svg>外部通信の記録（この操作の間）</div>
+    <div style="padding:2px 18px 6px">
+      <div class="row"><span class="mono">api.anthropic.com</span><span class="n">3<small>件</small></span></div>
+      <div class="row"><span>Google のサービス</span><span class="n" style="color:var(--ok-700)">0<small>件</small></span></div>
+      <div class="row"><span>OSM の公開サーバ</span><span class="n" style="color:var(--ok-700)">0<small>件</small></span></div>
     </div>
   </div>
 
-  <div data-show="5-16" class="abs speed">3倍速</div>
+  <!-- 例2 (b)：地物 -->
+  <section data-show="121.6-135.6" class="abs panel slide">
+    <div class="ph-h"><h2>踏切 3件・トンネル 2本</h2><span class="od">OSM上</span></div>
+    <div class="kv">
+      <div><b>踏切</b><span><code>railway=level_crossing</code>　歩行者用の踏切<code>railway=crossing</code>は含まない（この範囲で4か所）</span></div>
+      <div><b>トンネル</b><span>道路の<code>tunnel=yes</code>　つながった区間は1本、建物の通り抜けは除く</span></div>
+    </div>
+    <div class="card" style="margin-top:12px;display:flex;align-items:center;gap:10px"><span style="width:38px;height:22px;border-radius:11px;background:var(--line-2);position:relative;flex:none"><span style="position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff"></span></span>歩行者用の踏切も含める<span style="margin-left:auto;color:var(--text-3);font-size:var(--fs-small)">オフ</span></div>
+    <div data-show="128.2-135.6" class="card rise" style="margin-top:8px;border:1.5px dashed var(--line-2)"><div style="font-size:var(--fs-small);color:var(--text-3)">0件のとき</div><b>OSM上で0件（現地にないとは限らない）</b></div>
+  </section>
 
-  <!-- (d) export preview over map -->
-  <div data-show="89-100" class="abs win" style="left:120px;top:110px;width:560px">
-    <div class="bar">資料（再現）：コースのご案内</div>
-    <div style="padding:14px">
-      <div style="height:250px;background:#EEF1EC;position:relative;border:1px solid var(--line)">
-        <svg width="530" height="250" viewBox="0 0 820 592" preserveAspectRatio="xMidYMid meet">
-          <path d="M-10 430 C150 390,260 480,420 440 S700 370,830 410" stroke="#A9CDE0" stroke-width="20" fill="none"/>
-          <path d="M0 340 L820 250" stroke="#5B6468" stroke-width="6" fill="none"/>
-          <path d="M90 520 L300 330 L540 300 L531 180 L522 90 L720 110" stroke="#0C6680" stroke-width="12" fill="none" stroke-linejoin="round"/>
-        </svg>
-        <div style="position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.92);font-size:11px;padding:3px 8px">© OpenStreetMap contributors（openstreetmap.org/copyright）／ Protomaps ／ 経路：Valhalla ／ データ時点：（撮影時の値）</div>
+  <!-- 例2 (c)：合否表 -->
+  <section data-show="139.4-169.3" class="abs panel slide">
+    <div class="ph-h"><h2>合否表</h2>
+      <span data-show="139.4-149.2" class="verdict ng"><svg width="18" height="18" style="color:#fff"><use href="#i-ng"/></svg>不合格</span>
+      <span data-show="149-169.3" class="verdict"><svg width="18" height="18" style="color:#fff"><use href="#i-ok"/></svg>合格</span>
+      <span class="chipline"><span class="on" data-show="139.4-149.2">1回目</span><span data-show="149-169.3">1回目 不合格</span><span data-show="149-169.3" class="on">2回目</span></span>
+    </div>
+    <div class="kv" style="margin-top:6px"><div><b>解釈</b><span>トンネル＝道路の<code>tunnel=yes</code>（連続する区間は1本）／高速＝高速道路と有料道路を除外／品川駅から品川駅へ（周回）</span></div></div>
+    <div data-show="143.6-149" class="badge b-acc" style="margin-top:8px">候補生成（プログラム）：2本目のトンネルを経由する案を計算中</div>
+    <div class="vt">
+      <div class="c"><i class="sw sw-tun"></i>トンネル 2本</div>
+      <div class="v"><span data-show="139.4-149.2" class="stk">1/2</span><span data-show="149-169.3" class="stk">2/2</span></div>
+      <div class="j"><span data-show="139.4-149.2" class="stk"><span class="badge b-ng"><svg width="18" height="18" style="color:var(--ng-700)"><use href="#i-ng"/></svg>不合格</span></span><span data-show="149-169.3" class="stk"><span class="badge b-ok"><svg width="18" height="18" style="color:var(--ok-700)"><use href="#i-ok"/></svg>合格</span></span></div>
+      <div class="c"><i class="sw sw-route"></i>高速を使わない</div>
+      <div class="v muted">除外して計算</div>
+      <div class="j"><span class="badge b-ok"><svg width="18" height="18" style="color:var(--ok-700)"><use href="#i-ok"/></svg>合格</span></div>
+      <div class="c"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--text-2)" stroke-width="1.6"/><path d="M9 5v4.3l2.8 1.7" fill="none" stroke="var(--text-2)" stroke-width="1.6" stroke-linecap="round"/></svg>60分以内</div>
+      <div class="v"><span data-show="139.4-149.2" class="stk">31<small>分</small></span><span data-show="149-169.3" class="stk">33<small>分</small></span></div>
+      <div class="j"><span class="badge b-ok"><svg width="18" height="18" style="color:var(--ok-700)"><use href="#i-ok"/></svg>合格</span></div>
+      <div class="c u"><i class="sw sw-unk"></i>車線数</div>
+      <div class="v u"><span data-show="139.4-151.6" class="stk muted">2回目で確かめる</span><span data-show="151.4-169.3" class="stk">8<small>区間（タグなし）</small></span></div>
+      <div class="j u"><span data-show="151.4-169.3" class="stk"><span class="badge b-unk"><svg width="18" height="18" style="color:var(--unk-700)"><use href="#i-unk"/></svg>判定不能</span></span></div>
+    </div>
+    <div data-show="151.4-169.3" class="od" style="margin-top:6px">車線数のタグがあるのはコースの 89%</div>
+    <div class="foot">
+      <span class="btn primary" data-hit="159.3"><svg width="18" height="18" style="color:#fff"><use href="#i-dl"/></svg>画像を書き出す</span>
+      <span class="btn"><svg width="18" height="18"><use href="#i-link"/></svg>共有</span>
+      <span class="btn">GPX<small>（社内用）</small></span>
+    </div>
+    <div class="logline"><b>操作ログ</b> <span class="mono">route Valhalla（高速除外）→ check_route トンネル <span data-show="139.4-149.2">1/2 → 不合格</span><span data-show="149-169.3">2/2 → 合格</span></span></div>
+  </section>
+
+  <!-- 例2 (d)：書き出し -->
+  <div data-show="160-169.3" class="abs win rise" style="left:220px;top:58px;width:840px">
+    <div class="bar" style="justify-content:space-between"><b style="color:var(--text);font-size:var(--fs-ui)">画像を書き出す</b><span class="badge b-acc">出典とデータ時点は焼き込み（外せない）</span></div>
+    <div style="padding:14px 18px 16px">
+      <div style="position:relative;width:760px;height:430px;margin:0 auto;border:1px solid var(--line);background:var(--map-bg) url(maps/ex2-4-export.png) 0 0/760px 430px no-repeat">
+        <div class="abs" style="left:14px;top:12px;padding:8px 12px;border-radius:var(--r-sm);background:var(--glass);box-shadow:var(--sh-pill)"><div style="font-size:var(--fs-label);color:var(--text-3)">試走コース</div><b style="font-size:var(--fs-title)">品川駅 発着・トンネル2本・33分</b></div>
+        <div class="place a-l" data-at="ex2-4-export:start" style="height:26px"><span class="tg">出発・到着</span>品川駅</div>
+        <div class="tun" data-at="ex2-4-export:a2t1" data-dx="14" data-dy="-12"><svg width="14" height="14"><use href="#i-tun"/></svg>東京港トンネル</div>
+        <div class="tun" data-at="ex2-4-export:a2t0" data-dx="14" data-dy="-12"><svg width="14" height="14"><use href="#i-tun"/></svg>仙台坂トンネル</div>
+        <div class="abs" style="left:0;right:0;bottom:0;padding:6px 12px;background:var(--surface);border-top:1px solid var(--line);font-size:var(--fs-label);line-height:1.5;color:var(--text-2)">© OpenStreetMap contributors（openstreetmap.org/copyright）／ Protomaps ／ 経路：Valhalla ／ データ時点：OSM 2026-11-03／地図 2026-11-04</div>
       </div>
     </div>
   </div>
-  <div data-show="94-100" class="abs win" style="left:400px;top:400px;width:390px">
-    <div class="bar">別のブラウザで共有リンクを開く</div>
-    <div style="padding:12px;font-size:14px;line-height:1.6">同じ表示範囲・コース・ピン<br><span class="badge b-acc">データ時点：（撮影時の値）</span> <span class="badge b-acc">出典表示あり</span></div>
-  </div>
+
+  <!-- OSMノートの下書き -->
+  <section data-show="171.2-184.3" class="abs panel slide">
+    <div class="ph-h"><h2>OSMノートの下書き</h2></div>
+    <div class="od">アプリはOSMと通信しない。投稿は現地を見た本人</div>
+    <div class="kv" style="margin-top:8px">
+      <div><b>何が</b><span>右折禁止の規制がOSMにない可能性</span></div>
+      <div><b>どこで</b><span>交差点（OSM要素IDを添付）</span></div>
+      <div><b>確認方法</b><span style="display:flex;flex-wrap:wrap;gap:6px"><span class="badge b-ok" style="padding:0 12px;box-shadow:inset 0 0 0 1.5px var(--ok-700)">● 現地で見た</span><span class="badge" style="border:1px solid var(--line-2);color:var(--text-2);padding:0 12px">○ 自分で撮った写真</span><span style="color:var(--text-3)">見た日 ［ 年 / 月 / 日 ］</span></span></div>
+    </div>
+    <div data-show="176.4-184.3" class="badge rise" style="margin-top:10px;background:var(--unk-50);color:var(--unk-700);border:1.5px dashed var(--unk-line);height:34px;padding:0 14px">⚠ 社名・「試走」などの語は入れない</div>
+    <div class="foot"><span class="btn">下書きをコピー</span><span class="btn primary">OSMのノート画面へ</span></div>
+  </section>
+
+  <!-- 約束の印（アプリ） -->
+  <div data-show="53.8-57" class="abs stamp pop p1"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">札とボタンは AI を通さない</div><div class="s">Claude が止まっても、地図は使える</div></div></div>
+  <div data-show="60.4-63.3" class="abs stamp pop p2"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">地図の表示も、日本語で動かせる</div><div class="s">拡大・移動・表示の切り替え</div></div></div>
+  <div data-show="67.8-71.4" class="abs stamp pop p2"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">日本語ひとことで頼める</div><div class="s">寄り先も目的地も、言葉のまま</div></div></div>
+  <div data-show="73-77.4" class="abs stamp pop p3"><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">座標の精度をそのまま出す</div><div class="s">住居番号か、町までか</div></div></div>
+  <div data-show="79-83" class="abs stamp pop p2"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">「手土産」を辞書でタグに置き換える</div><div class="s">どう解釈したかを毎回見せる</div></div></div>
+  <div data-show="93-99" class="abs stamp pop p3"><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">区間の時間と寄り道の増分を出す</div><div class="s">寄らない場合と比べられる</div></div></div>
+  <div data-show="110-115.3" class="abs stamp pop p1"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">外に出たのは Claude への依頼だけ</div><div class="s">地図・検索・ルート・住所は自社で稼働</div></div></div>
+  <div data-show="123.4-128" class="abs stamp pop p2"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">業務の言葉をタグに置き換える</div><div class="s">歩行者用の踏切は切り替えで含める</div></div></div>
+  <div data-show="129-134.5" class="abs stamp pop p3"><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">0件は「OSM上で0件」</div><div class="s">現地にないとは言わない</div></div></div>
+  <div data-show="152.5-158.6" class="abs stamp pop p3"><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">合否はタグで機械的に判定</div><div class="s">タグがなければ「判定不能」</div></div></div>
+  <div data-show="162.5-168.8" class="abs stamp pop p3"><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">出典とデータ時点を焼き込む</div><div class="s">渡した先でも確かめられる</div></div></div>
 </div>
 
-<!-- ============ S0 : reenacted slide (0-4) ============ -->
-<div data-show="0-4.3" class="abs full">
-  <div class="reenact">再現</div>
-  <div class="abs slide">
-    <h3>コースのご案内（再現）</h3>
-    <div style="display:flex;gap:28px;align-items:flex-start">
-      <div class="shot">（Googleマップのスクリーンショット）</div>
-      <div style="font-size:17px;line-height:1.9;color:var(--muted)">集合：◯◯駅<br>コース：◯◯</div>
+<!-- ============ S1：もし明日（0-6） ============ -->
+<div data-show="0-6.3" class="abs full dark">
+  <div class="abs hero" style="top:200px;font-size:54px;line-height:1.45">明日、Googleマップの<br>商用利用が禁止されたら？</div>
+  <div data-show="2.2-6.3" class="abs hero" style="top:400px;font-size:24px;font-weight:700;color:var(--teal-300)">その地図、明日も使えますか。</div>
+  <div data-show="3.5-6.3" class="abs hero" style="top:466px;font-size:14px;font-weight:500;color:var(--on-sumi-2)">※ 仮定の話です</div>
+</div>
+
+<!-- ============ S2：前例（6-22） ============ -->
+<div data-show="6-22.3" class="abs full">
+  <div class="abs" style="left:100px;top:34px"><div class="h3">前例はあります</div><div class="sub">規約・料金・地図の中身を、Googleが1社で決めてきた</div></div>
+  <div class="abs cases" style="left:100px;top:118px;width:1080px">
+    <div data-show="6.6-22.3" class="case rise"><span class="yr">2006</span><b>Google Earth</b><span>無料版は個人の非商用だけに。業務は有料のPro</span></div>
+    <div data-show="7.75-22.3" class="case rise"><span class="yr">2012</span><b>Maps API</b><span>大量利用を有料化。OSMへ移るサービスも</span></div>
+    <div data-show="8.9-22.3" class="case rise"><span class="yr">2016</span><b>Google Maps Engine</b><span>企業向けサービスを終了。データも消去へ</span></div>
+    <div data-show="10.05-22.3" class="case rise"><span class="yr">2017</span><b>Google Earth Enterprise</b><span>社内サーバで動かす版の保守を終了</span></div>
+    <div data-show="11.2-22.3" class="case rise"><span class="yr">2018</span><b>Google Maps Platform</b><span>無料枠を大幅縮小。一部のサイトで地図が灰色に</span></div>
+    <div data-show="12.35-22.3" class="case rise jp"><span class="yr">2019</span><b>Googleマップ（日本）</b><span>地図を作り替え。ゼンリンの表記が消え、道やバス停が欠けた</span><span class="badge" style="margin-left:auto;background:var(--teal-600);color:#fff;padding:0 10px">日本でも</span></div>
+    <div data-show="13.5-22.3" class="case rise"><span class="yr">2021</span><b>ゲーム向け地図サービス</b><span>提供終了を発表。ドラクエウォークも別サービスへ</span></div>
+    <div data-show="14.65-22.3" class="case rise"><span class="yr">2025</span><b>Maps Platform 料金改定</b><span>無料枠の仕組みを変更。値上がりする使い方も</span></div>
+    <div data-show="15.8-22.3" class="case rise"><span class="yr">2026</span><b>Google Earth Pro</b><span>デスクトップ版の配布終了を発表（2027年6月まで）</span></div>
+  </div>
+  <div class="abs src" style="left:100px;top:548px;width:1080px">出典：Ogle Earth（2006年6月・ブログ）、INTERNET Watch（2012年6月）、GIS Resources（2015年1月）、Google Open Source Blog（2017年2月）、INTERNET Watch（2018年6月）、週刊アスキー（2019年3月）、AUTOMATON（2021年10月）、INTERNET Watch（2025年2月）、窓の杜（2026年7月）。2019年の件は、Googleの新しい地図の発表と、表示の変化の報道による（理由はGoogleが説明していない）。2026年11月4日に確認</div>
+</div>
+
+<!-- ============ S3：なぜ必要か（22-31） ============ -->
+<div data-show="22-31.3" class="abs full">
+  <div class="abs" style="left:100px;top:150px;display:flex;gap:40px;align-items:stretch">
+    <div class="card rise" data-show="22.2-31.3" style="width:460px;padding:26px 28px;box-shadow:var(--sh-pill)">
+      <div class="h3" style="font-size:28px">OpenStreetMap（OSM）</div>
+      <div style="font-size:19px;line-height:1.9;margin-top:14px">誰でも使えるオープンデータ（ODbL）<br>データを手元に置き、<b>自社のサーバで動かせる</b><br>どこか1社の判断で止まらない</div>
+    </div>
+    <div data-show="26.5-31.3" class="rise" style="width:580px">
+      <div class="win" style="position:relative">
+        <div class="bar">今の道具で「港区のトンネル」を探すと</div>
+        <div class="term" style="font-size:16px">
+          <div>[out:json][timeout:25];</div>
+          <div>area["name"="港区"]-&gt;.a;</div>
+          <div>way["tunnel"="yes"]["highway"](area.a);</div>
+          <div>out geom;</div>
+          <div class="m" style="margin-top:8px">＋ ルートエンジンの設定、タグの知識…</div>
+        </div>
+      </div>
+      <div data-show="27.8-31.3" style="margin-top:16px;font-weight:800;font-size:24px;color:var(--ng-700)">使えるのは、これが書ける人だけ</div>
     </div>
   </div>
 </div>
 
-<!-- ============ S2 : pitch (16-20) ============ -->
-<div data-show="16-20.2" class="abs full">
-  <div class="abs pitch">
-    <p>地図に詳しくない社員が、日本語ひとことで、<br>出典つきの“渡せる地図”をつくる。</p>
-    <small>Googleにも、公開サーバにも頼らずに。</small>
+<!-- ============ S4：ほかの道具の課題（31-40） ============ -->
+<div data-show="31-40.3" class="abs full">
+  <div class="abs" style="left:140px;top:120px;width:1000px;display:flex;flex-direction:column;gap:16px">
+    <div class="h3" style="margin-bottom:6px">ほかの道具では</div>
+    <div data-show="31.3-40.3" class="xrow rise"><span class="x">✕</span><b>OSMの公開サーバ</b><span>保証がなく、使いすぎると止められる</span></div>
+    <div data-show="33.2-40.3" class="xrow rise"><span class="x">✕</span><b>地図会社のAPI</b><span>また1社に頼ることになる</span></div>
+    <div data-show="35.6-40.3" class="xrow rise"><span class="x">✕</span><b>AIの地図チャット</b><span>答えを確かめにくく、渡せる地図が出ない</span></div>
+  </div>
+  <div class="abs src" style="left:140px;top:560px;width:1000px">根拠：OSMFのタイル利用ポリシー、公開 Overpass と OSRM デモの利用条件、各先行例のリポジトリと説明（2026年11月4日に調査。「渡せる地図」はルート・共有リンク・資料用の画像の書き出しがそろうもの）</div>
+</div>
+
+<!-- ============ S5：作った人と3つの約束（40-50） ============ -->
+<div data-show="40-50.3" class="abs full">
+  <div data-show="40-45.3" class="abs" style="left:120px;top:160px;display:flex;gap:44px;align-items:center">
+    <div style="width:360px;height:240px;border-radius:var(--r-lg);background:repeating-linear-gradient(45deg,#E4E7E4 0 14px,#EDEFEC 14px 28px);border:1px dashed var(--line-2);display:grid;place-items:center;color:var(--text-3);font-size:16px;text-align:center">（作者が話す映像）<br><small>地図の業界に長くいる開発者</small></div>
+    <div data-show="41.6-45.3" class="rise">
+      <div style="display:flex;align-items:center;gap:16px"><svg width="64" height="64"><use href="#i-logo"/></svg><span style="font-weight:800;font-size:64px;letter-spacing:.04em">ことづて</span></div>
+      <div style="font-size:20px;color:var(--text-2);margin-top:8px;line-height:1.6">日本語ひとことで、自社で動くOSMから、<br>出典つきの“渡せる地図”をつくる</div>
+      <div style="margin-top:14px"><span class="badge b-acc">Claude Code で開発</span></div>
+    </div>
+  </div>
+  <div data-show="45-50.3" class="abs" style="left:100px;top:130px;width:1080px">
+    <div class="h3" style="margin-bottom:22px">3つの約束</div>
+    <div style="display:flex;gap:28px">
+      <div data-show="45.3-50.3" class="promise rise"><div class="no">1</div><h4>1社に頼らない</h4><div>地図・検索・ルート・住所を自社で動かす。外に出るのは Claude への依頼だけ</div></div>
+      <div data-show="46.6-50.3" class="promise rise"><div class="no">2</div><h4>詳しくなくても使える</h4><div>日本語ひとことで頼む。検索文もタグも知らなくてよい</div></div>
+      <div data-show="47.9-50.3" class="promise rise"><div class="no">3</div><h4>確かめられる</h4><div>合否、判定不能、0件、出典とデータ時点を、そのまま出す</div></div>
+    </div>
+    <div data-show="48.6-50.3" style="margin-top:22px;font-size:16px;color:var(--text-2)">このあとの画面で、約束を守った場面に印を出します</div>
   </div>
 </div>
 
-<!-- ============ S-MCP (115-130) ============ -->
-<div data-show="115-130.2" class="abs full">
-  <div class="abs win" style="left:60px;top:40px;width:640px;height:560px">
+<!-- ============ MCP（171-184） ============ -->
+<div data-show="184-197.3" class="abs full">
+  <div class="abs win" style="left:60px;top:110px;width:640px;height:340px">
     <div class="bar">MCPクライアント（例：Claude Desktop）＋ ことづての MCP サーバ</div>
     <div style="padding:18px;display:flex;flex-direction:column;gap:12px">
-      <div data-show="116-130.2" class="bubble u">添付：23区の区役所の住所一覧（公開データ）.csv<br>全部をピンにして、資料用の画像も作って</div>
-      <div data-show="119-130.2" class="bubble a mono" style="font-size:14px">geocode_address × 23<br>add_pin × 23<br>export_png × 1<br>make_share_link × 1</div>
-      <div data-show="123-130.2" class="bubble a">23件すべて住所が見つかりました（座標の精度は一覧に記載）。画像と共有リンクを作りました。</div>
+      <div data-show="184.5-197.3" class="bubble bu rise">添付：23区の区役所の住所一覧（公開データ）.csv<br>全部をピンにして、資料用の画像も作って</div>
+      <div data-show="187-197.3" class="bubble ba mono rise" style="font-size:14px">geocode_address × 23<br>add_pin × 23<br>export_png × 1<br>make_share_link × 1</div>
+      <div data-show="190.5-197.3" class="bubble ba rise">23件すべて住所が見つかりました（座標の精度は一覧に記載）。画像と共有リンクを作りました。</div>
     </div>
   </div>
-  <div data-show="124-130.2" class="abs win" style="left:740px;top:90px;width:480px">
+  <div data-show="191.5-197.3" class="abs win rise" style="left:740px;top:110px;width:480px">
     <div class="bar">共有リンクをWebアプリで開く</div>
-    <svg width="480" height="330" viewBox="0 0 480 330">
-      <rect width="480" height="330" fill="#EEF1EC"/>
-      <path d="M-10 250 C120 220,220 290,330 250 S440 200,490 230" stroke="#A9CDE0" stroke-width="14" fill="none"/>
-      <g fill="#E3A008" stroke="#5C4100" stroke-width="1.5">
+    <svg width="480" height="300" viewBox="0 0 480 300">
+      <rect width="480" height="300" fill="#EEF0EF"/>
+      <path d="M-10 230 C120 200,220 270,330 230 S440 180,490 210" stroke="#C9D8E0" stroke-width="14" fill="none"/>
+      <g fill="#0B6E78" stroke="#fff" stroke-width="2">
         <circle cx="80" cy="90" r="7"/><circle cx="120" cy="140" r="7"/><circle cx="160" cy="70" r="7"/><circle cx="190" cy="180" r="7"/>
         <circle cx="230" cy="110" r="7"/><circle cx="260" cy="200" r="7"/><circle cx="290" cy="60" r="7"/><circle cx="310" cy="150" r="7"/>
         <circle cx="340" cy="240" r="7"/><circle cx="360" cy="100" r="7"/><circle cx="390" cy="170" r="7"/><circle cx="410" cy="60" r="7"/>
-        <circle cx="100" cy="200" r="7"/><circle cx="140" cy="260" r="7"/><circle cx="210" cy="250" r="7"/><circle cx="250" cy="40" r="7"/>
-        <circle cx="270" cy="280" r="7"/><circle cx="330" cy="200" r="7"/><circle cx="380" cy="280" r="7"/><circle cx="430" cy="130" r="7"/>
+        <circle cx="100" cy="200" r="7"/><circle cx="140" cy="250" r="7"/><circle cx="210" cy="240" r="7"/><circle cx="250" cy="40" r="7"/>
+        <circle cx="270" cy="270" r="7"/><circle cx="330" cy="200" r="7"/><circle cx="380" cy="262" r="7"/><circle cx="430" cy="130" r="7"/>
         <circle cx="60" cy="150" r="7"/><circle cx="180" cy="120" r="7"/><circle cx="440" cy="210" r="7"/>
       </g>
-      <text x="10" y="320" font-size="11" fill="#17262B" font-family="BIZ UDPGothic">模式図　© OpenStreetMap contributors ／ Protomaps</text>
+      <text x="10" y="292" font-size="11" fill="#434C53" font-family="M PLUS 1">模式図　© OpenStreetMap contributors ／ Protomaps</text>
     </svg>
   </div>
 </div>
 
-<!-- ============ S-CODE (130-160) ============ -->
-<div data-show="130-160.2" class="abs full">
+<!-- ============ Claude Code での開発（184-216） ============ -->
+<div data-show="197-229.3" class="abs full">
   <div class="abs win" style="left:60px;top:30px;width:1160px;height:580px">
     <div class="bar">Claude Code（開発の記録・再現）</div>
     <div class="term" style="height:546px">
-      <div data-show="130-137.6">
+      <div data-show="197-205.3">
         <div class="m">● Edit  web/src/map.ts</div>
         <div>  tiles: "https://tile.openstreetmap.org/{z}/{x}/{y}.png"</div>
-        <div data-show="132-137.6" class="r">✗ PreToolUse hook が拒否：公開タイル（tile.openstreetmap.org）は使いません。自前の PMTiles を使ってください。</div>
-        <div data-show="134.5-137.6" class="g">● Edit  web/src/map.ts</div>
-        <div data-show="134.5-137.6" class="g">  url: "pmtiles:///tiles/tokyo.pmtiles"   ← 自前の地図ファイルに修正</div>
+        <div data-show="199-205.3" class="r">✗ PreToolUse hook が拒否：公開タイル（tile.openstreetmap.org）は使いません。自前の PMTiles を使ってください。</div>
+        <div data-show="201.3-205.3" class="g">● Edit  web/src/map.ts</div>
+        <div data-show="201.3-205.3" class="g">  url: "pmtiles:///tiles/tokyo.pmtiles"   ← 自前の地図ファイルに修正</div>
+        <div data-show="202.5-205.3" class="m" style="margin-top:10px">止めた記録は logs/hook-blocks.jsonl に1行ずつ残る（撮影時の件数を表示）</div>
       </div>
-      <div data-show="137.6-145.2">
+      <div data-show="205-213.3">
         <div class="c">● サブエージェントを2つ並行で起動</div>
         <div style="display:flex;gap:16px;margin-top:10px">
-          <div style="flex:1;border:1px solid #2C3D43;border-radius:8px;padding:12px">
-            <div class="y">eval-runner</div><div>評価セット40問＋罠10問を採点中…</div><div class="m">結果は eval/runs/ に保存</div>
-          </div>
-          <div style="flex:1;border:1px solid #2C3D43;border-radius:8px;padding:12px">
-            <div class="y">tag-auditor</div><div>辞書のタグを関東データで数え中…</div><div class="m">0件のタグは辞書から外す</div>
-          </div>
+          <div style="flex:1;border:1px solid var(--sumi-line);border-radius:8px;padding:12px"><div class="y">eval-runner</div><div>評価セット40問＋罠10問を採点中…</div><div class="m">結果は eval/runs/ に保存</div></div>
+          <div style="flex:1;border:1px solid var(--sumi-line);border-radius:8px;padding:12px"><div class="y">tag-auditor</div><div>辞書のタグを関東データで数え中…</div><div class="m">0件のタグは辞書から外す</div></div>
         </div>
       </div>
-      <div data-show="145.2-152.6">
+      <div data-show="213-221.3">
         <div class="c">$ git log --reverse --date=format:%m/%d --format="%ad  %s"</div>
         <div>11/04  地図・検索・ルートを自前で起動</div>
         <div class="y">11/05  評価セットを追加（プロンプト調整より前）</div>
@@ -361,22 +707,24 @@ html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:var(--pa
         <div>11/06  評価1回目 → 辞書の解釈を修正</div>
         <div>11/07  評価2回目 → 候補生成を修正</div>
       </div>
-      <div data-show="152.6-160.2">
+      <div data-show="221-229.3">
         <div class="c">正答率の推移（数値は撮影時の実測に置き換え）</div>
         <div style="display:flex;align-items:flex-end;gap:40px;height:260px;margin:24px 0 0 40px">
-          <div style="text-align:center"><div style="width:120px;height:120px;background:#3E6B78"></div><div class="m" style="margin-top:6px">1回目</div></div>
-          <div style="text-align:center"><div style="width:120px;height:170px;background:#4E8FA3"></div><div class="m" style="margin-top:6px">2回目</div></div>
-          <div style="text-align:center"><div style="width:120px;height:215px;background:#7CC3DA"></div><div class="m" style="margin-top:6px">3回目</div></div>
-          <div style="font-size:14px;line-height:1.8" class="m">各回で何を変えたかを<br>READMEに1行ずつ記録</div>
+          <div style="text-align:center"><div style="width:120px;height:120px;background:#2E5E66"></div><div class="m" style="margin-top:6px">1回目</div></div>
+          <div style="text-align:center"><div style="width:120px;height:170px;background:#0B6E78"></div><div class="m" style="margin-top:6px">2回目</div></div>
+          <div style="text-align:center"><div style="width:120px;height:215px;background:#7CCFD3"></div><div class="m" style="margin-top:6px">3回目</div></div>
+          <div style="font-size:15px;line-height:1.9" class="m">◯コミット ／ テスト◯件<br>正答率 ◯% → ◯%<br>捏造 0回</div>
         </div>
       </div>
     </div>
   </div>
+  <div data-show="202-205.3" class="abs stamp pop" style="left:640px;right:auto;top:420px"><div class="tag"><span class="n">①</span><span class="w">印</span></div><div><div class="t">開発中から、公開サービスを止める</div><div class="s">hook はホスト名で判定する</div></div></div>
+  <div data-show="215.5-221.3" class="abs stamp pop" style="left:640px;right:auto;top:420px"><div class="tag"><span class="n">③</span><span class="w">印</span></div><div><div class="t">評価を先に決めてから、直す</div><div class="s">git の履歴で順番を示す</div></div></div>
 </div>
 
-<!-- ============ S-FINAL (160-180) ============ -->
-<div data-show="160-168.2" class="abs full">
-  <div class="abs win" style="left:120px;top:60px;width:1040px">
+<!-- ============ レシピの再実行（216-224） ============ -->
+<div data-show="229-237.3" class="abs full">
+  <div class="abs win" style="left:120px;top:110px;width:1040px">
     <div class="bar">Claude API が止まっていても</div>
     <div style="display:flex;gap:24px;padding:22px">
       <div class="term" style="flex:1;border-radius:8px;font-size:14px">
@@ -386,98 +734,139 @@ html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:var(--pa
         <div>  { "op": "route", "via": ["result:1","osm:way/…"], "exclude": ["highway","toll"] },</div>
         <div>  { "op": "check_route", "tunnels": 2, "max_minutes": 60 },</div>
         <div>  { "op": "export_png" } ],</div>
-        <div>  "data_time": "（撮影時の値）" }</div>
+        <div>  "data_time": "2026-11-03" }</div>
       </div>
       <div style="flex:1;font-size:18px;line-height:1.8">
-        <div data-show="162-168.2"><span class="badge b-ng" style="font-size:15px">Claude API：停止中</span></div>
-        <div data-show="163.5-168.2">レシピを再実行 →</div>
-        <div data-show="165-168.2"><span class="badge b-ok" style="font-size:15px">同じ地図と合否表が出る</span></div>
+        <div data-show="231-237.3"><span class="badge b-ng" style="font-size:15px">Claude API：停止中</span></div>
+        <div data-show="232.5-237.3">レシピを再実行 →</div>
+        <div data-show="234-237.3"><span class="badge b-ok" style="font-size:15px">同じ地図と合否表が出る</span></div>
       </div>
     </div>
   </div>
+  <div data-show="234.5-237.3" class="abs stamp pop" style="left:640px;right:auto;top:400px"><div class="tag"><span class="n">①</span><span class="w">印</span></div><div><div class="t">Claude が止まっても、業務は止まらない</div><div class="s">AI 以外はすべて自社で動く</div></div></div>
 </div>
-<div data-show="168-176.2" class="abs full">
-  <div class="abs" style="left:100px;top:70px">
-    <div style="font-family:var(--f-display);font-weight:700;font-size:24px;margin-bottom:16px">似ているサービスとの違い</div>
-    <table class="cmp">
-      <tr><th></th><th>渡せる成果物</th><th>出典の焼き込み</th><th>自社で動く</th><th>判定不能の表示</th></tr>
-      <tr><td>TRIDENT（OSS）</td><td>地図表示のみ</td><td>―</td><td>可（OSS）</td><td>―</td></tr>
-      <tr><td>Googleマップ「マップに相談」</td><td>共有リンク（マップ本体）</td><td>―</td><td>不可</td><td>―</td></tr>
-      <tr><td>地図会社のMCP（Mapbox・TomTom）</td><td>チャット内の地図・地図画像（Mapbox）</td><td>未確認</td><td>不可</td><td>―</td></tr>
-      <tr><td class="me">この作品</td><td class="me">画像・共有リンク（GPX・レシピは社内用）</td><td class="me">あり</td><td class="me">可（AI以外）</td><td class="me">あり</td></tr>
+
+<!-- ============ 3つの約束で比べる（224-233） ============ -->
+<div data-show="237-246.3" class="abs full">
+  <div class="abs" style="left:90px;top:110px;width:1100px">
+    <div class="h3" style="margin-bottom:18px">3つの約束で比べると</div>
+    <table class="cmp" style="width:100%">
+      <tr><th></th><th>① 自社で動く</th><th>② 日本語で、渡せる地図まで</th><th>③ 判定不能・出典の焼き込み</th></tr>
+      <tr><td>TRIDENT（OSS）</td><td>可（OSS）</td><td>地図表示のみ</td><td>―</td></tr>
+      <tr><td>Googleマップ「マップに相談」</td><td>不可</td><td>共有リンク（マップ本体）</td><td>―</td></tr>
+      <tr><td>地図会社のMCP（Mapbox・TomTom）</td><td>不可</td><td>チャット内の地図・地図画像（Mapbox）</td><td>未確認</td></tr>
+      <tr data-show="239.5-246.3"><td class="me">ことづて</td><td class="me">可（AI以外）</td><td class="me">画像・共有リンク</td><td class="me">あり</td></tr>
     </table>
-    <div style="font-size:14px;color:var(--muted);margin-top:10px">2026年11月時点の調査。「―」は調べた範囲で見当たらなかったもの、「未確認」は確かめきれなかったもの（「マップに相談」の細かい機能は未確認）</div>
-  </div>
-</div>
-<div data-show="176-180.5" class="abs full end">
-  <div class="abs" style="left:120px;top:190px">
-    <div class="chip" style="display:inline-block;margin-bottom:16px">Built with Claude: Japan 2026 ／ テーマ1「あなたにしかない深さを」</div>
-    <h2>ことづて</h2>
-    <div style="font-size:22px;color:var(--muted)">Googleが止まっても、地図に詳しくなくても、渡せる地図をつくる</div>
+    <div class="src" style="margin-top:12px">2026年11月時点の調査。「―」は調べた範囲で見当たらなかったもの、「未確認」は確かめきれなかったもの（「マップに相談」の細かい機能は未確認）</div>
   </div>
 </div>
 
-<!-- ============ caption bar ============ -->
+<!-- ============ おわり（233-244.5） ============ -->
+<div data-show="246-257.5" class="abs full dark">
+  <div data-show="246.3-257.5" class="abs hero rise" style="top:200px;font-size:44px">明日、Googleマップの規約が変わっても。</div>
+  <div data-show="250.5-257.5" class="abs hero rise" style="top:280px;font-size:44px;color:var(--teal-300)">あなたの地図は、止まらない。</div>
+  <div data-show="252.8-257.5" class="abs hero rise" style="top:400px">
+    <div style="display:flex;justify-content:center;align-items:center;gap:16px"><svg width="56" height="56"><use href="#i-logo"/></svg><span style="font-size:56px;letter-spacing:.06em">ことづて</span></div>
+    <div style="margin-top:14px;font-size:15px;font-weight:500;color:var(--on-sumi-2)">Built with Claude: Japan 2026 ／ テーマ1「あなたにしかない深さを」</div>
+  </div>
+</div>
+
+</div><!-- /stage -->
+
+<!-- ============ 字幕帯 ============ -->
 <div class="abs cap">
   <span class="scene" id="sceneLabel">冒頭</span>
   <div class="captext">
-    <div data-show="0-4">資料の地図はGoogleマップのスクショ。コースを作るのに◯日待ち。</div>
-    <div data-show="4-16">1文で頼むだけ。コース、合否表、資料用の画像、GPX、共有リンクが出てくる。</div>
-    <div data-show="16-20">一言でいうと、こういう道具です。</div>
-    <div data-show="20-29">住所はデジタル庁のABRで解決。座標の精度を、そのまま表示する。</div>
-    <div data-show="29-38">名前だけなら候補を出して選んでもらう。見つからなければ、見つからないと言う。</div>
-    <div data-show="38-48">業務の言葉をOSMのタグに対応させる辞書で検索。どう解釈したかを毎回見せる。</div>
-    <div data-show="48-58">タグの入り具合も表示。0件のときは「OSM上で0件」と書く。</div>
-    <div data-show="58-66">コースは自前のValhallaで引き、合否はOSMのタグで機械的に判定する。</div>
-    <div data-show="66-76">1回目はトンネルが足りない。プログラムが経由地の候補を作り、引き直す。</div>
-    <div data-show="76-85">2回目で条件を満たす。タグのない区間は「判定不能」と正直に出す。</div>
-    <div data-show="85-92">資料用の画像には、出典とデータ時点を焼き込む。</div>
-    <div data-show="92-100">共有リンクを別のブラウザで開いても、同じ地図とデータ時点が出る。</div>
-    <div data-show="100-108">運転した人の「ここは右折できなかった」から、OSMノートを下書き。</div>
-    <div data-show="108-115">Googleで見た情報や社内の事情は入れない。投稿は現地を見た本人が行う。</div>
-    <div data-show="115-123">同じ操作はMCPでも使える。</div>
-    <div data-show="123-130">23区の区役所の住所一覧を渡すと、まとめてピンを立て、資料用の画像まで作る。</div>
-    <div data-show="130-137.6">開発はClaude Codeが中心。公開タイルを使おうとするとhookが止める。</div>
-    <div data-show="137.6-145.2">サブエージェントが、評価と辞書の点検を並行して進める。</div>
-    <div data-show="145.2-152.6">評価セットは、プロンプトを調整する前にコミットした。</div>
-    <div data-show="152.6-160">改善のたびに正答率を記録する。</div>
-    <div data-show="160-168">Claudeが止まっても、保存したレシピを再実行すれば同じ地図と合否表が出る。</div>
-    <div data-show="168-176">違いは、渡せる成果物、出典の焼き込み、自社で動くこと、判定不能の表示。</div>
-    <div data-show="176-180.5">絵コンテ（イメージ）。画面と数値は、撮影時に実物へ置き換えます。</div>
+    <div data-show="0-6">明日、Googleマップを仕事で使えなくなったら。その地図、明日も使えますか。</div>
+    <div data-show="6-11.5">仮定ですが、前例はあります。業務利用の制限、有料化、サービス終了。</div>
+    <div data-show="11.5-17">日本でも2019年、地図が作り替えられ、道やバス停が欠けました。</div>
+    <div data-show="17-22">規約も料金も、地図の中身も、Googleが1社で決めてきました。</div>
+    <div data-show="22-26.5">答えの1つはOSM。誰でも使え、自社で動かせます。</div>
+    <div data-show="26.5-31">でも今の道具は、検索文やタグを知っている人しか使えません。</div>
+    <div data-show="31-35.5">公開サーバは無保証。地図会社のAPIは、また1社頼み。</div>
+    <div data-show="35.5-40">AIの地図チャットは、確かめにくく、渡せる地図も出ません。</div>
+    <div data-show="40-45">地図の業界に長くいる私が、Claude Codeで作ったのが、ことづてです。</div>
+    <div data-show="45-50">約束は3つ。1社に頼らない。詳しくなくても使える。確かめられる。</div>
+    <div data-show="50-56.5">操作は、いつもの地図アプリと同じ。札を押せば、AIを通さずに地図に出ます。</div>
+    <div data-show="56.5-63">そのうえ、日本語でも動かせます。拡大も、表示の切り替えも、ひとことで。</div>
+    <div data-show="63-69">例1。今いる場所から、寄り道して客先へ。打つのは、ひとことだけ。</div>
+    <div data-show="69-77">現在地はブラウザから。目的地の住所はABRで解き、座標の精度も出します。</div>
+    <div data-show="77-83">手土産は、辞書で和菓子・洋菓子の店に置き換え、道の近くから探します。</div>
+    <div data-show="83-89">寄り道で増える時間の少ない順に並べます。どれも道沿いで、増えるのは0分。</div>
+    <div data-show="89-97">ルートは自社のValhallaで引きます。区間ごとの時間と、寄り道で増えた時間も出します。</div>
+    <div data-show="97-101">順番は頼んだとおり。郵便局が先、手土産はあと。</div>
+    <div data-show="101-107">共有リンクを開くと、同じルートと寄り先、データ時点が出ます。</div>
+    <div data-show="107-115">この間、外に出た通信はClaudeへの依頼だけ。地図もルートも住所も、自社で動いています。</div>
+    <div data-show="115-121">例2。来週の試走コース。まず、このあたりの踏切とトンネルを確かめます。</div>
+    <div data-show="121-128">踏切やトンネルも、辞書でタグに置き換えます。どう解釈したかを毎回見せます。</div>
+    <div data-show="128-135">0件のときは「OSM上で0件」。現地にないとは言いません。</div>
+    <div data-show="135-143">次にコース。自社のValhallaで引き、合否はOSMのタグで機械的に判定します。</div>
+    <div data-show="143-151">1回目はトンネルが1本だけ。プログラムが2本目の候補を作り、引き直します。</div>
+    <div data-show="151-159">2回目で合格。車線数のタグがない8区間は「判定不能」と、正直に出します。</div>
+    <div data-show="159-169">資料用の画像には、出典とデータ時点を焼き込みます。外すことはできません。</div>
+    <div data-show="169-176">試走のあと、運転した人の一言から、OSMノートを下書きします。</div>
+    <div data-show="176-184">使うOSMは、自分たちで直していく。投稿は、現地を見た本人が行います。</div>
+    <div data-show="184-190">同じ操作は、MCPでも使えます。</div>
+    <div data-show="190-197">23区の区役所の住所一覧を渡すと、ピンを立てて、資料用の画像まで作ります。</div>
+    <div data-show="197-205">開発はClaude Codeが中心。公開タイルを使おうとすると、hookが止めます。</div>
+    <div data-show="205-213">サブエージェントが、評価と辞書の点検を並行して進めます。</div>
+    <div data-show="213-221">評価セットは、プロンプトを調整する前にコミットしました。</div>
+    <div data-show="221-229">改善のたびに、正答率を記録しています。</div>
+    <div data-show="229-237">Claudeが止まっても、保存したレシピを再実行すれば、同じ地図と合否表が出ます。</div>
+    <div data-show="237-246">調べた範囲では、3つの約束がそろう道具は、ほかに見つかりませんでした。</div>
+    <div data-show="246-250.5">明日、Googleマップの規約が変わっても。</div>
+    <div data-show="250.5-255">あなたの地図は、止まりません。ことづて。</div>
+    <div data-show="255-257.5" data-silent>絵コンテ（イメージ）。画面と数値は、撮影時に実物へ置き換えます。</div>
   </div>
+  <span class="note">絵コンテ（イメージ）<br>画面と数値は架空</span>
 </div>
 
-<div class="mock">絵コンテ（イメージ）・画面と数値は架空</div>
-
 <script>
-const SCENES=[[0,'冒頭（再現）'],[4,'冒頭：1文で全部'],[16,'ひとこと'],[20,'(a) 場所・住所'],[38,'(b) 地物の絞り込み'],[58,'(c) ルート・試走コース'],[85,'(d) 資料用の地図・共有'],[100,'OSMノートの下書き'],[115,'MCP'],[130,'Claude Codeでの開発'],[160,'レシピの再実行'],[168,'先行例との違い'],[176,'おわり']];
-const els=[...document.querySelectorAll('[data-show]')].map(el=>({el,d:el.style.display,w:el.dataset.show.split(',').map(s=>s.split('-').map(Number))}));
+const SCENES=[[0,'冒頭：もし明日'],[6,'前例'],[22,'なぜ必要か'],[31,'ほかの道具の課題'],[40,'作った人と3つの約束'],[50,'いつもの操作＋日本語'],[63,'例1 寄り道して客先へ'],[69,'例1 (a) 住所'],[77,'例1 (b) 寄り先を探す'],[89,'例1 (c) ルート'],[101,'例1 (d) 共有リンク'],[115,'例2 試走コース'],[121,'例2 (b) 地物の絞り込み'],[135,'例2 (c) 合否表'],[159,'例2 (d) 資料用の画像'],[169,'OSMノートの下書き'],[184,'MCP'],[197,'Claude Codeでの開発'],[229,'レシピの再実行'],[237,'3つの約束で比べる'],[246,'おわり']];
+const F=0.35;
+const ease=k=>k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+const clamp=x=>Math.max(0,Math.min(1,x));
+const win=s=>s.split(',').map(w=>w.split('-').map(Number));
+// 地図の上の札：data-at="場面:点"（scenes.js が書いた maps/pos.js の位置）。見つからなければ赤枠で知らせる
+for(const el of document.querySelectorAll('[data-at]')){
+  const [shot,pt]=el.dataset.at.split(':'); const p=(window.POS||{})[shot]?.[pt];
+  if(!p){el.style.outline='3px solid red';continue;}
+  el.style.position='absolute'; el.style.left=(p[0]+(+el.dataset.dx||0))+'px'; el.style.top=(p[1]+(+el.dataset.dy||0))+'px';
+  if(el.classList.contains('tun')) el.style.transform='translateY(-50%)';
+}
+const els=[...document.querySelectorAll('[data-show]')].map(el=>({el,d:el.style.display,rise:el.classList.contains('rise'),pop:el.classList.contains('pop'),slide:el.classList.contains('slide'),w:win(el.dataset.show)}));
 const typers=[...document.querySelectorAll('[data-type]')].map(el=>{const [t0,cps]=el.dataset.type.split(':').map(Number);return {el,t0,cps,text:el.dataset.text}});
-const draws=[...document.querySelectorAll('[data-draw]')].map(el=>({el,w:el.dataset.draw.split(',').map(s=>s.split('-').map(Number))}));
+const wipes=[...document.querySelectorAll('[data-wipe]')].map(el=>({el,w:win(el.dataset.wipe)[0]}));
+const picks=[...document.querySelectorAll('[data-pick]')].map(el=>({el,t:+el.dataset.pick}));
+const hits=[...document.querySelectorAll('[data-hit]')].map(el=>({el,t:+el.dataset.hit}));
+// カメラ：data-cam="NaN:倍率:tx:ty,NaN"（左上を原点に translate(tx,ty) scale(倍率)）
+const cams=[...document.querySelectorAll('[data-cam]')].map(el=>({el,k:el.dataset.cam.split(',').map(s=>s.split(':').map(Number))}));
 const label=document.getElementById('sceneLabel');
-const F=0.3;
 function render(t){
-  for(const {el,d,w} of els){
-    let o=0;
-    for(const [a,b] of w){ if(t>=a&&t<b){ o=Math.max(o,Math.min(1,a===0?1:(t-a)/F,(b-t)/F)); } }
+  for(const {el,d,rise,pop,slide,w} of els){
+    let o=0,kin=1;
+    for(const [a,b] of w){ if(t>=a&&t<b){ const ki=a===0?1:Math.min(1,(t-a)/F); o=Math.max(o,ease(Math.min(ki,(b-t)/F,1))); kin=ki; } }
     el.style.opacity=o; el.style.visibility=o>0?'visible':'hidden'; el.style.display=o>0?d:'none';
+    if(rise) el.style.transform=`translateY(${(1-ease(kin))*18}px)`;
+    if(slide) el.style.transform=`translateY(${(1-ease(kin))*140}px)`;
+    if(pop) el.style.transform=`scale(${1+0.22*(1-ease(kin))})`;
   }
   for(const p of typers){
     const n=Math.max(0,Math.min(p.text.length,Math.floor((t-p.t0)*p.cps)));
-    const done=n>=p.text.length;
-    p.el.innerHTML='';
-    p.el.appendChild(document.createTextNode(p.text.slice(0,n)));
-    if(!done||Math.floor(t*2)%2===0){const c=document.createElement('span');c.className='caret';p.el.appendChild(c);}
+    p.el.innerHTML=''; p.el.appendChild(document.createTextNode(p.text.slice(0,n)));
+    const doneAt=p.t0+p.text.length/p.cps;
+    if(n<p.text.length||(t<doneAt+1.5&&Math.floor(t*2)%2===0)){const c=document.createElement('span');c.className='caret';p.el.appendChild(c);}
   }
-  for(const {el,w} of draws){
-    let prog=0;
-    for(const [a,b] of w){ if(t>=a) prog=Math.min(1,(t-a)/(b-a)); }
-    // pick the window we are in (latest started)
-    let cur=null; for(const [a,b] of w){ if(t>=a) cur=[a,b]; }
-    prog=cur?Math.min(1,Math.max(0,(t-cur[0])/(cur[1]-cur[0]))):0;
-    el.style.strokeDasharray='1'; el.style.strokeDashoffset=String(1-prog);
+  for(const {el,w:[a,b]} of wipes){ const k=ease(clamp((t-a)/(b-a))); el.style.clipPath=`inset(0 ${(1-k)*100}% 0 0)`; }
+  for(const {el,t:tp} of picks) el.classList.toggle('pick',t>=tp);
+  for(const {el,t:th} of hits) el.classList.toggle('hit',t>=th&&t<th+1.2);
+  for(const {el,k} of cams){
+    let i=0; while(i<k.length-1&&t>=k[i+1][0]) i++;
+    const [t0,s0,x0,y0]=k[i], [t1,s1,x1,y1]=k[Math.min(i+1,k.length-1)];
+    const e=t1>t0?ease(clamp((t-t0)/(t1-t0))):0;
+    el.style.transform=`translate(${x0+(x1-x0)*e}px,${y0+(y1-y0)*e}px) scale(${s0+(s1-s0)*e})`;
   }
-  let s=SCENES[0][1]; for(const [a,n] of SCENES){ if(t>=a) s=n; } label.textContent=s;
+  let sc=SCENES[0][1]; for(const [a,n] of SCENES){ if(t>=a) sc=n; } label.textContent=sc;
 }
 window.render=render;
 render(0);

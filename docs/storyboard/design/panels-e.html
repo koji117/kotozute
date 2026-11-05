@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>ことづて 案E 操作パネル一覧</title>
+<!-- 絵コンテ用。アプリでは同じフォントを自前で配信する -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+1:wght@400;500;700;800&family=Noto+Sans+Mono:wght@400;500&display=block">
+<style>
+:root{
+  /* ここから option-e.html と同じ決まり ----------------------------------- */
+  /* 色：墨（コマンドバー、到着、トンネル）と青緑（ルート、主ボタン）。地図は冷たい灰で、色はルートだけが持つ */
+  --sumi-900:#111518;    /* 墨・最濃：コマンドバー、ブランドの地 */
+  --sumi-800:#1B2126;    /* 墨：点灯した約束、印の地 */
+  --sumi-700:#12343B;    /* 墨青：トンネルの管、到着の点、ピン */
+  --sumi-line:#2E363D;   /* 墨の面の上の区切り */
+  --on-sumi:#F2F5F6;     /* 墨の面の上の文字 */
+  --on-sumi-2:#AEB8BF;   /* 墨の面の上の補助文字、入力欄の案内 */
+  --teal-600:#0B6E78;    /* 青緑：ルート、主ボタン（白文字 5.9:1） */
+  --teal-700:#085862;    /* 青緑・濃：淡い面の上の文字 */
+  --teal-300:#7CCFD3;    /* 青緑・明：墨の上の差し色 */
+  --teal-50:#E4F2F2;     /* 青緑・淡：選択中、解釈のタグ、Claude の問い */
+  --text:#161B1F;        /* 文字・主 */
+  --text-2:#434C53;      /* 文字・副（白の上 9:1） */
+  --text-3:#5A646B;      /* 文字・補助（白の上 6:1、12px でも AA） */
+  --surface:#FFFFFF;     /* シート */
+  --surface-2:#F3F5F6;   /* シートの中の沈んだ面 */
+  --line:#E2E6E9;        /* 区切り線 */
+  --line-2:#C7CED3;      /* ボタン枠、入力枠 */
+  --map-bg:#EEF0EF;      /* 地図の地 */
+  --glass:rgba(255,255,255,.93);   /* 地図の上に浮く札の地 */
+  --glass-line:rgba(17,21,24,.08); /* 札の縁 */
+  --ok-700:#18703E;  --ok-50:#E5F3EA;                       /* 合格・問題なし：塗りの丸に ✓ */
+  --ng-700:#B3261E;  --ng-50:#FBE7E5;                       /* 不合格・止める：四角に ✕ */
+  --unk-700:#734700; --unk-50:#FFF4DA; --unk-line:#B98012;  /* 判定不能・注意：点線の丸に ？ */
+  --cap-bg:#0E1215;      /* 絵コンテの帯 */
+  --cap-ink:#C3CCD2;     /* 帯の補助文字 */
+  --cap-line:#39434A;    /* 帯の枠 */
+  --r-xs:5px; --r-sm:8px; --r-md:10px; --r-lg:14px; --r-xl:22px; --r-pill:999px; /* 角丸 */
+  --sh-pill:0 1px 2px rgba(10,20,25,.10), 0 4px 14px rgba(10,20,25,.10);   /* 地図の上の札 */
+  --sh-sheet:0 -1px 0 rgba(10,20,25,.06), 0 -10px 34px rgba(10,20,25,.16); /* 下から上がるシート */
+  --sh-bar:0 2px 6px rgba(10,20,25,.20), 0 10px 28px rgba(10,20,25,.18);   /* コマンドバー */
+  --sh-label:0 1px 2px rgba(10,20,25,.18), 0 3px 10px rgba(10,20,25,.14);  /* 地図の上の札・ピン */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; /* 余白 */
+  --pill-h:36px;         /* 浮く札の高さ（スマホでは 32px） */
+  --f-ui:"M PLUS 1","Hiragino Sans",sans-serif;
+  --f-mono:"Noto Sans Mono","M PLUS 1",ui-monospace,monospace;
+  --fs-label:12px; --fs-small:13px; --fs-body:14px; --fs-ui:15px; --fs-input:16px; --fs-title:18px; --fs-value:22px; /* 文字の大きさ */
+  --lh:1.5;
+  /* ここからパネル一覧だけの決まり --------------------------------------- */
+  --page:#E4E8EA;        /* 一覧の地 */
+  --phone-w:373px;       /* スマホ幅の画面 */
+  --phone-h:410px;       /* 切り出した画面の高さ */
+  --r-screen:20px;       /* 切り出した画面の角丸 */
+  --sh-screen:0 1px 2px rgba(10,20,25,.10), 0 8px 26px rgba(10,20,25,.12); /* 切り出した画面の影 */
+  --pill-h-phone:32px;   /* スマホの浮く札 */
+  /* 追加の色トークン（直書きをなくすため） */
+  --white:#FFFFFF;       /* 白：色の面の上の文字、ピンの縁 */
+  --ink-sep:#6A747B;     /* 出典の区切り「｜」（白の上 4.7:1） */
+  --line-3:#8E989F;      /* 点線の丸（未点灯の約束） */
+  --grab:#C9D0D5;        /* シートのつまみ */
+  --compass-tail:#9AA3A9;/* 方位の南側（飾り） */
+  --unk-25:#FFFCF3;      /* 判定不能の列の地 */
+  --unk-fill:rgba(226,165,46,.55);  /* 判定不能の見本の塗り */
+  --unk-hatch:rgba(185,128,18,.10); /* 判定不能の斜線 */
+  --swatch-line:rgba(255,255,255,.25); /* 墨の帯の上の見本の縁 */
+  --pin-foot:rgba(18,52,59,.45);    /* ピンの足元の影 */
+  --pin-ring:rgba(11,110,120,.25);  /* 選んだピンの輪 */
+  --sh-dot:0 1px 3px rgba(10,20,25,.18);      /* 地図の上の小さな印 */
+  --sh-seg:0 1px 2px rgba(10,20,25,.12);      /* 切り替えの選択中 */
+  --sh-pin:drop-shadow(0 2px 3px rgba(10,20,25,.28)); /* ピンの影（filter） */
+  --sh-knob:0 1px 2px rgba(0,0,0,.25);        /* スイッチのつまみ */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1600px;height:1000px;overflow:hidden;background:var(--page)}
+body{font-family:var(--f-ui);color:var(--text);font-size:var(--fs-body);line-height:var(--lh);line-break:strict;word-break:normal;word-break:auto-phrase;overflow-wrap:anywhere;-webkit-font-smoothing:antialiased}
+svg{display:block;flex:none}
+.mono{font-family:var(--f-mono)}
+.nw{white-space:nowrap}
+code{font-family:var(--f-mono);font-size:var(--fs-small);background:var(--teal-50);color:var(--teal-700);border-radius:var(--r-xs);padding:1px 5px;margin:0 2px;white-space:nowrap}
+
+/* ===== 見出し ===== */
+.top{height:64px;display:flex;align-items:center;gap:var(--sp-4);padding:0 24px;background:var(--cap-bg);color:var(--white)}
+.top h1{font-size:20px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
+.top .sub{font-size:var(--fs-body);color:var(--cap-ink);white-space:nowrap}
+.top .swatches{margin-left:auto;display:flex;gap:10px;font-size:var(--fs-label);color:var(--cap-ink)}
+.top .swatches span{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.top .swatches i{width:14px;height:14px;border-radius:4px;border:1px solid var(--swatch-line)}
+.top .note{font-size:var(--fs-label);color:var(--cap-ink);border:1px solid var(--cap-line);border-radius:var(--r-sm);padding:4px 10px;white-space:nowrap}
+
+/* ===== 格子：1列＝スマホ幅 ===== */
+.grid{display:grid;grid-template-columns:repeat(4,var(--phone-w));grid-template-rows:446px 446px;column-gap:20px;row-gap:12px;padding:10px 24px 0}
+.cell{display:flex;flex-direction:column;gap:8px}
+.cell.w2{grid-column:span 2}
+.capt{height:28px;display:flex;align-items:center;gap:8px;font-size:var(--fs-ui);font-weight:800;white-space:nowrap}
+.capt .no{width:24px;height:24px;border-radius:50%;background:var(--sumi-900);color:var(--on-sumi);display:grid;place-items:center;font-size:var(--fs-small);font-weight:800}
+.capt .op{height:22px;padding:0 8px;border-radius:var(--r-pill);background:var(--teal-50);color:var(--teal-700);font-size:var(--fs-label);font-weight:700;display:grid;place-items:center}
+.capt .hint{font-size:var(--fs-label);font-weight:500;color:var(--text-3)}
+.pair{display:flex;gap:20px}
+
+/* 切り出した画面 */
+.screen{position:relative;width:var(--phone-w);height:var(--phone-h);border-radius:var(--r-screen);overflow:hidden;background:var(--map-bg) no-repeat 0 0;box-shadow:var(--sh-screen);flex:none}
+.ptop{position:absolute;left:12px;right:12px;top:10px;display:flex;flex-wrap:wrap;gap:6px}
+.pill{display:flex;align-items:center;gap:6px;height:var(--pill-h-phone);padding:0 11px;border-radius:var(--r-pill);background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--sh-pill);font-size:var(--fs-small);font-weight:500;white-space:nowrap}
+.pill .host{font-family:var(--f-mono);font-size:var(--fs-label);font-weight:500}
+.brand{background:var(--sumi-900);border-color:var(--sumi-900);color:var(--on-sumi);padding:0 12px 0 4px;gap:8px}
+.brand b{font-size:var(--fs-ui);font-weight:800;letter-spacing:.04em}
+.attr{position:absolute;right:8px;padding:4px 9px;border-radius:var(--r-sm);background:var(--glass);border:1px solid var(--glass-line);font-size:var(--fs-label);line-height:1.45;color:var(--text-2);text-align:right;white-space:nowrap}
+.attr .sep{color:var(--ink-sep);margin:0 2px}
+
+/* スマホのシート */
+.ps{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:var(--r-screen) var(--r-screen) 0 0;box-shadow:var(--sh-sheet);padding:18px 16px 12px}
+.ps::before{content:"";position:absolute;top:7px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--grab)}
+.cmd{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 6px 8px 14px;border-radius:14px;background:var(--sumi-900);color:var(--on-sumi);box-shadow:var(--sh-bar);font-size:var(--fs-body);font-weight:500;line-height:1.45}
+.cmd .q{flex:1}
+.cmd .ph{flex:1;color:var(--on-sumi-2);font-weight:400;font-size:var(--fs-input)}
+.cmd .caret{width:2px;height:20px;background:var(--teal-300);margin-right:-6px}
+.send{width:34px;height:34px;border-radius:11px;background:var(--teal-600);display:grid;place-items:center;flex:none}
+.send.off{background:var(--sumi-line)}
+.kbd{font-family:var(--f-mono);font-size:var(--fs-label);color:var(--on-sumi-2);border:1px solid var(--sumi-line);border-radius:var(--r-xs);padding:0 6px}
+.k3{font-size:var(--fs-label);color:var(--text-3)}
+.h3{font-size:var(--fs-ui);font-weight:800;line-height:1.4}
+.badge{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px 0 6px;border-radius:var(--r-pill);font-size:var(--fs-small);font-weight:700;white-space:nowrap}
+.badge-teal{background:var(--teal-50);color:var(--teal-700)}
+.badge-unk{background:var(--unk-50);color:var(--unk-700);border:1.5px dashed var(--unk-line)}
+.badge-ok{background:var(--ok-50);color:var(--ok-700)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 14px 0 11px;border-radius:var(--r-md);border:1px solid var(--line-2);background:var(--surface);font-size:var(--fs-body);font-weight:700;color:var(--text);white-space:nowrap}
+.btn.primary{background:var(--teal-600);border-color:var(--teal-600);color:var(--white)}
+
+/* 地図の上のピン：丸い頭と細い脚（位置は map-e-*.json の点） */
+.pin{position:absolute;width:26px;height:38px;transform:translate(-50%,-100%);filter:var(--sh-pin)}
+.pin .hd{position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;background:var(--sumi-700);border:2.5px solid var(--white);display:grid;place-items:center;color:var(--white);font-size:var(--fs-small);font-weight:800;line-height:1}
+.pin .hd i{width:8px;height:8px;border-radius:50%;background:var(--white)}
+.pin .lg{position:absolute;left:12px;top:25px;width:2px;height:10px;background:var(--sumi-700)}
+.pin .ft{position:absolute;left:9px;top:33px;width:8px;height:4px;border-radius:50%;background:var(--pin-foot)}
+.pin.sel .hd{background:var(--teal-600);box-shadow:0 0 0 3px var(--pin-ring)}
+.xing{position:absolute;width:22px;height:22px;transform:translate(-50%,-50%) rotate(45deg);border-radius:6px;background:var(--white);border:2px solid var(--sumi-700);display:grid;place-items:center;box-shadow:var(--sh-label)}
+.lgx{width:15px;height:15px;transform:rotate(45deg);border-radius:4px;background:var(--white);border:1.5px solid var(--sumi-700);display:grid;place-items:center;margin:0 1px}
+.lgt{width:17px;height:17px;border-radius:50%;background:var(--sumi-700);display:grid;place-items:center}
+.tmk{position:absolute;z-index:2;width:22px;height:22px;transform:translate(-50%,-50%);border-radius:50%;background:var(--sumi-700);border:2px solid var(--white);display:grid;place-items:center;box-shadow:var(--sh-label)}
+
+/* 1 最初の画面 */
+.launch{position:absolute;left:12px;right:12px;bottom:56px}
+.sugg{background:var(--surface);border-radius:16px 16px 6px 6px;box-shadow:var(--sh-pill);padding:6px;margin-bottom:6px}
+.sugg .hd{display:flex;align-items:center;gap:6px;padding:4px 8px 6px;font-size:var(--fs-label);color:var(--text-3);font-weight:500}
+.sg{display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:var(--r-md);font-size:var(--fs-body);line-height:1.45}
+.sg+.sg{border-top:1px solid var(--line)}
+.sg .ic{width:28px;height:28px;border-radius:9px;background:var(--surface-2);display:grid;place-items:center;flex:none}
+.sg .tx{flex:1}
+.sg.hl{background:var(--teal-50)}
+.sg.hl .ic{background:var(--white)}
+
+/* 2 住所 */
+.addr-title{font-size:var(--fs-title);font-weight:800;line-height:1.4;margin-top:10px}
+.cands{margin-top:4px;display:flex;flex-direction:column}
+.cand{display:flex;align-items:center;gap:10px;height:36px;padding:0 8px;border-radius:var(--r-md)}
+.cand + .cand{border-top:1px solid var(--line)}
+.cand .n{width:22px;height:22px;border-radius:50%;background:var(--sumi-700);color:var(--white);font-size:var(--fs-label);font-weight:800;display:grid;place-items:center;flex:none}
+.cand b{font-size:var(--fs-ui);font-weight:700}
+.cand .kind{font-size:var(--fs-small);color:var(--text-3)}
+.cand .go{margin-left:auto}
+.ask{display:flex;align-items:center;gap:8px;margin-top:6px;padding:5px 10px;border-radius:var(--r-md);background:var(--teal-50);color:var(--teal-700);font-size:var(--fs-body);font-weight:500}
+
+/* 3 絞り込み */
+.rule{border-left:3px solid var(--teal-600);padding:1px 0 1px 10px;font-size:var(--fs-body);color:var(--text-2);line-height:1.5}
+.rule b{color:var(--text);font-weight:700}
+.tog{display:flex;align-items:center;gap:8px;margin:6px 0 0;font-size:var(--fs-small);color:var(--text-2)}
+.sw{width:34px;height:20px;border-radius:10px;background:var(--line-2);position:relative;flex:none}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--white);box-shadow:var(--sh-knob)}
+.tog .st{font-size:var(--fs-label);color:var(--text-3);border:1px solid var(--line-2);border-radius:var(--r-xs);padding:0 5px}
+.zero{position:relative;display:flex;align-items:center;gap:8px;margin-top:12px;padding:5px 10px;border-radius:var(--r-md);border:1.5px dashed var(--line-2);background:var(--surface-2);font-size:var(--fs-body);color:var(--text-2)}
+.zero .zl{position:absolute;left:8px;top:-9px;padding:0 5px;background:var(--surface);font-size:var(--fs-label);line-height:16px;color:var(--text-3)}
+.zero b{color:var(--text);font-weight:700}
+
+/* 4 書き出し */
+.dlg{position:relative;width:456px;height:var(--phone-h);border-radius:var(--r-screen);background:var(--surface);box-shadow:var(--sh-screen);padding:14px 16px;flex:none}
+.dlg .hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.dlg .hdr .x{margin-left:auto;width:30px;height:30px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center}
+.prev{position:relative;width:424px;height:238px;border-radius:var(--r-md);overflow:hidden;background:var(--map-bg) url(map-e-export.png) 0 0/424px 238px no-repeat;border:1px solid var(--line)}
+.prev .band{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:4px 8px;font-size:var(--fs-label);line-height:1.4;color:var(--text)}
+.prev .lb{position:absolute;transform:translate(-50%,-100%);margin-top:-10px;padding:1px 7px;border-radius:var(--r-pill);background:var(--white);box-shadow:var(--sh-label);font-size:var(--fs-label);font-weight:700;white-space:nowrap}
+.prev .north{position:absolute;right:8px;top:8px;display:flex;align-items:center;gap:3px;padding:2px 7px 2px 4px;border-radius:var(--r-pill);background:var(--white);font-size:var(--fs-label);font-weight:700;box-shadow:var(--sh-label)}
+.prev .lock{position:absolute;left:8px;top:8px;display:flex;align-items:center;gap:4px;height:24px;padding:0 9px 0 6px;border-radius:var(--r-pill);background:var(--sumi-900);color:var(--on-sumi);font-size:var(--fs-label);font-weight:500}
+.link{display:flex;align-items:center;gap:8px;margin-top:12px}
+.field{flex:1;display:flex;align-items:center;gap:6px;height:38px;padding:0 10px;border-radius:var(--r-md);border:1px solid var(--line-2);background:var(--surface-2);font-family:var(--f-mono);font-size:var(--fs-small);color:var(--text)}
+.dlg .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.browser{position:relative;width:290px;height:var(--phone-h);border-radius:var(--r-screen);overflow:hidden;background:var(--surface);box-shadow:var(--sh-screen);flex:none}
+.urlbar{height:44px;display:flex;align-items:center;gap:6px;margin:6px 8px 0;padding:0 10px;border-radius:12px;background:var(--surface-2);font-family:var(--f-mono);font-size:var(--fs-small);color:var(--text)}
+.shmap{position:relative;height:254px;margin-top:6px;background:var(--map-bg) url(map-e-share.png) 0 -18px/290px 290px no-repeat}
+.same{position:absolute;left:8px;top:8px;display:flex;align-items:center;gap:6px;height:30px;padding:0 11px 0 7px;border-radius:var(--r-pill);background:var(--sumi-900);color:var(--on-sumi);font-size:var(--fs-small);font-weight:700;box-shadow:var(--sh-pill)}
+.shmap .lb{position:absolute;transform:translate(-50%,-100%);margin-top:-10px;padding:1px 7px;border-radius:var(--r-pill);background:var(--white);box-shadow:var(--sh-label);font-size:var(--fs-label);font-weight:700;white-space:nowrap}
+.shinfo{padding:8px 10px;font-size:var(--fs-label);line-height:1.5;color:var(--text-2)}
+.shinfo b{color:var(--text);font-weight:700}
+.shinfo .sep{color:var(--ink-sep);margin:0 2px}
+
+/* 5 ノート */
+.form{display:grid;grid-template-columns:62px 1fr;row-gap:6px;column-gap:8px;margin-top:8px;align-items:center}
+.form .lab{font-size:var(--fs-label);color:var(--text-3);font-weight:500}
+.form .val{font-size:var(--fs-body);font-weight:500;line-height:1.4}
+.form .val .att{display:inline-flex;align-items:center;gap:4px}
+.radios{display:flex;gap:6px}
+.radio{display:flex;align-items:center;gap:6px;height:32px;padding:0 10px 0 8px;border-radius:var(--r-md);border:1px solid var(--line-2);font-size:var(--fs-body);white-space:nowrap}
+.radio i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--text-3);flex:none;display:grid;place-items:center}
+.radio.on{border:1.5px solid var(--teal-600);background:var(--teal-50);font-weight:700;color:var(--teal-700)}
+.radio.on i{border-color:var(--teal-600)}
+.radio.on i::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--teal-600)}
+.date{display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border-radius:var(--r-md);border:1px solid var(--line-2);font-size:var(--fs-body);color:var(--text-3);width:max-content}
+.warn{display:flex;align-items:center;gap:8px;margin-top:8px;padding:5px 10px;border-radius:var(--r-md);background:var(--unk-50);border:1.5px dashed var(--unk-line);color:var(--unk-700);font-size:var(--fs-body);font-weight:700}
+.steps{display:flex;align-items:center;gap:6px;margin-top:8px}
+.steps .btn{padding:0 11px 0 9px}
+.who{font-size:var(--fs-small);color:var(--text-2);margin-top:4px;text-align:right}
+
+/* 6 外部通信 */
+.egress-on{border:2px solid var(--teal-600);background:var(--white)}
+.erow{display:flex;align-items:center;gap:10px;padding:10px 4px}
+.erow + .erow{border-top:1px solid var(--line)}
+.erow .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none}
+.erow .nm{flex:1;font-size:var(--fs-ui);font-weight:700;line-height:1.35}
+.erow .nm small{display:block;font-size:var(--fs-label);font-weight:500;color:var(--text-3)}
+.erow .ct{font-size:var(--fs-value);font-weight:800;white-space:nowrap}
+.erow .ct small{font-size:var(--fs-body);font-weight:500;margin-left:2px}
+.ticks{display:flex;gap:3px;margin-top:3px}
+.ticks i{width:16px;height:6px;border-radius:3px;background:var(--teal-600)}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-ok" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M5.6 10.2l3 3 5.8-6.2" fill="none" stroke="var(--white)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-unk" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 2"/><path d="M7.6 7.7a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 20 20"><path d="M10 2.5l8 14.5H2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 8v4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1" fill="currentColor"/></symbol>
+    <symbol id="i-logo" viewBox="0 0 26 26"><rect width="26" height="26" rx="8" fill="var(--teal-300)"/><path d="M6.5 16.5c2.6-6 6.4-1.2 9.2-6.6" fill="none" stroke="var(--sumi-900)" stroke-width="2.4" stroke-linecap="round"/><circle cx="18.4" cy="8.6" r="2.4" fill="var(--sumi-900)"/><circle cx="6.5" cy="17" r="1.6" fill="var(--sumi-900)"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 16 16"><path d="M8 14.5s5-4.4 5-8.2A5 5 0 0 0 3 6.3c0 3.8 5 8.2 5 8.2z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6.3" r="1.7" fill="currentColor"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 1.6l5.2 2v4.1c0 3.3-2.3 5.7-5.2 6.7-2.9-1-5.2-3.4-5.2-6.7V3.6z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.6 8l1.7 1.7L10.6 6.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-xing" viewBox="0 0 14 14"><path d="M3 7h8M7 3v8" stroke="var(--sumi-700)" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-arch" viewBox="0 0 14 14"><path d="M2.5 12V7.2a4.5 4.5 0 0 1 9 0V12" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-send" viewBox="0 0 18 18"><path d="M9 14.5V4M4.6 8.2L9 3.8l4.4 4.4" fill="none" stroke="var(--white)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-link" viewBox="0 0 18 18"><path d="M7.6 10.4a3 3 0 0 0 4.3 0l2.4-2.4a3 3 0 0 0-4.3-4.3l-.9.9M10.4 7.6a3 3 0 0 0-4.3 0L3.7 10a3 3 0 0 0 4.3 4.3l.9-.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 18 18"><rect x="4" y="8" width="10" height="7.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.3 8V5.8a2.7 2.7 0 0 1 5.4 0V8" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 18 18"><path d="M9 2.5v9M5 7.8l4 3.9 4-3.9M3 14.8h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 18 18"><rect x="6" y="6" width="9" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 6V4.5A1.5 1.5 0 0 0 10.5 3h-6A1.5 1.5 0 0 0 3 4.5v6A1.5 1.5 0 0 0 4.5 12H6" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <h1>ことづて　案E　コマンドバーと下部シート</h1>
+  <span class="sub">操作パネル一覧（主画面と同じ色・角丸・文字で、スマホ幅に切り出したもの）</span>
+  <span class="swatches">
+    <span><i style="background:var(--sumi-900)"></i>墨</span>
+    <span><i style="background:var(--teal-600)"></i>青緑</span>
+    <span><i style="background:var(--ok-700)"></i>合格</span>
+    <span><i style="background:var(--unk-50);border:1.5px dashed var(--unk-line)"></i>判定不能</span>
+    <span><i style="background:var(--ng-700)"></i>不合格</span>
+  </span>
+  <span class="note">絵コンテ（イメージ）・画面と数値は架空</span>
+</header>
+
+<main class="grid">
+
+  <!-- 1 最初の画面 -->
+  <section class="cell">
+    <div class="capt"><span class="no">1</span>最初の画面（入力前）</div>
+    <div class="screen" style="background-image:url(map-e-start.png);background-size:373px 410px">
+      <div class="ptop">
+        <span class="pill brand"><svg width="24" height="24"><use href="#i-logo"/></svg><b>ことづて</b></span>
+        <span class="pill"><svg width="15" height="15" style="color:var(--text-2)"><use href="#i-pin"/></svg>東京都（島しょ部を除く）</span>
+      </div>
+      <div class="launch">
+        <div class="sugg">
+          <div class="hd">例</div>
+          <div class="sg hl"><span class="ic"><svg width="16" height="16" style="color:var(--sumi-700)"><use href="#i-pin"/></svg></span><span class="tx">訪問先の住所「港区芝公園4-2-8」を地図に出して</span><svg width="16" height="16" style="color:var(--text-3)"><use href="#i-arrow"/></svg></div>
+          <div class="sg"><span class="ic"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2.5 3.5h11l-4.2 5v4.3l-2.6-1.2V8.5z" fill="none" stroke="var(--sumi-700)" stroke-width="1.5" stroke-linejoin="round"/></svg></span><span class="tx">この範囲の踏切とトンネルを出して</span><svg width="16" height="16" style="color:var(--text-3)"><use href="#i-arrow"/></svg></div>
+          <div class="sg"><span class="ic"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="2" fill="none" stroke="var(--sumi-700)" stroke-width="1.5"/><path d="M3 11.5l3.2-3.2 2.3 2.2 1.6-1.5L13 11.5" fill="none" stroke="var(--sumi-700)" stroke-width="1.4" stroke-linejoin="round"/></svg></span><span class="tx">資料用の画像と、共有リンクを作って</span><svg width="16" height="16" style="color:var(--text-3)"><use href="#i-arrow"/></svg></div>
+        </div>
+        <div class="cmd" style="min-height:50px;border-radius:16px">
+          <span class="caret"></span><span class="ph">日本語で頼んでください</span><span class="send off"><svg width="18" height="18"><use href="#i-send"/></svg></span>
+        </div>
+      </div>
+      <div class="attr" style="bottom:8px">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+    </div>
+  </section>
+
+  <!-- 2 (a) 住所 -->
+  <section class="cell w2">
+    <div class="capt"><span class="no">2</span><span class="op">(a)</span>住所の結果<span class="hint">左：住所で探したとき　右：名前で探して候補が複数のとき</span></div>
+    <div class="pair">
+      <div class="screen" style="background-image:url(map-e-addr.png);background-size:373px 240px">
+        <div class="ptop"><span class="pill brand"><svg width="24" height="24"><use href="#i-logo"/></svg><b>ことづて</b></span></div>
+        <div class="pin sel" style="left:187px;top:90px"><span class="hd"><i></i></span><span class="lg"></span><span class="ft"></span></div>
+        <div class="attr" style="bottom:calc(410px - 232px + 6px)">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<br>住所：アドレス・ベース・レジストリ<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+        <div class="ps" style="top:232px">
+          <div class="cmd"><span class="q">訪問先の住所「港区芝公園4-2-8」を地図に出して</span></div>
+          <div class="addr-title">東京都港区芝公園四丁目2番8号</div>
+          <div style="margin-top:6px"><span class="badge badge-teal"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.2" fill="currentColor"/></svg>座標の精度：住居番号の位置</span></div>
+          <div class="k3" style="margin-top:6px">出典：アドレス・ベース・レジストリ</div>
+        </div>
+      </div>
+      <div class="screen" style="background-image:url(map-e-cand.png);background-size:373px 240px">
+        <div class="ptop"><span class="pill brand"><svg width="24" height="24"><use href="#i-logo"/></svg><b>ことづて</b></span></div>
+        <div class="pin" style="left:158px;top:70px"><span class="hd">3</span><span class="lg"></span><span class="ft"></span></div>
+        <div class="pin" style="left:179px;top:116px"><span class="hd">1</span><span class="lg"></span><span class="ft"></span></div>
+        <div class="pin" style="left:215px;top:130px"><span class="hd">2</span><span class="lg"></span><span class="ft"></span></div>
+        <div class="attr" style="bottom:calc(410px - 204px + 6px)">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+        <div class="ps" style="top:204px">
+          <div class="h3">「東京タワー」の候補（OSM）</div>
+          <div class="ask">どれですか？（候補はOSMが返したものだけ）</div>
+          <div class="cands">
+            <div class="cand"><span class="n">1</span><b>東京タワー</b><span class="kind">（観光名所）</span><svg class="go" width="16" height="16" style="color:var(--text-3)"><use href="#i-arrow"/></svg></div>
+            <div class="cand"><span class="n">2</span><b>東京タワー前</b><span class="kind">（バス停）</span><svg class="go" width="16" height="16" style="color:var(--text-3)"><use href="#i-arrow"/></svg></div>
+            <div class="cand"><span class="n">3</span><b>東京タワー通り</b><span class="kind">（道路）</span><svg class="go" width="16" height="16" style="color:var(--text-3)"><use href="#i-arrow"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 (b) 絞り込み -->
+  <section class="cell">
+    <div class="capt"><span class="no">3</span><span class="op">(b)</span>地物の絞り込み</div>
+    <div class="screen" style="background-image:url(map-e-filter.png);background-size:373px 200px">
+      <div class="tmk" style="left:49px;top:38px;color:var(--teal-300)"><svg width="12" height="12"><use href="#i-arch"/></svg></div>
+      <div class="tmk" style="left:69px;top:41px;color:var(--teal-300)"><svg width="12" height="12"><use href="#i-arch"/></svg></div>
+      <div class="tmk" style="left:272px;top:96px;color:var(--teal-300)"><svg width="12" height="12"><use href="#i-arch"/></svg></div>
+      <div class="xing" style="left:211px;top:82px"><svg width="12" height="12"><use href="#i-xing"/></svg></div>
+      <div class="xing" style="left:242px;top:90px"><svg width="12" height="12"><use href="#i-xing"/></svg></div>
+      <div class="xing" style="left:297px;top:93px"><svg width="12" height="12"><use href="#i-xing"/></svg></div>
+      <div class="xing" style="left:324px;top:88px"><svg width="12" height="12"><use href="#i-xing"/></svg></div>
+      <div class="attr" style="bottom:calc(410px - 152px + 6px)">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+      <div class="ps" style="top:152px;padding-top:16px">
+        <div class="h3" style="display:flex;align-items:center;gap:6px"><span class="lgx"><svg width="9" height="9"><use href="#i-xing"/></svg></span>踏切 4件・<span class="lgt"><svg width="10" height="10" style="color:var(--teal-300)"><use href="#i-arch"/></svg></span>トンネル 3件（OSM上）</div>
+        <div class="rule" style="margin-top:6px"><b>解釈：</b>踏切＝<code>railway=level_crossing</code>（歩行者専用の踏切は含まない）
+          <div class="tog"><span class="sw"></span>歩行者専用の踏切も含める<span class="st">切</span></div>
+        </div>
+        <div class="rule" style="margin-top:6px">トンネル＝道路の<code>tunnel=yes</code><span class="nw">（建物の通り抜けは除く）</span></div>
+        <div style="margin-top:6px"><span class="badge badge-unk"><svg width="16" height="16" style="color:var(--unk-700)"><use href="#i-unk"/></svg>車線数タグの入力率 38%（この範囲）</span></div>
+        <div class="zero"><span class="zl">0件のとき</span><b>OSM上で0件（現地にないとは限らない）</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 (d) 書き出しと共有 -->
+  <section class="cell w2">
+    <div class="capt"><span class="no">4</span><span class="op">(d)</span>書き出しと共有<span class="hint">左：書き出しの画面　右：共有リンクを別のブラウザで開いたところ</span></div>
+    <div class="pair">
+      <div class="dlg">
+        <div class="hdr"><span class="h3">画像を書き出す</span><span class="x"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="var(--text-2)" stroke-width="1.8" stroke-linecap="round"/></svg></span></div>
+        <div class="prev">
+          <span class="lock"><svg width="14" height="14"><use href="#i-lock"/></svg>出典とデータ時点は焼き込み（外せない）</span>
+          <span class="north"><svg width="14" height="14" viewBox="0 0 20 20" style="transform:rotate(78deg)"><path d="M10 2.5l3.6 9H6.4z" fill="var(--ng-700)"/><path d="M10 17.5l-3.6-6h7.2z" fill="var(--compass-tail)"/></svg>北</span>
+          <span class="lb" style="left:55px;top:112px">品川駅</span>
+          <span class="lb" style="left:354px;top:109px">東京タワー</span>
+          <div class="band"><span class="nw">© OpenStreetMap contributors</span><span class="nw">（openstreetmap.org/copyright）</span>／ <span class="nw">Protomaps</span> ／ <span class="nw">経路：Valhalla</span> ／ <span class="nw">データ時点：OSM 2026-11-03／地図 2026-11-04</span></div>
+        </div>
+                <div class="link"><span class="k3" style="font-weight:700;color:var(--text-2)">共有リンク</span><span class="field"><svg width="15" height="15" style="color:var(--text-2)"><use href="#i-link"/></svg>https://…/s/k7Q2…</span><span class="btn"><svg width="16" height="16"><use href="#i-copy"/></svg>コピー</span></div>
+        <div class="acts"><span class="btn primary"><svg width="17" height="17" style="color:var(--white)"><use href="#i-down"/></svg>画像を書き出す</span></div>
+      </div>
+      <div class="browser">
+        <div class="urlbar"><svg width="14" height="14" style="color:var(--text-2)"><use href="#i-lock"/></svg>https://…/s/k7Q2…</div>
+        <div class="shmap">
+          <span class="same"><svg width="16" height="16" style="color:var(--teal-300)"><use href="#i-ok"/></svg>同じ表示範囲・コース・ピン</span>
+          <span class="lb" style="left:44px;top:122px">品川駅</span>
+          <span class="lb" style="left:252px;top:120px">東京タワー</span>
+        </div>
+        <div class="shinfo"><b>データ時点：</b><span class="nw">OSM 2026-11-03／地図 2026-11-04</span><br><span class="nw">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps</span><br>経路：Valhalla</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 OSM ノートの下書き -->
+  <section class="cell">
+    <div class="capt"><span class="no">5</span>OSMノートの下書き</div>
+    <div class="screen" style="background-image:url(map-e-note.png);background-size:373px 130px">
+      <div class="pin sel" style="left:97px;top:45px"><span class="hd"><i></i></span><span class="lg"></span><span class="ft"></span></div>
+      <div class="attr" style="bottom:calc(410px - 118px + 6px)">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+      <div class="ps" style="top:118px">
+        <div class="h3">OSMノートの下書き</div>
+        <div class="form">
+          <span class="lab">何が</span><span class="val">右折禁止の規制がOSMにない可能性</span>
+          <span class="lab">どこで</span><span class="val"><span class="att">交差点（OSM要素IDを添付）<svg width="14" height="14" viewBox="0 0 14 14"><path d="M9.5 4.5L5 9a1.4 1.4 0 0 0 2 2l4.6-4.6a2.6 2.6 0 0 0-3.7-3.7L3.4 7.3a3.8 3.8 0 0 0 5.4 5.4" fill="none" stroke="var(--text-2)" stroke-width="1.3" stroke-linecap="round"/></svg></span></span>
+          <span class="lab" style="align-self:start;padding-top:7px">確認方法</span>
+          <span class="val">
+            <span class="radios"><span class="radio on"><i></i>現地で見た</span><span class="radio"><i></i>自分で撮った写真</span></span>
+            <span class="date" style="margin-top:6px"><span class="k3" style="color:var(--text-2)">見た日</span>年 / 月 / 日<svg width="15" height="15" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="var(--text-3)" stroke-width="1.4"/><path d="M2 6.5h12M5.5 1.8v2.6M10.5 1.8v2.6" stroke="var(--text-3)" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+          </span>
+        </div>
+        <div class="warn"><svg width="17" height="17"><use href="#i-warn"/></svg>社名・「試走」などの語は入れない</div>
+        <div class="steps">
+          <span class="btn"><svg width="16" height="16"><use href="#i-copy"/></svg>下書きをコピー</span>
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 8h11M9 4l4 4-4 4" fill="none" stroke="var(--text-2)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="btn primary">OSMのノート画面へ</span>
+        </div>
+        <div class="who">（投稿は現地を見た本人）</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 外部通信の記録 -->
+  <section class="cell">
+    <div class="capt"><span class="no">6</span>外部通信の記録（この操作の間）</div>
+    <div class="screen" style="background-image:url(map-e-start.png);background-size:373px 410px">
+      <div class="ptop"><span class="pill egress-on"><svg width="15" height="15" style="color:var(--teal-600)"><use href="#i-shield"/></svg><span>外部通信：<span class="host">api.anthropic.com</span> のみ</span></span></div>
+      <div class="attr" style="bottom:calc(410px - 176px + 6px)">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+      <div class="ps" style="top:176px">
+        <div class="h3">外部通信の記録（この操作の間）</div>
+        <div style="margin-top:6px">
+          <div class="erow">
+            <span class="ic" style="background:var(--teal-50)"><svg width="18" height="18" style="color:var(--teal-600)"><use href="#i-link"/></svg></span>
+            <span class="nm"><span class="mono" style="font-size:var(--fs-body)">api.anthropic.com</span><span class="ticks"><i></i><i></i><i></i></span></span>
+            <span class="ct">3<small>件</small></span>
+          </div>
+          <div class="erow">
+            <span class="ic" style="background:var(--ok-50)"><svg width="18" height="18" style="color:var(--ok-700)"><use href="#i-shield"/></svg></span>
+            <span class="nm">Google のサービス</span>
+            <span class="ct">0<small>件</small></span>
+          </div>
+          <div class="erow">
+            <span class="ic" style="background:var(--ok-50)"><svg width="18" height="18" style="color:var(--ok-700)"><use href="#i-shield"/></svg></span>
+            <span class="nm">OSM の公開サーバ</span>
+            <span class="ct">0<small>件</small></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+</body></html>

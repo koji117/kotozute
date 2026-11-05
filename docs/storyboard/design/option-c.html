@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ことづて 案C</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Noto+Serif+JP:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* 色：日本の伝統色をもとに、文字のコントラストは WCAG AA 以上 */
+  --ai:#1E3F66;          /* 藍：主色。経路、主ボタン、合格 */
+  --ai-deep:#15304F;     /* 濃藍：見出し、アイコン */
+  --ai-tint:#E2E9F1;     /* 藍の薄色：合格の下地、済みの約束 */
+  --ai-line:#9DB0C8;     /* 藍の罫：入力欄の枠 */
+  --ai-pale:#A9C1DC;     /* 甕覗き：トンネル区間の中の線（地図と同じ色） */
+  --shu:#C23F27;         /* 朱：印（スタンプ）とブランド印だけ。白文字 4.9:1 */
+  --shu-tint:#F6E3DC;    /* 朱の薄色：印の枠 */
+  --beni:#A3242B;        /* 紅：不合格（この画面では未使用。✕ の印と組む） */
+  --beni-tint:#F5E1E1;   /* 紅の薄色：不合格の下地 */
+  --kinari:#F7F3EA;      /* 生成り：パネルの紙 */
+  --kinari-a:rgba(247,243,234,.95); /* 生成り（上の帯、地図が少し透ける） */
+  --washi:#FFFDF8;       /* 白い紙：入力欄、カード、地図ラベル */
+  --washi-a:rgba(255,253,248,.94);  /* 白い紙（出典の下地） */
+  --white:#FFFFFF;       /* 藍・朱の上の文字 */
+  --sumi:#23262C;        /* 墨：本文 */
+  --usuzumi:#535862;     /* 薄墨：補足（生成りの上で 6.5:1） */
+  --nezumi:#5E6269;      /* 鼠：判定不能（生成りの上で 5.6:1） */
+  --rule:#DED6C6;        /* 罫線 */
+  --rule-soft:#EAE4D7;   /* 細い罫線（表の行） */
+  --rule-fold:#C9BFAD;   /* 返信の折り目（破線） */
+  --rule-join:#B9B09F;   /* 約束のつなぎ線 */
+  --dash-off:#A8A090;    /* まだの約束：破線の枠 */
+  --dash-unk:#8E8B85;    /* 判定不能：破線の枠 */
+  --map-bg:#E7E0D2;      /* 地図が読めるまでの下地（地図の background と同じ） */
+  --night:#161B24;       /* 夜の墨藍：絵コンテの字幕帯 */
+  --night-line:#4A5464;  /* 字幕帯の枠 */
+  --night-chip:#8FA6C4;  /* 字幕帯の場面チップの枠 */
+  --night-text:#DCE5F0;  /* 字幕帯の場面チップの文字 */
+  --night-sub:#B9C2CF;   /* 字幕帯の補足（9.9:1） */
+  --ring:rgba(255,255,255,.8); /* 印と合格の内側の白い輪 */
+
+  /* 角丸 */
+  --r-xs:4px;  /* 文中のコード */
+  --r-s:6px;   /* 判定、地図ラベル、印 */
+  --r-m:10px;  /* 入力欄、ボタン、カード */
+  --r-l:16px;  /* パネル */
+  --r-pill:999px;
+
+  /* 影：紙が地図から少し浮く程度 */
+  --sh-1:0 1px 2px rgba(35,38,44,.10);
+  --sh-2:0 2px 6px rgba(35,38,44,.08),0 10px 28px rgba(35,38,44,.14);
+
+  /* 余白（4 の倍数） */
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px;
+
+  /* 文字 */
+  --f-ui:"Zen Kaku Gothic New",sans-serif;   /* 画面の文字 */
+  --f-brand:"Noto Serif JP",serif;           /* ブランド、合否表の見出し、印だけ */
+  --f-mono:"IBM Plex Mono",monospace;        /* タグ、ログ、数値 */
+  --t-xs:12px;   /* ラベル、出典、ログ */
+  --t-s:13px;    /* チップ、補足 */
+  --t-m:14px;    /* 本文の最小 */
+  --t-l:15px;    /* 入力、表の項目 */
+  --t-lead:16px; /* 印の見出し */
+  --t-xl:18px;   /* 合否表の見出し */
+  --t-seal:19px; /* 印の字 */
+  --t-brand:21px;
+  --t-cap:21px;  /* 字幕 */
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:var(--night)}
+body{font-family:var(--f-ui);color:var(--sumi);line-break:strict;word-break:auto-phrase;text-spacing-trim:trim-start;-webkit-font-smoothing:antialiased}
+.nb{display:inline-block}
+svg{display:block;flex:none}
+.ic{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
+.ic-dot{fill:currentColor}
+.ic-knock{fill:none;stroke:var(--white);stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- アプリ部分（1280×640） ---------- */
+.app{position:absolute;left:0;top:0;width:1280px;height:640px;overflow:hidden;
+  background:var(--map-bg) url(map-c.png) 0 0/1280px 640px no-repeat}
+
+/* 上の帯：便箋の頭 */
+.bar{position:absolute;left:0;top:0;width:100%;height:52px;display:flex;align-items:center;gap:var(--s-5);
+  padding:0 var(--s-4);background:var(--kinari-a);border-bottom:1px solid var(--rule);box-shadow:var(--sh-1)}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-brand);font-weight:700;font-size:var(--t-brand);
+  color:var(--ai-deep);letter-spacing:.06em}
+.mark{width:30px;height:30px;border-radius:var(--r-s);background:var(--shu);color:var(--white);display:grid;place-items:center;
+  font-family:var(--f-brand);font-weight:700;font-size:var(--t-lead);letter-spacing:0;box-shadow:inset 0 0 0 2px var(--shu),inset 0 0 0 3px var(--ring)}
+.chips{display:flex;gap:var(--s-2)}
+.chip{display:flex;align-items:center;gap:6px;height:28px;padding:0 var(--s-3) 0 10px;border-radius:var(--r-pill);
+  background:var(--washi);border:1px solid var(--rule);font-size:var(--t-s);font-weight:500;color:var(--usuzumi);white-space:nowrap;
+}
+.chip svg{color:var(--ai)}
+.chip b{font-weight:700;color:var(--sumi)}
+.chip code{font-family:var(--f-mono);font-size:var(--t-s);color:var(--ai-deep)}
+
+/* 約束（絵コンテの進み具合） */
+.promise{margin-left:auto;display:flex;align-items:center;gap:var(--s-2);font-size:var(--t-s);white-space:nowrap}
+.promise .ttl{font-weight:700;color:var(--usuzumi);letter-spacing:.12em;margin-right:2px}
+.step{display:flex;align-items:center;gap:5px;height:30px;padding:0 var(--s-3) 0 10px;border-radius:var(--r-pill);font-weight:500}
+.step .n{font-size:var(--t-l);line-height:1}
+.step.off{color:var(--usuzumi);border:1px dashed var(--dash-off)}               /* まだ：破線の枠、細字、チェックなし */
+.step.on{color:var(--ai-deep);background:var(--ai-tint);font-weight:700}       /* 済み：塗り、太字、チェック */
+.step.now{box-shadow:0 0 0 2px var(--shu)}                                     /* この場面の約束：朱の輪 */
+.join{width:12px;height:1px;background:var(--rule-join)}
+
+/* 左のパネル：依頼と返信 */
+.panel{position:absolute;left:16px;top:64px;width:400px;height:562px;padding:var(--s-4) var(--s-4) var(--s-3);
+  background:var(--kinari);border-radius:var(--r-l);box-shadow:var(--sh-2);display:flex;flex-direction:column}
+.eyebrow{display:flex;align-items:center;gap:6px;font-size:var(--t-xs);font-weight:700;color:var(--ai);letter-spacing:.14em;margin:0 0 6px}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--rule)}
+.ask{position:relative;background:var(--washi);border:1.5px solid var(--ai-line);border-radius:var(--r-m);
+  padding:10px 52px 10px 13px;font-size:var(--t-l);line-height:1.5;color:var(--sumi);font-weight:500}
+.send{position:absolute;right:9px;bottom:9px;width:34px;height:34px;border-radius:var(--r-s);background:var(--ai);color:var(--white);display:grid;place-items:center}
+.read{display:grid;grid-template-columns:auto 1fr;margin:10px 0 0 2px;font-size:var(--t-m);line-height:1.6;color:var(--usuzumi)}
+.read .k{font-weight:700;color:var(--ai-deep)}
+.read code{font-family:var(--f-mono);font-size:var(--t-m);color:var(--ai-deep);background:var(--ai-tint);padding:1px 5px;border-radius:var(--r-xs)}
+
+/* 返信：合否表 */
+.reply{position:relative;margin-top:var(--s-4);padding-top:14px;border-top:1px dashed var(--rule-fold)}
+.reply .fold{position:absolute;left:0;top:-9px;padding-right:var(--s-2);background:var(--kinari);font-size:var(--t-xs);font-weight:700;color:var(--ai);letter-spacing:.14em;line-height:18px}
+.reply-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.reply-h h2{margin:0;font-family:var(--f-brand);font-weight:700;font-size:var(--t-xl);color:var(--ai-deep);letter-spacing:.06em}
+.verdict{display:flex;align-items:center;gap:6px;height:32px;padding:0 var(--s-3) 0 10px;border-radius:var(--r-s);background:var(--ai);color:var(--white);
+  font-family:var(--f-brand);font-weight:700;font-size:var(--t-l);letter-spacing:.1em;box-shadow:inset 0 0 0 2px var(--ai),inset 0 0 0 3.5px var(--ring)}
+.verdict .ic-dot{fill:var(--white)}
+.verdict .ic{stroke:var(--ai)}
+table{width:100%;border-collapse:collapse;font-size:var(--t-l)}
+td{height:37px;border-bottom:1px solid var(--rule-soft);vertical-align:middle;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.sw{width:28px}
+td.c{font-weight:500}
+td.v{text-align:right;padding-right:10px;color:var(--usuzumi);font-size:var(--t-m)}
+td.v .num{font-family:var(--f-mono);font-size:var(--t-l);font-weight:500;color:var(--sumi)}
+td.r{width:96px;text-align:right}
+/* 判定：色だけに頼らない（合格＝塗り＋チェック、不合格＝塗り＋✕、判定不能＝破線の枠＋？） */
+.res{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px 0 6px;border-radius:var(--r-s);font-size:var(--t-s);font-weight:700}
+.res.pass{background:var(--ai-tint);color:var(--ai-deep)}
+.res.fail{background:var(--beni-tint);color:var(--beni)}
+.res.unk{background:transparent;color:var(--nezumi);border:1.5px dashed var(--dash-unk)}
+/* 地図の描き方と同じ見本 */
+.swatch{width:20px;height:10px;border-radius:5px;position:relative}
+.sw-tunnel{background:var(--ai);height:10px;border-radius:2px}
+.sw-tunnel::after{content:"";position:absolute;left:0;right:0;top:3.5px;height:3px;background:var(--ai-pale)}
+.sw-route{background:transparent}
+.sw-route::after{content:"";position:absolute;left:2px;right:2px;top:3px;height:4px;border-radius:2px;background:var(--ai)}
+.sw-unk::after{content:"";position:absolute;left:1px;right:1px;top:2px;height:6px;border-radius:3px;
+  background:var(--ai) radial-gradient(circle,var(--washi) 1.1px,transparent 1.4px) 0 50%/5px 6px repeat-x}
+
+/* 操作 */
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:var(--s-2);margin-top:var(--s-3)}
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;height:38px;border-radius:var(--r-m);font-size:var(--t-m);font-weight:700;
+  background:var(--washi);color:var(--ai-deep);border:1px solid var(--rule);white-space:nowrap}
+.btn.pri{background:var(--ai);color:var(--white);border-color:var(--ai)}
+.btn .sub{font-weight:500;color:var(--usuzumi)}
+
+/* 操作ログ（たたんだ表示） */
+.log{margin-top:auto;padding-top:10px;border-top:1px solid var(--rule-soft);display:grid;grid-template-columns:auto 1fr;gap:var(--s-1) var(--s-2);align-items:start}
+.log .k{display:flex;align-items:center;gap:3px;font-size:var(--t-xs);font-weight:700;color:var(--usuzumi);line-height:18px;white-space:nowrap}
+.log .line{font-family:var(--f-mono);font-size:var(--t-xs);line-height:18px;color:var(--usuzumi)}
+.log .line b{font-weight:500;color:var(--ai-deep)}
+
+/* 地図の上のラベル */
+.pin{position:absolute;display:flex;align-items:center;gap:6px;height:30px;padding:0 11px 0 9px;border-radius:var(--r-s);
+  background:var(--washi);box-shadow:var(--sh-1),0 0 0 1px var(--rule);font-weight:700;font-size:var(--t-l);color:var(--sumi);white-space:nowrap;transform:translateY(-50%)}
+.pin .k{font-size:var(--t-xs);font-weight:700;color:var(--ai);letter-spacing:.08em;padding-right:6px;border-right:1px solid var(--rule)}
+.tun{position:absolute;display:flex;align-items:center;gap:5px;height:24px;padding:0 9px 0 4px;border-radius:var(--r-pill);
+  background:var(--ai);color:var(--white);font-size:var(--t-xs);font-weight:700;white-space:nowrap;transform:translateY(-50%);box-shadow:var(--sh-1)}
+.tun .n{width:17px;height:17px;border-radius:50%;background:var(--white);color:var(--ai);display:grid;place-items:center;font-family:var(--f-mono);font-size:var(--t-xs)}
+
+/* 地図の操作（右端） */
+.zoom{position:absolute;right:16px;top:280px;width:40px;border-radius:var(--r-m);background:var(--washi);color:var(--sumi);box-shadow:var(--sh-1),0 0 0 1px var(--rule);overflow:hidden}
+.zoom div{height:40px;display:grid;place-items:center}
+.zoom div+div{border-top:1px solid var(--rule)}
+
+/* 出典（いつも見える） */
+.attr{position:absolute;right:16px;bottom:14px;padding:6px 10px;border-radius:var(--r-s);background:var(--washi-a);
+  box-shadow:0 0 0 1px var(--rule);font-size:var(--t-xs);line-height:1.5;color:var(--usuzumi);text-align:right;white-space:nowrap}
+.attr b{font-weight:500;color:var(--sumi)}
+
+/* 絵コンテの印：この場面が守る約束 */
+.stamp{position:absolute;right:16px;top:66px;display:flex;align-items:center;gap:14px;padding:var(--s-3) 18px var(--s-3) var(--s-3);
+  background:var(--washi);border-radius:var(--r-m);box-shadow:var(--sh-2),0 0 0 1px var(--shu-tint)}
+.stamp::before{content:"";position:absolute;right:58px;top:-7px;width:12px;height:12px;background:var(--washi);transform:rotate(45deg);
+  box-shadow:-1px -1px 0 0 var(--shu-tint)}
+.seal{width:66px;height:66px;flex:none;border-radius:var(--r-s);background:var(--shu);color:var(--white);transform:rotate(-4deg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  box-shadow:inset 0 0 0 3px var(--shu),inset 0 0 0 4.5px var(--ring)}
+.seal .no{font-family:var(--f-brand);font-weight:700;font-size:var(--t-lead);line-height:1}
+.seal .w{font-family:var(--f-brand);font-weight:700;font-size:var(--t-seal);line-height:1.15;letter-spacing:.08em}
+.stamp .t{font-weight:700;font-size:var(--t-lead);color:var(--sumi);line-height:1.4}
+.stamp .s{font-size:var(--t-s);font-weight:500;color:var(--usuzumi);margin-top:2px}
+
+/* ---------- 絵コンテの字幕帯（80px） ---------- */
+.cap{position:absolute;left:0;top:640px;width:1280px;height:80px;background:var(--night);display:flex;align-items:center;gap:18px;padding:0 var(--s-6)}
+.scene{flex:none;height:30px;display:flex;align-items:center;padding:0 13px;border-radius:var(--r-pill);border:1.5px solid var(--night-chip);color:var(--night-text);font-size:var(--t-m);font-weight:700}
+.cap p{margin:0;flex:1;font-size:var(--t-cap);font-weight:700;color:var(--white);letter-spacing:.02em}
+.mock{flex:none;font-size:var(--t-xs);font-weight:500;color:var(--night-sub);border:1px solid var(--night-line);padding:var(--s-1) 9px;border-radius:var(--r-s)}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- 上の帯 -->
+  <header class="bar">
+    <div class="brand"><div class="mark">言</div>ことづて</div>
+    <div class="chips">
+      <div class="chip">
+        <svg width="14" height="14" viewBox="0 0 14 14"><path class="ic" d="M7 1.2c-2.4 0-4.3 1.9-4.3 4.3C2.7 8.6 7 12.8 7 12.8s4.3-4.2 4.3-7.3C11.3 3.1 9.4 1.2 7 1.2z" stroke-width="1.5"/><circle class="ic-dot" cx="7" cy="5.5" r="1.5"/></svg>
+        <b>東京都（島しょ部を除く）</b>
+      </div>
+      <div class="chip">
+        <svg width="14" height="14" viewBox="0 0 14 14"><rect class="ic" x="2.5" y="6" width="9" height="6.5" rx="1.5" stroke-width="1.5"/><path class="ic" d="M4.5 6V4.4a2.5 2.5 0 0 1 5 0V6" stroke-width="1.5"/></svg>
+        <span>外部通信：<code>api.anthropic.com</code> のみ</span>
+      </div>
+    </div>
+    <div class="promise">
+      <span class="ttl">約束</span>
+      <span class="step off"><span class="n">①</span>1社に頼らない</span>
+      <span class="join"></span>
+      <span class="step on"><span class="n">②</span>詳しくなくても<svg class="ok" width="14" height="14" viewBox="0 0 16 16"><path class="ic" d="M3.5 8.4 6.6 11.4 12.5 5" stroke-width="2.2"/></svg></span>
+      <span class="join"></span>
+      <span class="step on now"><span class="n">③</span>確かめられる<svg class="ok" width="14" height="14" viewBox="0 0 16 16"><path class="ic" d="M3.5 8.4 6.6 11.4 12.5 5" stroke-width="2.2"/></svg></span>
+    </div>
+  </header>
+
+  <!-- 左のパネル -->
+  <section class="panel">
+    <div class="eyebrow">依頼</div>
+    <div class="ask">
+      <span class="nb">出発から到着まで、</span><span class="nb">トンネルを2本通り、</span><span class="nb">高速なし、</span><span class="nb">60分以内</span>
+      <div class="send"><svg width="16" height="16" viewBox="0 0 16 16"><path class="ic" d="M8 13V3M3.5 7.5 8 3l4.5 4.5" stroke-width="2"/></svg></div>
+    </div>
+    <div class="read">
+      <span class="k">解釈：</span>
+      <span><span class="nb">トンネル＝道路の <code>tunnel=yes</code></span><span class="nb" style="margin-left:-.5em">（連続する区間は1本）／</span><span class="nb">高速＝高速道路と有料道路を除外</span></span>
+    </div>
+
+    <div class="reply">
+      <span class="fold">返信</span>
+      <div class="reply-h">
+        <h2>合否表</h2>
+        <span class="verdict"><svg width="16" height="16" viewBox="0 0 16 16"><circle class="ic-dot" cx="8" cy="8" r="7"/><path class="ic" d="M4.8 8.2 7 10.3l4.2-4.4" stroke-width="1.9"/></svg>合格</span>
+      </div>
+      <table>
+        <tr>
+          <td class="sw"><div class="swatch sw-tunnel"></div></td>
+          <td class="c">トンネル 2本</td>
+          <td class="v"><span class="num">2/2</span></td>
+          <td class="r"><span class="res pass"><svg width="15" height="15" viewBox="0 0 16 16"><circle class="ic-dot" cx="8" cy="8" r="7"/><path class="ic-knock" d="M4.8 8.2 7 10.3l4.2-4.4" stroke-width="1.9"/></svg>合格</span></td>
+        </tr>
+        <tr>
+          <td class="sw"><div class="swatch sw-route"></div></td>
+          <td class="c">高速を使わない</td>
+          <td class="v"></td>
+          <td class="r"><span class="res pass"><svg width="15" height="15" viewBox="0 0 16 16"><circle class="ic-dot" cx="8" cy="8" r="7"/><path class="ic-knock" d="M4.8 8.2 7 10.3l4.2-4.4" stroke-width="1.9"/></svg>合格</span></td>
+        </tr>
+        <tr>
+          <td class="sw"><div class="swatch sw-route"></div></td>
+          <td class="c">60分以内</td>
+          <td class="v"><span class="num">52</span>分</td>
+          <td class="r"><span class="res pass"><svg width="15" height="15" viewBox="0 0 16 16"><circle class="ic-dot" cx="8" cy="8" r="7"/><path class="ic-knock" d="M4.8 8.2 7 10.3l4.2-4.4" stroke-width="1.9"/></svg>合格</span></td>
+        </tr>
+        <tr>
+          <td class="sw"><div class="swatch sw-unk"></div></td>
+          <td class="c">車線数</td>
+          <td class="v"><span class="num">3</span>区間（タグなし）</td>
+          <td class="r"><span class="res unk"><svg width="15" height="15" viewBox="0 0 16 16"><circle class="ic" cx="8" cy="8" r="6.6" stroke-width="1.5" stroke-dasharray="2.2 1.6"/><path class="ic" d="M6.2 6.3a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4" stroke-width="1.5"/><circle class="ic-dot" cx="8" cy="11.6" r=".95"/></svg>判定不能</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="acts">
+      <div class="btn pri"><svg width="16" height="16" viewBox="0 0 16 16"><path class="ic" d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13h10" stroke-width="1.8"/></svg>画像を書き出す</div>
+      <div class="btn"><svg width="16" height="16" viewBox="0 0 16 16"><path class="ic" d="M6.6 9.4 9.4 6.6M7.2 4.4l1-1a2.6 2.6 0 0 1 3.7 3.7l-1 1M8.8 11.6l-1 1a2.6 2.6 0 0 1-3.7-3.7l1-1" stroke-width="1.7"/></svg>共有リンク</div>
+      <div class="btn"><svg width="16" height="16" viewBox="0 0 16 16"><path class="ic" d="M4 1.8h5.2L12 4.6v9.6H4z" stroke-width="1.6"/><path class="ic" d="M9 1.8v3h3" stroke-width="1.6"/></svg><span>GPX<span class="sub">（社内用）</span></span></div>
+      <div class="btn"><svg width="16" height="16" viewBox="0 0 16 16"><path class="ic" d="M4 2h8v12l-4-2.8L4 14z" stroke-width="1.6"/></svg>レシピを保存</div>
+    </div>
+
+    <div class="log">
+      <span class="k"><svg width="10" height="10" viewBox="0 0 10 10"><path class="ic" d="M3.5 2 6.5 5 3.5 8" stroke-width="1.5"/></svg>操作ログ</span>
+      <span class="line"><span class="nb">route Valhalla（高速除外）</span><span class="nb">→ check_route トンネル <b>2/2</b> → <b>合格</b></span></span>
+    </div>
+  </section>
+
+  <!-- 地図の上のラベル（位置は map-c.json の points から） -->
+  <div class="pin" style="right:calc(1280px - 642px + 18px);top:563px"><span class="k">出発</span>品川駅</div>
+  <div class="pin" style="right:calc(1280px - 736px + 18px);top:101px"><span class="k">到着</span>東京タワー</div>
+  <div class="tun" style="right:calc(1280px - 665px + 22px);top:420px"><span class="n">1</span>トンネル</div>
+  <div class="tun" style="right:calc(1280px - 729px + 22px);top:260px"><span class="n">2</span>トンネル</div>
+
+  <div class="zoom">
+    <div><svg width="14" height="14" viewBox="0 0 14 14"><path class="ic" d="M7 2v10M2 7h10" stroke-width="1.8"/></svg></div>
+    <div><svg width="14" height="14" viewBox="0 0 14 14"><path class="ic" d="M2 7h10" stroke-width="1.8"/></svg></div>
+  </div>
+
+  <!-- 絵コンテの印 -->
+  <div class="stamp">
+    <div class="seal"><span class="no">③</span><span class="w">解決</span></div>
+    <div>
+      <div class="t">合否はタグで機械的に判定</div>
+      <div class="s">タグがなければ「判定不能」</div>
+    </div>
+  </div>
+
+  <div class="attr">
+    <div><b>© OpenStreetMap contributors</b> ｜ Protomaps ｜ 経路：Valhalla</div>
+    <div>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+  </div>
+</div>
+
+<!-- 絵コンテの字幕帯 -->
+<footer class="cap">
+  <span class="scene">(c) ルート・試走コース</span>
+  <p>2回目で合格。タグのない区間は「判定不能」と、正直に出します。</p>
+  <span class="mock">絵コンテ（イメージ）・画面と数値は架空</span>
+</footer>
+
+</body>
+</html>

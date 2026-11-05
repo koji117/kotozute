@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ことづて 案B：業務ツール</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=block">
+<style>
+:root {
+  /* ── 色：中立の灰色＋強い差し色1つ（藍） ── */
+  --c-ink: #14181F;           /* 本文 */
+  --c-ink-2: #48505C;         /* 補足・アイコン */
+  --c-ink-3: #636B77;         /* ラベル・控えめ（白地で 5.3:1） */
+  --c-bg: #FFFFFF;            /* パネル・帯 */
+  --c-bg-2: #F5F6F8;          /* 面（地図の地色と同じ） */
+  --c-bg-3: #EDEFF3;          /* 押せる面・区切りの面 */
+  --c-line: #E2E5EA;          /* 罫線 */
+  --c-line-strong: #C9CED6;   /* 強い罫線・未達の破線 */
+  --c-glass: rgba(255,255,255,.94);   /* 地図の上の白（出典） */
+  --c-glass-2: rgba(255,255,255,.86); /* 地図の上の白（縮尺） */
+  --c-accent: #3B3FC9;        /* 差し色（藍）：ルート・主ボタン・達成 */
+  --c-accent-strong: #23267F; /* 濃い藍：トンネル区間・到着 */
+  --c-accent-soft: #ECEDFB;   /* 淡い藍の面 */
+  --c-accent-ink: #2E31A6;    /* 淡い面の上の藍の文字 */
+  --c-on-accent: #FFFFFF;     /* 藍の上の文字・アイコン */
+  --c-pass: #12703F;  --c-pass-bg: #E7F5EC;  --c-pass-line: #A9D9BC;  /* 合格：✓・実線 */
+  --c-fail: #B4231B;  --c-fail-bg: #FCEBEA;  --c-fail-line: #F1B5B0;  /* 不合格：✕・実線 */
+  --c-unk: #8A5300;   --c-unk-bg: #FFF5E0;   --c-unk-line: #D9A54C;   /* 判定不能：？・破線 */
+  --c-unk-stripe-a: #FFFBF2;  --c-unk-stripe-b: #FFF6E6;              /* 判定不能の行：斜線の背景 */
+  --c-map-unk: #B26B00;       /* 地図上の判定不能区間（点線） */
+  --c-story: #10131A;         /* 絵コンテの層（帯・注記） */
+  --c-story-line: #485061;    /* 絵コンテの層の枠線 */
+  --c-story-ink: #F3F4F6;
+  --c-story-ink-2: #AEB5C0;
+
+  /* ── 角丸 ── */
+  --r-xs: 4px; --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-pill: 999px;
+  /* ── 影 ── */
+  --sh-1: 0 1px 2px rgba(16,19,26,.06), 0 1px 1px rgba(16,19,26,.04);    /* 面の小さな浮き */
+  --sh-2: 0 6px 20px rgba(16,19,26,.10), 0 1px 3px rgba(16,19,26,.08);   /* 地図の上の部品 */
+  --sh-3: 0 10px 28px rgba(16,19,26,.28);                                 /* 絵コンテの注記 */
+  --sh-panel: 1px 0 0 var(--c-line), 8px 0 24px rgba(16,19,26,.06);      /* 左のパネル */
+  /* ── 余白（4の倍数。h は詰めた部品用の半段） ── */
+  --sp-0: 2px; --sp-1: 4px; --sp-1h: 6px; --sp-2: 8px; --sp-2h: 10px;
+  --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+  /* ── 文字 ── */
+  --font-sans: "IBM Plex Sans JP", "Noto Sans JP", sans-serif;
+  --font-mono: "IBM Plex Mono", "Noto Sans Mono", monospace;
+  --fs-xs: 12px;      /* ラベル・出典 */
+  --fs-sm: 13px;      /* ボタン・チップ */
+  --fs-md: 14px;      /* 本文 */
+  --fs-lg: 15px;      /* 入力欄 */
+  --fs-xl: 16px;      /* 見出し */
+  --fs-brand: 19px;   /* ロゴ */
+  --fs-caption: 18px; /* 絵コンテの字幕 */
+  --lh: 1.55; --lh-tight: 1.35;
+  --ls-label: .08em;  /* 小さなラベルの字間 */
+  /* ── 寸法 ── */
+  --bar-h: 56px; --panel-w: 440px;
+  --h-chip: 30px; --h-step: 32px; --h-btn: 34px; --h-row: 38px; --h-ctl: 38px; --h-tag: 22px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--c-story); }
+body {
+  font-family: var(--font-sans); color: var(--c-ink); font-size: var(--fs-md); line-height: var(--lh);
+  line-break: strict; word-break: keep-all; overflow-wrap: anywhere;
+  -webkit-font-smoothing: antialiased;
+}
+p { margin: 0; }
+.frame { width: 1280px; height: 720px; position: relative; overflow: hidden; }
+.app { position: absolute; inset: 0 0 80px 0; background: var(--c-bg-2) url(map-b.png) 0 0 / 1280px 640px no-repeat; }
+svg { display: block; flex: none; }
+.mono { font-family: var(--font-mono); }
+.nw { white-space: nowrap; }
+
+/* ── 上の帯 ── */
+.bar { position: absolute; left: 0; top: 0; right: 0; height: var(--bar-h); background: var(--c-bg);
+  border-bottom: 1px solid var(--c-line); display: flex; align-items: center; gap: var(--sp-3); padding: 0 var(--sp-4) 0 var(--sp-5); z-index: 3; }
+.brand { display: flex; align-items: center; gap: var(--sp-2h); font-size: var(--fs-brand); font-weight: 700; letter-spacing: .04em; margin-right: var(--sp-2); }
+.brand .mark { width: 30px; height: 30px; border-radius: var(--r-sm); background: var(--c-accent); color: var(--c-accent); display: grid; place-items: center; }
+.brand .mark .b { fill: var(--c-on-accent); }
+.chip { display: inline-flex; align-items: center; gap: var(--sp-1h); height: var(--h-chip); padding: 0 var(--sp-3) 0 var(--sp-2h); border: 1px solid var(--c-line); border-radius: var(--r-pill);
+  font-size: var(--fs-sm); color: var(--c-ink-2); background: var(--c-bg); white-space: nowrap; }
+.chip svg { color: var(--c-ink-3); }
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c-pass); }
+.chip .mono { font-size: var(--fs-xs); color: var(--c-ink); }
+.promise { margin-left: auto; display: flex; align-items: center; gap: var(--sp-2); }
+.promise .lbl { font-size: var(--fs-xs); font-weight: 600; color: var(--c-ink-3); letter-spacing: var(--ls-label); margin-right: var(--sp-0); }
+.step { display: inline-flex; align-items: center; gap: var(--sp-1h); height: var(--h-step); padding: 0 var(--sp-3) 0 var(--sp-2h); border-radius: var(--r-pill); font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; }
+.step.off { border: 1.5px dashed var(--c-line-strong); color: var(--c-ink-3); background: var(--c-bg); }
+.step.on { background: var(--c-accent); color: var(--c-on-accent); }
+.step.on .ck-bg { fill: var(--c-on-accent); }
+.step.on .ck { stroke: var(--c-accent); }
+.step.now { box-shadow: 0 0 0 2px var(--c-bg), 0 0 0 4px var(--c-accent); }
+.promise .sep { width: 10px; height: 1.5px; background: var(--c-line-strong); }
+
+/* ── 左のパネル（短い報告書：依頼→解釈→合否表→書き出し） ── */
+.panel { position: absolute; left: 0; top: var(--bar-h); bottom: 0; width: var(--panel-w); background: var(--c-bg); box-shadow: var(--sh-panel);
+  padding: var(--sp-4) var(--sp-5) 0; display: flex; flex-direction: column; z-index: 2; }
+.sec + .sec { margin-top: var(--sp-5); }
+.eyebrow { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-xs); font-weight: 600; color: var(--c-ink-3); letter-spacing: var(--ls-label); margin-bottom: var(--sp-1h); }
+.eyebrow .meta { font-weight: 400; letter-spacing: 0; }
+
+.ask { border: 1px solid var(--c-line-strong); border-radius: var(--r-md); background: var(--c-bg); box-shadow: var(--sh-1); overflow: hidden; }
+.ask .field { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-2h) var(--sp-2h) var(--sp-2h) var(--sp-3); }
+.ask .text { flex: 1; font-size: var(--fs-lg); line-height: 1.5; font-weight: 500; color: var(--c-ink); }
+.ask .go { width: var(--h-btn); height: var(--h-btn); border-radius: var(--r-sm); background: var(--c-bg-3); color: var(--c-ink-2); display: grid; place-items: center; }
+.ask .read { background: var(--c-bg-2); border-top: 1px solid var(--c-line); padding: var(--sp-2) var(--sp-3) var(--sp-2h); }
+.ask .read .k { font-size: var(--fs-xs); font-weight: 600; color: var(--c-accent-ink); letter-spacing: .06em; font-feature-settings: "palt"; display: flex; align-items: center; gap: var(--sp-1); margin-bottom: var(--sp-0); }
+.ask .ln { color: var(--c-ink-2); white-space: nowrap; font-feature-settings: "palt"; }
+.ask .ln + .ln { margin-top: var(--sp-0); }
+.ask .ln b { font-weight: 600; color: var(--c-ink); }
+.ask .ln .sl { color: var(--c-ink-3); }
+.ask code { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--c-ink); background: var(--c-bg); border: 1px solid var(--c-line); border-radius: var(--r-xs); padding: 0 var(--sp-1); }
+
+.tbl-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-2); }
+.tbl-head h2 { margin: 0; font-size: var(--fs-xl); font-weight: 700; letter-spacing: .02em; }
+.seg { display: inline-flex; padding: var(--sp-0); border-radius: var(--r-sm); background: var(--c-bg-3); }
+.seg span { display: inline-flex; align-items: center; gap: var(--sp-1); height: 26px; padding: 0 var(--sp-2h); border-radius: var(--r-xs); font-size: var(--fs-xs); color: var(--c-ink-2); font-weight: 500; }
+.seg .cur { background: var(--c-bg); color: var(--c-ink); box-shadow: var(--sh-1); font-weight: 600; }
+.seg .x { color: var(--c-fail); } .seg .ok { color: var(--c-pass); }
+.tbl { border: 1px solid var(--c-line); border-radius: var(--r-md); overflow: hidden; }
+.row { display: grid; grid-template-columns: 26px 1fr 128px 94px; align-items: center; column-gap: var(--sp-2); height: var(--h-row); padding: 0 var(--sp-2) 0 var(--sp-3); }
+.row + .row { border-top: 1px solid var(--c-line); }
+.row .cond { font-weight: 500; white-space: nowrap; }
+.row .val { color: var(--c-ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.row .val b { color: var(--c-ink); font-weight: 600; }
+.row .val.none { color: var(--c-ink-3); }
+.row.unk { background: repeating-linear-gradient(135deg, var(--c-unk-stripe-a) 0 6px, var(--c-unk-stripe-b) 6px 12px); }
+.key { width: 22px; height: 10px; }
+.key .tun { fill: var(--c-accent-strong); } .key .tun-d { stroke: var(--c-on-accent); }
+.key .rt { stroke: var(--c-accent); } .key .clk { stroke: var(--c-ink-3); } .key .uk { stroke: var(--c-map-unk); }
+.badge { justify-self: end; display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1); width: 90px; height: 26px; border-radius: var(--r-pill); font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; line-height: 1; padding-top: 1px; }
+.badge.pass { background: var(--c-pass-bg); color: var(--c-pass); border: 1px solid var(--c-pass-line); }
+.badge.fail { background: var(--c-fail-bg); color: var(--c-fail); border: 1px solid var(--c-fail-line); }
+.badge.unk { background: var(--c-unk-bg); color: var(--c-unk); border: 1.5px dashed var(--c-unk-line); }
+.log { margin-top: var(--sp-2); display: flex; gap: var(--sp-2); align-items: flex-start; font-size: var(--fs-xs); line-height: 1.5; color: var(--c-ink-2); }
+.log .k { flex: none; display: inline-flex; align-items: center; gap: 3px; font-weight: 600; color: var(--c-ink-3); padding-top: 1px; }
+
+.out { display: grid; grid-template-columns: 112px 1fr; gap: var(--sp-3); }
+.thumb { width: 112px; height: 74px; border-radius: var(--r-sm); border: 1px solid var(--c-line-strong); position: relative; overflow: hidden;
+  background: var(--c-bg-2) url(map-b.png) -60px -13px / 189px 95px no-repeat; box-shadow: var(--sh-1); }
+/* 焼き込んだ出典：実寸 12px の文字を 16% に縮めたもの（縮小見本なので読めなくてよい） */
+.thumb .burn { position: absolute; left: 0; right: 0; bottom: 0; height: 13px; background: var(--c-glass); border-top: 1px solid var(--c-line); overflow: hidden; }
+.thumb .burn div { width: 700px; transform: scale(.16); transform-origin: 0 0; padding: var(--sp-1h) var(--sp-2h); font-size: 12px; line-height: 1.4; color: var(--c-ink-2); white-space: nowrap; }
+.btns { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-1h); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1h); height: var(--h-btn); border-radius: var(--r-sm); font-size: var(--fs-sm); font-weight: 500; white-space: nowrap;
+  border: 1px solid var(--c-line-strong); background: var(--c-bg); color: var(--c-ink); }
+.btn svg { color: var(--c-ink-2); }
+.btn.primary { background: var(--c-accent); border-color: var(--c-accent); color: var(--c-on-accent); font-weight: 600; }
+.btn.primary svg { color: inherit; }
+.btn.quiet { color: var(--c-ink-2); }
+
+/* ── 地図の上 ── */
+.ml { position: absolute; z-index: 1; display: inline-flex; align-items: center; gap: var(--sp-1h); height: var(--h-chip); padding: 0 var(--sp-2h) 0 var(--sp-1); border-radius: var(--r-pill);
+  background: var(--c-bg); box-shadow: var(--sh-2); font-size: var(--fs-md); font-weight: 600; white-space: nowrap; }
+.ml .tag { display: inline-flex; align-items: center; height: var(--h-tag); padding: 0 var(--sp-2); border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 600; }
+.ml.start .tag { background: var(--c-accent-soft); color: var(--c-accent-ink); }
+.ml.goal .tag { background: var(--c-accent-strong); color: var(--c-on-accent); }
+.tl { position: absolute; z-index: 1; height: var(--h-tag); padding: 0 var(--sp-2); border-radius: var(--r-xs); background: var(--c-accent-strong); color: var(--c-on-accent); font-size: var(--fs-xs); font-weight: 600;
+  display: inline-flex; align-items: center; white-space: nowrap; box-shadow: var(--sh-1); }
+.uq { position: absolute; z-index: 1; width: 20px; height: 20px; border-radius: 50%; background: var(--c-unk-bg); border: 1.5px dashed var(--c-map-unk); color: var(--c-unk);
+  font-size: var(--fs-xs); font-weight: 700; display: grid; place-items: center; line-height: 1; }
+.ctrl { position: absolute; right: var(--sp-4); top: 300px; display: flex; flex-direction: column; gap: var(--sp-2); z-index: 1; color: var(--c-ink); }
+.ctrl .grp { background: var(--c-bg); border-radius: var(--r-md); box-shadow: var(--sh-2); overflow: hidden; }
+.ctrl .grp div { width: var(--h-ctl); height: var(--h-ctl); display: grid; place-items: center; }
+.ctrl .grp div + div { border-top: 1px solid var(--c-line); }
+.scale { position: absolute; left: calc(var(--panel-w) + var(--sp-4)); bottom: var(--sp-3); z-index: 1; font-size: var(--fs-xs); color: var(--c-ink-2); display: flex; align-items: center; gap: var(--sp-1h);
+  background: var(--c-glass-2); border-radius: var(--r-xs); padding: var(--sp-0) var(--sp-2); }
+.scale i { display: block; width: 68px; height: 6px; border: 1.5px solid var(--c-ink-2); border-top: 0; }  /* 500 m = 68px（z13.08、緯度35.645で約7.3 m/px） */
+.attr { position: absolute; right: var(--sp-4); bottom: var(--sp-3); z-index: 1; background: var(--c-glass); border: 1px solid var(--c-line); border-radius: var(--r-sm);
+  padding: var(--sp-1) var(--sp-2h); font-size: var(--fs-xs); line-height: 1.5; color: var(--c-ink-2); text-align: right; white-space: nowrap; box-shadow: var(--sh-1); }
+.attr .d { color: var(--c-ink-3); font-variant-numeric: tabular-nums; }
+
+/* ── 絵コンテの注記（どの約束を守る場面か）：帯と同じ墨色の層 ── */
+.stamp { position: absolute; right: var(--sp-4); top: 68px; z-index: 4; width: max-content; background: var(--c-story); color: var(--c-story-ink); border-radius: var(--r-md);
+  padding: var(--sp-2h) var(--sp-4) var(--sp-3) var(--sp-3); box-shadow: var(--sh-3); }
+.stamp::before { content: ""; position: absolute; top: -6px; right: 52px; width: 12px; height: 12px; background: var(--c-story); transform: rotate(45deg); border-radius: 2px; }
+.stamp .h { white-space: nowrap; font-size: var(--fs-xl); font-weight: 700; line-height: 24px; }
+.stamp .no { display: inline-flex; align-items: center; height: 24px; padding: 0 var(--sp-2); border-radius: var(--r-pill); background: var(--c-bg); color: var(--c-accent-strong); font-size: var(--fs-sm); font-weight: 700; vertical-align: top; }
+.stamp .gap { font-size: var(--fs-xs); }  /* 全角空白を 12px 幅に詰める */
+.stamp .s { margin-top: var(--sp-1); font-size: var(--fs-sm); color: var(--c-story-ink-2); padding-left: var(--sp-0); }
+
+/* ── 絵コンテの帯 ── */
+.cap { position: absolute; left: 0; right: 0; bottom: 0; height: 80px; background: var(--c-story); color: var(--c-story-ink); display: flex; align-items: center; gap: var(--sp-4); padding: 0 var(--sp-6); }
+.cap .scene { flex: none; height: var(--h-chip); display: inline-flex; align-items: center; padding: 0 var(--sp-3); border-radius: var(--r-pill); border: 1px solid var(--c-story-line); color: var(--c-story-ink); font-size: var(--fs-sm); font-weight: 500; }
+.cap .line { font-size: var(--fs-caption); font-weight: 500; letter-spacing: .02em; }
+.cap .note { margin-left: auto; flex: none; font-size: var(--fs-xs); color: var(--c-story-ink-2); border: 1px dashed var(--c-story-line); border-radius: var(--r-xs); padding: 3px var(--sp-2); }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="app">
+
+    <header class="bar">
+      <div class="brand">
+        <span class="mark"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path class="b" d="M3 5.2A2.7 2.7 0 0 1 5.7 2.5h8.6A2.7 2.7 0 0 1 17 5.2v6.1a2.7 2.7 0 0 1-2.7 2.7H9.2l-3.9 3.3V14A2.7 2.7 0 0 1 3 11.3z"/><path d="M6.6 10.6c1.6 0 2-3.4 3.5-3.4s1.5 1.6 3.3 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="6.4" cy="10.6" r="1.3" fill="currentColor"/><circle class="b" cx="13.6" cy="8.6" r="1.2" stroke="currentColor" stroke-width="1.2"/></svg></span>
+        ことづて
+      </div>
+      <span class="chip"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 3.5 5 2l4 1.5L12.5 2v8.5L9 12l-4-1.5L1.5 12z" stroke-linejoin="round"/><path d="M5 2v8.5M9 3.5V12"/></svg><span>東京都（島しょ部を除く）</span></span>
+      <span class="chip"><span class="dot"></span><span>外部通信：<span class="mono">api.anthropic.com</span> のみ</span></span>
+      <div class="promise">
+        <span class="lbl">約束</span>
+        <span class="step off"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2 2"/></svg>① 1社に頼らない</span>
+        <span class="sep"></span>
+        <span class="step on"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle class="ck-bg" cx="7" cy="7" r="6"/><path class="ck" d="m4.3 7.1 1.8 1.8 3.6-3.8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>② 詳しくなくても</span>
+        <span class="sep"></span>
+        <span class="step on now"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle class="ck-bg" cx="7" cy="7" r="6"/><path class="ck" d="m4.3 7.1 1.8 1.8 3.6-3.8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>③ 確かめられる</span>
+      </div>
+    </header>
+
+    <aside class="panel">
+      <section class="sec">
+        <div class="eyebrow">依頼</div>
+        <div class="ask">
+          <div class="field">
+            <div class="text">出発から<wbr>到着まで、<wbr>トンネルを<wbr>2本通り、<wbr>高速なし、<wbr>60分以内</div>
+            <div class="go"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5v3h-3"/></svg></div>
+          </div>
+          <div class="read">
+            <div class="k"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 3h8M2 6h5M2 9h6"/></svg>解釈：</div><p class="ln"><b>トンネル</b>＝道路の <code>tunnel=yes</code>（連続する区間は1本）<span class="sl">／</span></p><p class="ln"><b>高速</b>＝高速道路と有料道路を除外</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec">
+        <div class="tbl-head">
+          <h2>合否表</h2>
+          <div class="seg">
+            <span><svg class="x" width="11" height="11" viewBox="0 0 11 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m2.5 2.5 6 6m0-6-6 6"/></svg>1回目</span>
+            <span class="cur"><svg class="ok" width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2 5.8 2.4 2.4L9 3.2"/></svg>2回目</span>
+          </div>
+        </div>
+        <div class="tbl">
+          <div class="row">
+            <svg class="key" viewBox="0 0 22 10"><rect class="tun" x="0" y="1" width="22" height="8" rx="1"/><path class="tun-d" d="M2 5h18" stroke-width="2" stroke-dasharray="3 2.5"/></svg>
+            <span class="cond">トンネル 2本</span>
+            <span class="val"><b>2/2</b></span>
+            <span class="badge pass"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2.2 6.3 2.5 2.5 5-5.4"/></svg>合格</span>
+          </div>
+          <div class="row">
+            <svg class="key" viewBox="0 0 22 10"><path class="rt" d="M2 5h18" stroke-width="4" stroke-linecap="round"/></svg>
+            <span class="cond">高速を使わない</span>
+            <span class="val none">—</span>
+            <span class="badge pass"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2.2 6.3 2.5 2.5 5-5.4"/></svg>合格</span>
+          </div>
+          <div class="row">
+            <svg class="key" style="height:16px" viewBox="0 0 22 16" fill="none"><g class="clk" stroke-width="1.4"><circle cx="11" cy="8" r="6.2"/><path d="M11 4.8V8l2.2 1.4" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+            <span class="cond">60分以内</span>
+            <span class="val"><b>52分</b></span>
+            <span class="badge pass"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2.2 6.3 2.5 2.5 5-5.4"/></svg>合格</span>
+          </div>
+          <div class="row unk">
+            <svg class="key" viewBox="0 0 22 10"><path class="uk" d="M2 5h18" stroke-width="3" stroke-linecap="round" stroke-dasharray="0.1 4.4"/></svg>
+            <span class="cond">車線数</span>
+            <span class="val"><b>3区間</b>（タグなし）</span>
+            <span class="badge unk"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4.2 4.3a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4"/><circle cx="6" cy="9.6" r=".5" fill="currentColor"/></svg>判定不能</span>
+          </div>
+        </div>
+        <div class="log">
+          <span class="k"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 2.5 3.5 3.5-3.5 3.5"/></svg>操作ログ</span>
+          <span class="mono"><span class="nw">route Valhalla（高速除外）</span><wbr><span class="nw">→ check_route トンネル 2/2 → 合格</span></span>
+        </div>
+      </section>
+
+      <section class="sec">
+        <div class="eyebrow">書き出し<span class="meta">出典・データ時点を画像に焼き込み</span></div>
+        <div class="out">
+          <div class="thumb"><div class="burn"><div>© OpenStreetMap contributors ｜ Protomaps ｜ 経路：Valhalla　データ時点：OSM 2026-11-03／地図 2026-11-04</div></div></div>
+          <div class="btns">
+            <span class="btn primary"><svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 2v7.5M4.5 6.8l3 3 3-3M2.5 12.5h10"/></svg>画像を書き出す</span>
+            <span class="btn"><svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6.2 8.8a2.6 2.6 0 0 0 3.7 0l2.1-2.1a2.6 2.6 0 0 0-3.7-3.7l-.6.6"/><path d="M8.8 6.2a2.6 2.6 0 0 0-3.7 0L3 8.3A2.6 2.6 0 0 0 6.7 12l.6-.6"/></svg>共有リンク</span>
+            <span class="btn quiet"><svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6.5" width="8" height="6" rx="1.2"/><path d="M5.3 6.5V5a2.2 2.2 0 0 1 4.4 0v1.5"/></svg>GPX（社内用）</span>
+            <span class="btn quiet"><svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M4 2.5h7v10l-3.5-2.4L4 12.5z"/></svg>レシピを保存</span>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <!-- 地図の上のラベル（位置は map-b.json の points。地図を描き直したら合わせ直す） -->
+    <div class="ml goal" style="right: calc(1280px - 825px + 16px); top: 100px;"><span class="tag">到着</span>東京タワー</div>
+    <div class="ml start" style="left: 749px; top: 554px;"><span class="tag">出発</span>品川駅</div>
+    <span class="tl" style="left: 772px; top: 418px;">トンネル 1</span>
+    <span class="tl" style="left: 838px; top: 242px;">トンネル 2</span>
+    <span class="uq" style="left: 696px; top: 543px;">?</span>
+    <span class="uq" style="left: 754px; top: 338px;">?</span>
+    <span class="uq" style="left: 792px; top: 152px;">?</span>
+
+    <div class="ctrl">
+      <div class="grp">
+        <div><svg width="16" height="16" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></div>
+        <div><svg width="16" height="16" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 8h10"/></svg></div>
+      </div>
+      <div class="grp">
+        <div><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="m9 2.5 6 3.2-6 3.2-6-3.2z"/><path d="m3 9.3 6 3.2 6-3.2M3 12.6l6 3.2 6-3.2" stroke-linecap="round"/></svg></div>
+      </div>
+    </div>
+    <div class="scale"><i></i>500 m</div>
+    <div class="attr">© OpenStreetMap contributors ｜ Protomaps ｜ 経路：Valhalla<br><span class="d">データ時点：OSM 2026-11-03／地図 2026-11-04</span></div>
+
+    <div class="stamp">
+      <div class="h"><span class="no">③ 解決</span><span class="gap">　</span>合否はタグで機械的に判定</div>
+      <div class="s">タグがなければ「判定不能」</div>
+    </div>
+  </div>
+
+  <footer class="cap">
+    <span class="scene">(c) ルート・試走コース</span>
+    <span class="line">2回目で合格。<wbr>タグのない区間は<wbr>「判定不能」と、<wbr>正直に出します。</span>
+    <span class="note">絵コンテ（イメージ）・画面と数値は架空</span>
+  </footer>
+</div>
+</body>
+</html>

@@ -27,3 +27,10 @@ build/
 
 # Private notes (contain workplace context; never commit)
 private/
+docs/storyboard/voice/
+
+# Storyboard: the build data is committed (public OSM data and a fictional current location).
+# Map images and videos are not; regenerate them with scenes.js and render.js.
+!docs/storyboard/data/
+docs/storyboard/maps/
+docs/storyboard/*.mp4

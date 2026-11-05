@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>ことづて 案E コマンドバーと下部シート</title>
+<!-- 絵コンテ用。アプリでは同じフォントを自前で配信する -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+1:wght@400;500;700;800&family=Noto+Sans+Mono:wght@400;500&display=block">
+<style>
+:root{
+  /* 色：墨（コマンドバー、到着、トンネル）と青緑（ルート、主ボタン）。地図は冷たい灰で、色はルートだけが持つ */
+  --sumi-900:#111518;    /* 墨・最濃：コマンドバー、ブランドの地 */
+  --sumi-800:#1B2126;    /* 墨：点灯した約束、印の地 */
+  --sumi-700:#12343B;    /* 墨青：トンネルの管、到着の点（spec-e.json と同じ） */
+  --sumi-line:#2E363D;   /* 墨の面の上の区切り */
+  --on-sumi:#F2F5F6;     /* 墨の面の上の文字 */
+  --on-sumi-2:#AEB8BF;   /* 墨の面の上の補助文字（11:1 未満でも AA） */
+  --teal-600:#0B6E78;    /* 青緑：ルート、主ボタン（白文字 5.9:1） */
+  --teal-700:#085862;    /* 青緑・濃：淡い面の上の文字 */
+  --teal-300:#7CCFD3;    /* 青緑・明：墨の上の差し色 */
+  --teal-50:#E4F2F2;     /* 青緑・淡：選択中、解釈のタグ */
+  --text:#161B1F;        /* 文字・主 */
+  --text-2:#434C53;      /* 文字・副（白の上 9:1） */
+  --text-3:#5A646B;      /* 文字・補助（白の上 6:1、12px でも AA） */
+  --surface:#FFFFFF;     /* シート */
+  --surface-2:#F3F5F6;   /* シートの中の沈んだ面 */
+  --line:#E2E6E9;        /* 区切り線 */
+  --line-2:#C7CED3;      /* ボタン枠 */
+  --map-bg:#EEF0EF;      /* 地図の地（読み込み前も同じ色） */
+  --glass:rgba(255,255,255,.93);   /* 地図の上に浮く札の地 */
+  --glass-line:rgba(17,21,24,.08); /* 札の縁 */
+  --ok-700:#18703E;  --ok-50:#E5F3EA;                       /* 合格：塗りの丸に ✓ */
+  --ng-700:#B3261E;  --ng-50:#FBE7E5;                       /* 不合格：四角に ✕ */
+  --unk-700:#734700; --unk-50:#FFF4DA; --unk-line:#B98012;  /* 判定不能：点線の丸に ？、斜線の地 */
+  --unk-halo:#E2A52E;    /* 地図の判定不能区間（spec-e.json と同じ） */
+  --cap-bg:#0E1215;      /* 絵コンテの字幕帯 */
+  --cap-ink:#C3CCD2;     /* 字幕帯の補助文字 */
+  --cap-line:#39434A;    /* 字幕帯の枠 */
+  /* 角丸（xs：タグ、sm：小さな札、md：ボタン、lg：表、xl：シートとバー、pill：浮く札） */
+  --r-xs:5px; --r-sm:8px; --r-md:10px; --r-lg:14px; --r-xl:22px; --r-pill:999px;
+  /* 影 */
+  --sh-pill:0 1px 2px rgba(10,20,25,.10), 0 4px 14px rgba(10,20,25,.10);   /* 地図の上の札 */
+  --sh-sheet:0 -1px 0 rgba(10,20,25,.06), 0 -10px 34px rgba(10,20,25,.16); /* 下から上がるシート */
+  --sh-bar:0 2px 6px rgba(10,20,25,.20), 0 10px 28px rgba(10,20,25,.18);   /* コマンドバー */
+  --sh-label:0 1px 2px rgba(10,20,25,.18), 0 3px 10px rgba(10,20,25,.14);  /* 地図の上の地名札 */
+  /* 余白（4 の倍数） */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px;
+  --edge:16px;           /* 画面端からの余白 */
+  --sheet-x:48px;        /* デスクトップでのシートの左右の余白（スマホでは 0） */
+  --sheet-top:280px;     /* 半分の高さのときのシートの上端（地図の見える範囲はここまで） */
+  --pill-h:36px;         /* 浮く札の高さ */
+  /* 文字 */
+  --f-ui:"M PLUS 1","Hiragino Sans",sans-serif;
+  --f-mono:"Noto Sans Mono","M PLUS 1",ui-monospace,monospace;
+  --fs-label:12px;       /* 補助ラベル、出典、凡例 */
+  --fs-small:13px;       /* 札、副ボタン */
+  --fs-body:14px;        /* 本文 */
+  --fs-ui:15px;          /* ボタン、表の条件 */
+  --fs-input:16px;       /* コマンドバーの文字 */
+  --fs-title:18px;       /* シートの見出し */
+  --fs-value:22px;       /* 合否表の値 */
+  --fs-caption:23px;     /* 字幕 */
+  --lh:1.5;
+  /* 追加の色トークン（直書きをなくすため） */
+  --white:#FFFFFF;       /* 白：色の面の上の文字、ピンの縁 */
+  --ink-sep:#6A747B;     /* 出典の区切り「｜」（白の上 4.7:1） */
+  --line-3:#8E989F;      /* 点線の丸（未点灯の約束） */
+  --grab:#C9D0D5;        /* シートのつまみ */
+  --compass-tail:#9AA3A9;/* 方位の南側（飾り） */
+  --unk-25:#FFFCF3;      /* 判定不能の列の地 */
+  --unk-fill:rgba(226,165,46,.55);  /* 判定不能の見本の塗り */
+  --unk-hatch:rgba(185,128,18,.10); /* 判定不能の斜線 */
+  --swatch-line:rgba(255,255,255,.25); /* 墨の帯の上の見本の縁 */
+  --pin-foot:rgba(18,52,59,.45);    /* ピンの足元の影 */
+  --pin-ring:rgba(11,110,120,.25);  /* 選んだピンの輪 */
+  --sh-dot:0 1px 3px rgba(10,20,25,.18);      /* 地図の上の小さな印 */
+  --sh-seg:0 1px 2px rgba(10,20,25,.12);      /* 切り替えの選択中 */
+  --sh-pin:drop-shadow(0 2px 3px rgba(10,20,25,.28)); /* ピンの影（filter） */
+  --sh-knob:0 1px 2px rgba(0,0,0,.25);        /* スイッチのつまみ */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:720px;overflow:hidden;background:var(--cap-bg)}
+body{font-family:var(--f-ui);color:var(--text);font-size:var(--fs-body);line-height:var(--lh);line-break:strict;word-break:normal;overflow-wrap:anywhere;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--f-mono)}
+svg{display:block;flex:none}
+
+/* ===== アプリ（上 640px） ===== */
+.app{position:relative;width:1280px;height:640px;overflow:hidden;background:var(--map-bg) url(map-e.png) 0 0/1280px 640px no-repeat}
+
+/* 上に浮く小さな札 */
+.pill{position:absolute;display:flex;align-items:center;gap:var(--sp-2);height:var(--pill-h);padding:0 var(--sp-3);border-radius:var(--r-pill);background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--sh-pill);font-size:var(--fs-small);font-weight:500;white-space:nowrap;color:var(--text)}
+.top-left{position:absolute;left:var(--edge);top:14px;display:flex;gap:var(--sp-2)}
+.top-left .pill{position:static}
+.brand{background:var(--sumi-900);border-color:var(--sumi-900);color:var(--on-sumi);padding:0 14px 0 6px;gap:10px}
+.brand b{font-size:var(--fs-title);font-weight:800;letter-spacing:.04em}
+.pill .k{color:var(--text-3);font-weight:500}
+.pill .host{font-family:var(--f-mono);font-size:var(--fs-small);font-weight:500}
+
+/* 約束の進み具合 */
+.tracker{right:var(--edge);top:14px;padding:0 5px 0 14px;gap:6px}
+.tracker .lab{font-weight:700;color:var(--text-2);margin-right:4px}
+.step{display:flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 6px;border-radius:var(--r-pill);font-size:var(--fs-small)}
+.step.off{color:var(--text-3);font-weight:500}
+.step.off .num{width:18px;height:18px;border:1.5px dashed var(--line-3);border-radius:50%;display:grid;place-items:center;font-size:var(--fs-label);line-height:1}
+.step.on{background:var(--sumi-800);color:var(--on-sumi);font-weight:700}
+.step.on .num{width:18px;height:18px;border-radius:50%;background:var(--teal-300);color:var(--sumi-900);display:grid;place-items:center;font-size:var(--fs-label);font-weight:800;line-height:1}
+.step.on.now{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--teal-600)}
+
+/* 絵コンテの印（約束③の下に吊る） */
+.stamp{position:absolute;right:var(--edge);top:60px;display:flex;align-items:center;gap:var(--sp-3);padding:10px 16px 10px 10px;border-radius:var(--r-lg);background:var(--sumi-800);color:var(--on-sumi);box-shadow:var(--sh-bar)}
+.stamp::before{content:"";position:absolute;top:-6px;right:58px;width:12px;height:12px;background:var(--sumi-800);transform:rotate(45deg);border-radius:2px}
+.stamp .tag{display:flex;flex-direction:column;align-items:center;justify-content:center;width:46px;height:44px;border-radius:var(--r-md);background:var(--teal-300);color:var(--sumi-900);font-weight:800;line-height:1.1}
+.stamp .tag .n{font-size:var(--fs-ui)}
+.stamp .tag .w{font-size:var(--fs-label)}
+.stamp .t{font-size:var(--fs-ui);font-weight:700;line-height:1.35}
+.stamp .s{font-size:var(--fs-small);color:var(--on-sumi-2);line-height:1.4}
+
+/* 地図の上の札（位置は map-e.json の点から） */
+.place{position:absolute;display:flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 5px;border-radius:var(--r-pill);background:var(--surface);box-shadow:var(--sh-label);font-size:var(--fs-ui);font-weight:700;white-space:nowrap;transform:translateY(-50%)}
+.place .tg{height:22px;padding:0 7px;border-radius:var(--r-pill);font-size:var(--fs-label);font-weight:700;display:grid;place-items:center}
+.place.s .tg{background:var(--surface-2);color:var(--text-2);border:1.5px solid var(--sumi-700)}
+.place.g .tg{background:var(--sumi-700);color:var(--on-sumi)}
+.tun{position:absolute;display:flex;align-items:center;gap:5px;height:24px;padding:0 9px 0 6px;border-radius:var(--r-pill);background:var(--sumi-700);color:var(--on-sumi);font-size:var(--fs-label);font-weight:700;white-space:nowrap;box-shadow:var(--sh-label);transform:translate(-50%,-50%)}
+.unk{position:absolute;width:24px;height:24px;border-radius:50%;background:var(--unk-50);border:1.5px dashed var(--unk-line);color:var(--unk-700);font-size:var(--fs-small);font-weight:800;display:grid;place-items:center;line-height:1;transform:translate(-50%,-50%);box-shadow:var(--sh-dot)}
+
+/* シートの上に乗る地図の道具：方位、拡大縮小、縮尺、出典 */
+.mapfoot{position:absolute;left:calc(var(--sheet-x) + 4px);right:calc(var(--sheet-x) + 4px);top:calc(var(--sheet-top) - 56px);display:flex;align-items:flex-end;justify-content:space-between;gap:var(--sp-3)}
+.tools{display:flex;align-items:center;gap:var(--sp-2)}
+.tbtn{height:34px;display:flex;align-items:center;gap:6px;padding:0 12px 0 8px;border-radius:var(--r-pill);background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--sh-pill);font-size:var(--fs-small);font-weight:500;color:var(--text)}
+.zoom{display:flex;height:34px;border-radius:var(--r-pill);background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--sh-pill);overflow:hidden}
+.zoom span{width:38px;display:grid;place-items:center}
+.zoom span+span{border-left:1px solid var(--line)}
+.scale{display:flex;flex-direction:column;gap:2px;padding:4px 8px;border-radius:var(--r-sm);background:var(--glass);font-size:var(--fs-label);color:var(--text-2);line-height:1}
+.scale i{display:block;width:129px;height:6px;border:1.5px solid var(--text-2);border-top:0}
+.attr{padding:5px 10px;border-radius:var(--r-sm);background:var(--glass);border:1px solid var(--glass-line);font-size:var(--fs-label);line-height:1.45;color:var(--text-2);text-align:right;white-space:nowrap}
+.attr .sep{color:var(--ink-sep);margin:0 3px}
+
+/* ===== 下部シート ===== */
+.sheet{position:absolute;left:var(--sheet-x);right:var(--sheet-x);top:var(--sheet-top);bottom:0;background:var(--surface);border-radius:var(--r-xl) var(--r-xl) 0 0;box-shadow:var(--sh-sheet);padding:18px var(--sp-6) 0}
+.grab{position:absolute;top:7px;left:50%;width:40px;height:5px;margin-left:-20px;border-radius:3px;background:var(--grab)}
+.height{position:absolute;top:4px;right:14px;line-height:16px;display:flex;gap:2px;padding:2px;border-radius:var(--r-pill);background:var(--surface-2);font-size:var(--fs-label);color:var(--text-3)}
+.height span{padding:1px 9px;border-radius:var(--r-pill)}
+.height .on{background:var(--surface);color:var(--text);font-weight:700;box-shadow:var(--sh-seg)}
+
+/* コマンドバー（シートを開くと、その頭に収まる） */
+.cmd{display:flex;align-items:center;gap:var(--sp-3);height:50px;padding:0 7px 0 16px;margin-top:10px;border-radius:16px;background:var(--sumi-900);color:var(--on-sumi);box-shadow:var(--sh-bar)}
+.cmd .q{flex:1;font-size:var(--fs-input);font-weight:500;white-space:nowrap}
+.kbd{font-family:var(--f-mono);font-size:var(--fs-label);color:var(--on-sumi-2);border:1px solid var(--sumi-line);border-radius:var(--r-xs);padding:1px 6px}
+.send{width:38px;height:38px;border-radius:12px;background:var(--teal-600);display:grid;place-items:center}
+
+.interp{display:flex;align-items:baseline;gap:6px;margin-top:10px;font-size:var(--fs-body);color:var(--text-2);white-space:nowrap}
+.interp .lab{font-weight:700;color:var(--text)}
+code{font-family:var(--f-mono);font-size:var(--fs-small);background:var(--teal-50);color:var(--teal-700);border-radius:var(--r-xs);padding:1px 6px;margin:0 2px}
+
+.head{display:flex;align-items:center;gap:var(--sp-3);margin-top:14px}
+.head h2{font-size:var(--fs-title);font-weight:800}
+.head .od{display:flex;align-items:center;gap:6px;font-size:var(--fs-body);color:var(--text-2)}
+.verdict{display:flex;align-items:center;gap:6px;height:30px;padding:0 12px 0 8px;border-radius:var(--r-pill);background:var(--ok-700);color:var(--white);font-size:var(--fs-ui);font-weight:800}
+.tries{display:flex;gap:4px;margin-left:var(--sp-2);font-size:var(--fs-small)}
+.tries span{display:flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:var(--r-pill);border:1px solid var(--line-2);color:var(--text-3)}
+.tries .on{border-color:var(--sumi-800);background:var(--sumi-800);color:var(--on-sumi);font-weight:700}
+.legend{margin-left:auto;display:flex;gap:var(--sp-4);font-size:var(--fs-label);color:var(--text-3)}
+.legend span{display:flex;align-items:center;gap:5px}
+
+/* 合否表：条件を横に並べる。1行目 条件、2行目 結果、3行目 判定 */
+.table{position:relative;display:grid;grid-template-columns:52px repeat(4,1fr);margin-top:10px;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.table > div{padding:0 14px;display:flex;align-items:center;gap:8px;border-left:1px solid var(--line);min-width:0}
+.table .rh{border-left:0;padding:0 0 0 12px;font-size:var(--fs-label);color:var(--text-3);font-weight:500;background:var(--surface-2)}
+.table .r1{height:34px;background:var(--surface-2);font-size:var(--fs-ui);font-weight:700;border-bottom:1px solid var(--line)}
+.table .r2{height:38px;font-size:var(--fs-value);font-weight:800;letter-spacing:.01em}
+.table .r2 small{margin-left:3px;font-size:var(--fs-body);font-weight:500;color:var(--text-2);letter-spacing:0}
+.table .r2.muted{font-size:var(--fs-body);font-weight:500;color:var(--text-2)}
+.table .r3{height:40px;padding-bottom:4px}
+.table .rh.r1{border-bottom:1px solid var(--line)}
+.table .u{background-image:repeating-linear-gradient(135deg,transparent 0 7px,var(--unk-hatch) 7px 9px);background-color:var(--unk-25)}
+.table .r1.u{background-color:var(--unk-50)}
+.table .ucol{position:absolute;top:0;bottom:0;right:0;width:calc((100% - 52px) / 4 + 1px);border:2px dashed var(--unk-line);border-radius:0 var(--r-lg) var(--r-lg) 0;pointer-events:none;padding:0}
+.table .rh.r1,.table .rh.r2,.table .rh.r3{font-size:var(--fs-label);font-weight:500;color:var(--text-3);letter-spacing:0}
+.badge{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 11px 0 6px;border-radius:var(--r-pill);font-size:var(--fs-small);font-weight:700;white-space:nowrap}
+.badge-ok{background:var(--ok-50);color:var(--ok-700)}
+.badge-unk{background:var(--surface);color:var(--unk-700);border:1.5px dashed var(--unk-line)}
+.sw{width:28px;height:8px;border-radius:4px;flex:none}
+.sw-tun{background:repeating-linear-gradient(90deg,var(--white) 0 4px,var(--sumi-700) 4px 7px);border:2.5px solid var(--sumi-700);height:10px;width:30px;border-radius:3px}
+.sw-route{background:var(--teal-600);height:6px}
+.sw-unk{background:var(--unk-fill);border:1.5px dashed var(--unk-line);height:12px}
+
+/* 書き出しと操作ログ */
+.foot{display:flex;align-items:center;gap:var(--sp-2);margin-top:12px}
+.btn{display:flex;align-items:center;gap:7px;height:40px;padding:0 14px 0 12px;border-radius:var(--r-md);border:1px solid var(--line-2);background:var(--surface);font-size:var(--fs-ui);font-weight:700;color:var(--text);white-space:nowrap}
+.btn.primary{background:var(--teal-600);border-color:var(--teal-600);color:var(--white)}
+.btn small{font-size:var(--fs-small);font-weight:500;color:var(--text-3)}
+.log{margin-left:auto;display:flex;align-items:center;gap:8px;height:40px;padding:0 14px 0 10px;border-radius:var(--r-md);background:var(--surface-2);font-size:var(--fs-label);color:var(--text-2);white-space:nowrap}
+.log .lab{font-family:var(--f-ui);font-size:var(--fs-small);font-weight:700;color:var(--text)}
+.log .mono{font-size:var(--fs-label)}
+.log .mono b{font-weight:500;color:var(--text)}
+.log .ok{color:var(--ok-700);font-weight:700;font-family:var(--f-ui)}
+
+/* ===== 字幕帯（下 80px） ===== */
+.cap{position:absolute;left:0;top:640px;width:1280px;height:80px;background:var(--cap-bg);display:flex;align-items:center;gap:18px;padding:0 24px;color:var(--white)}
+.scene{height:34px;padding:0 14px;border-radius:var(--r-pill);background:var(--teal-300);color:var(--sumi-900);font-size:var(--fs-ui);font-weight:800;display:flex;align-items:center;white-space:nowrap}
+.cap .line{font-size:var(--fs-caption);font-weight:700;letter-spacing:.02em;white-space:nowrap}
+.cap .note{margin-left:auto;font-size:var(--fs-label);color:var(--cap-ink);border:1px solid var(--cap-line);border-radius:var(--r-sm);padding:4px 10px;white-space:nowrap}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-ok" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M5.6 10.2l3 3 5.8-6.2" fill="none" stroke="var(--white)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-unk" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 2"/><path d="M7.6 7.7a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-ng" viewBox="0 0 20 20"><rect x="1.5" y="1.5" width="17" height="17" rx="3" fill="currentColor"/><path d="M6.5 6.5l7 7M13.5 6.5l-7 7" stroke="var(--white)" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <!-- 上に浮く札 -->
+  <div class="top-left">
+    <div class="pill brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="8" fill="var(--teal-300)"/><path d="M6.5 16.5c2.6-6 6.4-1.2 9.2-6.6" fill="none" stroke="var(--sumi-900)" stroke-width="2.4" stroke-linecap="round"/><circle cx="18.4" cy="8.6" r="2.4" fill="var(--sumi-900)"/><circle cx="6.5" cy="17" r="1.6" fill="var(--sumi-900)"/></svg>
+      <b>ことづて</b>
+    </div>
+    <div class="pill"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 14.5s5-4.4 5-8.2A5 5 0 0 0 3 6.3c0 3.8 5 8.2 5 8.2z" fill="none" stroke="var(--text-2)" stroke-width="1.5"/><circle cx="8" cy="6.3" r="1.7" fill="var(--text-2)"/></svg>東京都（島しょ部を除く）</div>
+    <div class="pill"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1.6l5.2 2v4.1c0 3.3-2.3 5.7-5.2 6.7-2.9-1-5.2-3.4-5.2-6.7V3.6z" fill="none" stroke="var(--text-2)" stroke-width="1.5"/><path d="M5.6 8l1.7 1.7L10.6 6.3" fill="none" stroke="var(--text-2)" stroke-width="1.5" stroke-linecap="round"/></svg><span><span class="k">外部通信：</span><span class="host">api.anthropic.com</span> のみ</span></div>
+  </div>
+
+  <div class="pill tracker">
+    <span class="lab">約束</span>
+    <span class="step off"><span class="num">1</span>1社に頼らない</span>
+    <span class="step on"><span class="num">2</span>詳しくなくても</span>
+    <span class="step on now"><span class="num">3</span>確かめられる</span>
+  </div>
+  <div class="stamp">
+    <div class="tag"><span class="n">③</span><span class="w">解決</span></div>
+    <div><div class="t">合否はタグで機械的に判定</div><div class="s">タグがなければ「判定不能」</div></div>
+  </div>
+
+  <!-- 地図の上の札（map-e.json：start 211,157／goal 1086,148／t1 306,136／t2 640,176／u1 474,142／u2 877,189／u3 1020,181） -->
+  <div class="place s" style="right:calc(1280px - 211px + 16px);top:157px"><span class="tg">出発</span>品川駅</div>
+  <div class="place g" style="left:1104px;top:148px"><span class="tg">到着</span>東京タワー</div>
+  <div class="tun" style="left:306px;top:108px"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 12V7a5 5 0 0 1 10 0v5" fill="none" stroke="var(--teal-300)" stroke-width="1.8"/></svg>トンネル 1</div>
+  <div class="tun" style="left:648px;top:206px"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 12V7a5 5 0 0 1 10 0v5" fill="none" stroke="var(--teal-300)" stroke-width="1.8"/></svg>トンネル 2</div>
+  <div class="unk" style="left:474px;top:112px">?</div>
+  <div class="unk" style="left:877px;top:160px">?</div>
+  <div class="unk" style="left:1020px;top:153px">?</div>
+
+  <!-- シートの上端に乗る道具と出典 -->
+  <div class="mapfoot">
+    <div class="tools">
+      <div class="tbtn"><svg width="20" height="20" viewBox="0 0 20 20" style="transform:rotate(78deg)"><path d="M10 2.5l3.6 9H6.4z" fill="var(--ng-700)"/><path d="M10 17.5l-3.6-6h7.2z" fill="var(--compass-tail)"/></svg>北を上に</div>
+      <div class="zoom"><span><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 7h10" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round"/></svg></span><span><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 7h10M7 2v10" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round"/></svg></span></div>
+      <div class="scale">500 m<i></i></div>
+    </div>
+    <div class="attr">© OpenStreetMap contributors<span class="sep">｜</span>Protomaps<span class="sep">｜</span>経路：Valhalla<br>データ時点：OSM 2026-11-03／地図 2026-11-04</div>
+  </div>
+
+  <!-- 下部シート（半分の高さ） -->
+  <section class="sheet">
+    <div class="grab"></div>
+    <div class="height"><span class="on">半分</span><span>全体</span></div>
+
+    <div class="cmd">
+      <svg width="20" height="20" viewBox="0 0 20 20"><path d="M3 15.5c3.2-7.5 7.7-1.4 11.3-8.1" fill="none" stroke="var(--teal-300)" stroke-width="2" stroke-linecap="round"/><circle cx="15.6" cy="5.6" r="2.2" fill="var(--teal-300)"/></svg>
+      <span class="q">出発から到着まで、トンネルを2本通り、高速なし、60分以内</span>
+      <span class="kbd">⌘K</span>
+      <span class="send"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3.5 9.5a5.5 5.5 0 1 0 1.8-4.1" fill="none" stroke="var(--white)" stroke-width="1.8" stroke-linecap="round"/><path d="M4.6 2.4l.7 3.3 3.2-.8" fill="none" stroke="var(--white)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    </div>
+
+    <div class="interp"><span class="lab">解釈：</span><span>トンネル＝道路の<code>tunnel=yes</code>（連続する区間は1本）／高速＝高速道路と有料道路を除外</span></div>
+
+    <div class="head">
+      <h2>合否表</h2>
+      <span class="od">品川駅<svg width="16" height="10" viewBox="0 0 16 10"><path d="M1 5h13M10 1l4 4-4 4" fill="none" stroke="var(--text-3)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>東京タワー</span>
+      <span class="verdict"><svg width="18" height="18" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="var(--white)"/><path d="M5.6 10.2l3 3 5.8-6.2" fill="none" stroke="var(--ok-700)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>合格</span>
+      <span class="tries">
+        <span><svg width="14" height="14" style="color:var(--ng-700)"><use href="#i-ng"/></svg>1回目 不合格</span>
+        <span class="on"><svg width="14" height="14" style="color:var(--teal-300)"><use href="#i-ok"/></svg>2回目 合格</span>
+      </span>
+      <span class="legend">
+        <span><svg width="16" height="16" style="color:var(--ok-700)"><use href="#i-ok"/></svg>合格</span>
+        <span><svg width="16" height="16" style="color:var(--ng-700)"><use href="#i-ng"/></svg>不合格</span>
+        <span><svg width="16" height="16" style="color:var(--unk-700)"><use href="#i-unk"/></svg>判定不能</span>
+      </span>
+    </div>
+
+    <div class="table" id="tbl">
+      <div class="rh r1">条件</div>
+      <div class="r1"><i class="sw sw-tun"></i>トンネル 2本</div>
+      <div class="r1"><i class="sw sw-route"></i>高速を使わない</div>
+      <div class="r1"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--text-2)" stroke-width="1.6"/><path d="M9 5v4.3l2.8 1.7" fill="none" stroke="var(--text-2)" stroke-width="1.6" stroke-linecap="round"/></svg>60分以内</div>
+      <div class="r1 u"><i class="sw sw-unk"></i>車線数</div>
+
+      <div class="rh r2">結果</div>
+      <div class="r2">2/2</div>
+      <div class="r2 muted">高速道路と有料道路を除外</div>
+      <div class="r2"><span>52<small>分</small></span></div>
+      <div class="r2 u"><span>3<small>区間（タグなし）</small></span></div>
+
+      <div class="rh r3">判定</div>
+      <div class="r3"><span class="badge badge-ok"><svg width="18" height="18" style="color:var(--ok-700)"><use href="#i-ok"/></svg>合格</span></div>
+      <div class="r3"><span class="badge badge-ok"><svg width="18" height="18" style="color:var(--ok-700)"><use href="#i-ok"/></svg>合格</span></div>
+      <div class="r3"><span class="badge badge-ok"><svg width="18" height="18" style="color:var(--ok-700)"><use href="#i-ok"/></svg>合格</span></div>
+      <div class="r3 u"><span class="badge badge-unk"><svg width="18" height="18" style="color:var(--unk-700)"><use href="#i-unk"/></svg>判定不能</span></div>
+      <div class="ucol" aria-hidden="true"></div>
+    </div>
+
+    <div class="foot">
+      <span class="btn primary"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 2.5v9M5 7.8l4 3.9 4-3.9M3 14.8h12" fill="none" stroke="var(--white)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>画像を書き出す</span>
+      <span class="btn"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M7.6 10.4a3 3 0 0 0 4.3 0l2.4-2.4a3 3 0 0 0-4.3-4.3l-.9.9M10.4 7.6a3 3 0 0 0-4.3 0L3.7 10a3 3 0 0 0 4.3 4.3l.9-.9" fill="none" stroke="var(--text)" stroke-width="1.6" stroke-linecap="round"/></svg>共有リンク</span>
+      <span class="btn"><svg width="18" height="18" viewBox="0 0 18 18"><rect x="4" y="8" width="10" height="7.5" rx="1.6" fill="none" stroke="var(--text)" stroke-width="1.6"/><path d="M6.3 8V5.8a2.7 2.7 0 0 1 5.4 0V8" fill="none" stroke="var(--text)" stroke-width="1.6"/></svg>GPX<small>（社内用）</small></span>
+      <span class="btn"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M5 2.8h8v12.6l-4-2.8-4 2.8z" fill="none" stroke="var(--text)" stroke-width="1.6" stroke-linejoin="round"/></svg>レシピを保存</span>
+      <span class="log">
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M4 2l4 4-4 4" fill="none" stroke="var(--text-2)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="lab">操作ログ</span>
+        <span class="mono"><b>route</b> Valhalla（高速除外）→ <b>check_route</b> トンネル 2/2 → </span><span class="ok">合格</span>
+      </span>
+    </div>
+  </section>
+</div>
+
+<!-- 字幕帯 -->
+<div class="cap">
+  <span class="scene">(c) ルート・試走コース</span>
+  <span class="line">2回目で合格。タグのない区間は「判定不能」と、正直に出します。</span>
+  <span class="note">絵コンテ（イメージ）・画面と数値は架空</span>
+</div>
+</body></html>

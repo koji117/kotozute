@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ことづて 案D：会話型</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=M+PLUS+1:wght@500;700;800&family=M+PLUS+1+Code:wght@400;500;700&display=block">
+<style>
+:root {
+  /* ── 色：灰色の地図＋柿色の差し色1つ。判定の3状態は色と形の両方で分ける ── */
+  --c-ink: #1B1E23;            /* 本文・利用者の吹き出し */
+  --c-ink-2: #474C54;          /* 補足 */
+  --c-ink-3: #5C6168;          /* ラベル・控えめ（会話の地色の上で 5.3:1） */
+  --c-on-dark: #FFFFFF;        /* 濃い面の上の文字 */
+  --c-on-dark-2: #C9CDD3;      /* 濃い面の上の補足 */
+  --c-surface: #FFFFFF;        /* カード */
+  --c-thread: #F2F1EE;         /* 会話パネルの地色 */
+  --c-sunken: #EAE8E3;         /* 押せる面・へこんだ面 */
+  --c-line: #E1DED8;           /* 罫線 */
+  --c-line-2: #C9C5BD;         /* 強い罫線・入力欄の枠 */
+  --c-glass: rgba(255,255,255,.95); /* 地図の上の白 */
+  --c-accent: #B8460B;         /* 差し色（柿）：主ボタン・文字（白地で 5.4:1） */
+  --c-accent-map: #D9560F;     /* 地図のルート（文字には使わない） */
+  --c-accent-deep: #7C2D0A;    /* ルートの縁・トンネル区間 */
+  --c-accent-soft: #FBEEE5;    /* 柿の淡い面 */
+  --c-accent-line: #EFC3A6;    /* 柿の淡い罫線 */
+  --c-pass: #17703C;  --c-pass-bg: #E6F3EA;  --c-pass-line: #A8D4B7;  /* 合格：✓・実線の枠 */
+  --c-fail: #B3261E;  --c-fail-bg: #FBE9E7;  --c-fail-line: #EDB3AD;  /* 不合格：✕・二重線の枠 */
+  --c-unk: #643FA0;   --c-unk-bg: #F3EEFA;   --c-unk-line: #B7A2DA;   /* 判定不能：？・破線の枠 */
+  --c-unk-map: #7B55B5;        /* 地図上の判定不能区間 */
+  --c-unk-bg-2: #FAF7FE;       /* 判定不能の行：斜線のもう一色 */
+  --c-unk-halo: rgba(123,85,181,.32); /* 判定不能区間の帯（地図と凡例） */
+  --c-accent-hl: #F3A877;      /* 濃い吹き出しの上の下線（解釈した語） */
+  --c-mark-dot: #E8732F;       /* ロゴの点（文の終わり＝届け先） */
+  --c-map-bg: #EFEFEC;         /* 地図の読み込み前の地色 */
+  --c-story: #111317;          /* 絵コンテの層（帯・注記） */
+  --c-story-line: #474D58;     /* 絵コンテの層の枠線 */
+  --c-story-ink: #F4F5F7;      /* 絵コンテの文字 */
+  --c-story-ink-2: #B4BAC4;    /* 絵コンテの補足 */
+
+  /* ── 角丸 ── */
+  --r-2xs: 3px; --r-xs: 4px; --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 18px; --r-pill: 999px;
+  --r-bubble: 18px 18px 4px 18px; /* 利用者の吹き出し（右下だけ角） */
+  /* ── 影 ── */
+  --sh-1: 0 1px 2px rgba(27,30,35,.07);                               /* カードの小さな浮き */
+  --sh-2: 0 4px 16px rgba(27,30,35,.12), 0 1px 3px rgba(27,30,35,.08); /* 地図の上の部品 */
+  --sh-3: 0 10px 30px rgba(17,19,23,.30);                              /* 絵コンテの注記 */
+  --sh-panel: -1px 0 0 var(--c-line), -10px 0 30px rgba(27,30,35,.10); /* 右の会話パネル */
+  /* ── 余白（4の倍数。h は半段） ── */
+  --sp-0: 2px; --sp-1: 4px; --sp-1h: 6px; --sp-2: 8px; --sp-2h: 10px;
+  --sp-0h: 3px;               /* 文字とアイコンの間 */
+  --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+  --rail: 30px;               /* 返信の左の縦線の幅 */
+  /* ── 文字 ── */
+  --f-ui: "BIZ UDPGothic", "Noto Sans JP", sans-serif;    /* 本文：UD書体 */
+  --f-brand: "M PLUS 1", "BIZ UDPGothic", sans-serif;     /* ロゴ・見出し */
+  --f-code: "M PLUS 1 Code", "Noto Sans Mono", monospace; /* 操作名・タグ */
+  --fs-xs: 12px;      /* ラベル・出典 */
+  --fs-sm: 13px;      /* ボタン・チップ */
+  --fs-code: 13px;    /* 操作名・タグ（等幅） */
+  --fs-md: 14px;      /* 本文 */
+  --fs-lg: 15px;      /* 依頼の文 */
+  --fs-xl: 16px;      /* 見出し */
+  --fs-addr: 18px;    /* 住所の結果 */
+  --fs-brand: 20px;   /* ロゴ */
+  --fs-hello: 21px;   /* 最初の画面の見出し */
+  --fs-count: 24px;   /* 件数 */
+  --fs-caption: 20px; /* 絵コンテの字幕 */
+  --lh: 1.55; --lh-tight: 1.35;
+  /* ── 寸法 ── */
+  --panel-w: 476px; --head-h: 48px;
+  --h-chip: 28px; --h-btn: 32px; --h-row: 30px; --h-op: 30px; --h-tag: 22px; --h-ctl: 36px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--c-story); }
+body { font-family: var(--f-ui); color: var(--c-ink); font-size: var(--fs-md); line-height: var(--lh);
+  line-break: strict; word-break: normal; overflow-wrap: anywhere; -webkit-font-smoothing: antialiased; }
+p { margin: 0; }
+svg { display: block; flex: none; }
+.code { font-family: var(--f-code); font-weight: 500; }
+.nw { white-space: nowrap; }
+.frame { width: 1280px; height: 720px; position: relative; overflow: hidden; }
+.app { position: absolute; inset: 0 0 80px 0; background: var(--c-map-bg) url(map-d.png) 0 0 / 1280px 640px no-repeat; }
+
+/* ── 地図の上の部品 ── */
+.float { position: absolute; z-index: 3; background: var(--c-glass); border-radius: var(--r-pill); box-shadow: var(--sh-2); }
+.region { left: var(--sp-4); top: var(--sp-4); height: var(--h-chip); display: inline-flex; align-items: center; gap: var(--sp-1h);
+  padding: 0 var(--sp-3) 0 var(--sp-2h); font-size: var(--fs-sm); font-weight: 700; }
+.promise { right: calc(var(--panel-w) + var(--sp-4)); top: var(--sp-4); height: var(--h-chip); display: flex; align-items: center; gap: var(--sp-3);
+  padding: 0 var(--sp-3); font-size: var(--fs-xs); }
+.promise .lbl { font-weight: 700; color: var(--c-ink-2); letter-spacing: .08em; }
+.promise .it { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--c-ink-3); }
+.promise .it.on { color: var(--c-ink); font-weight: 700; }
+.promise .box { width: 14px; height: 14px; border-radius: var(--r-2xs); border: 1.5px dashed var(--c-line-2); display: grid; place-items: center; }
+.promise .on .box { border: 0; background: var(--c-ink); color: var(--c-on-dark); }
+
+.stamp { position: absolute; z-index: 4; right: calc(var(--panel-w) + var(--sp-4)); top: 56px; background: var(--c-story); color: var(--c-story-ink);
+  border-radius: var(--r-md); box-shadow: var(--sh-3); padding: var(--sp-2h) var(--sp-4) var(--sp-2h) var(--sp-3); display: flex; gap: var(--sp-3); align-items: center; }
+.stamp::before { content: ""; position: absolute; top: -5px; right: 46px; width: 10px; height: 10px; background: var(--c-story); transform: rotate(45deg); border-radius: var(--r-2xs); }
+.stamp .no { flex: none; font-family: var(--f-brand); font-weight: 800; font-size: var(--fs-sm); background: var(--c-accent-map); color: var(--c-story); border-radius: var(--r-sm);
+  padding: var(--sp-1) var(--sp-2); }
+.stamp .t { font-family: var(--f-brand); font-weight: 700; font-size: var(--fs-xl); line-height: var(--lh-tight); }
+.stamp .s { font-size: var(--fs-sm); color: var(--c-story-ink-2); margin-top: var(--sp-0); }
+
+.lab { position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: var(--sp-1h); height: 30px; padding: 0 var(--sp-2h) 0 var(--sp-1h);
+  background: var(--c-surface); border-radius: var(--r-sm); box-shadow: var(--sh-2); font-weight: 700; font-size: var(--fs-md); white-space: nowrap; }
+.lab .k { font-size: var(--fs-xs); font-weight: 700; padding: 0 var(--sp-1h); border-radius: var(--r-xs); background: var(--c-sunken); color: var(--c-ink-2); }
+.lab.goal .k { background: var(--c-ink); color: var(--c-on-dark); }
+.tun { position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: var(--sp-1); height: 24px; padding: 0 var(--sp-2) 0 var(--sp-1);
+  background: var(--c-accent-deep); color: var(--c-on-dark); border-radius: var(--r-xs); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; box-shadow: var(--sh-1); }
+.tun .n { width: 17px; height: 17px; border-radius: var(--r-2xs); background: var(--c-on-dark); color: var(--c-accent-deep); display: grid; place-items: center; font-family: var(--f-code); font-size: var(--fs-xs); }
+.q { position: absolute; z-index: 2; width: 22px; height: 22px; border-radius: 50%; background: var(--c-surface); border: 1.5px dashed var(--c-unk);
+  color: var(--c-unk); display: grid; place-items: center; font-weight: 700; font-size: var(--fs-xs); box-shadow: var(--sh-1); }
+
+.legend { position: absolute; z-index: 3; right: calc(var(--panel-w) + var(--sp-4)); bottom: 74px; background: var(--c-glass); border-radius: var(--r-md); box-shadow: var(--sh-2);
+  padding: var(--sp-2) var(--sp-3); font-size: var(--fs-xs); display: grid; gap: var(--sp-1); }
+.legend .h { color: var(--c-ink-3); font-weight: 700; display: flex; align-items: center; gap: var(--sp-1); }
+.legend .h b { color: var(--c-ink); }
+.legend .r { display: flex; align-items: center; gap: var(--sp-2); color: var(--c-ink); }
+.sw { width: 28px; height: 10px; border-radius: var(--r-pill); flex: none; }
+.sw.route { background: var(--c-accent-map); box-shadow: 0 0 0 1.5px var(--c-accent-deep) inset; }
+.sw.tunnel { background: repeating-linear-gradient(90deg, var(--c-on-dark) 0 4px, var(--c-accent-deep) 4px 7px); border: 2.5px solid var(--c-accent-deep); }
+.sw.unk { background: var(--c-unk-halo); height: 14px; border-radius: var(--r-pill); border: 1.5px dashed var(--c-unk); }
+
+.ctl { position: absolute; z-index: 3; right: calc(var(--panel-w) + var(--sp-4)); top: 254px; display: grid; background: var(--c-glass); border-radius: var(--r-md); box-shadow: var(--sh-2); overflow: hidden; }
+.ctl span { width: var(--h-ctl); height: var(--h-ctl); display: grid; place-items: center; color: var(--c-ink-2); }
+.ctl span + span { border-top: 1px solid var(--c-line); }
+
+.attr { position: absolute; z-index: 3; right: calc(var(--panel-w) + var(--sp-4)); bottom: var(--sp-3); text-align: right; background: var(--c-glass); border-radius: var(--r-sm); padding: var(--sp-1) var(--sp-2h);
+  font-size: var(--fs-xs); color: var(--c-ink-2); line-height: 1.5; box-shadow: var(--sh-1); }
+.attr b { color: var(--c-ink); font-weight: 700; }
+.scale { position: absolute; z-index: 3; left: var(--sp-4); bottom: var(--sp-4); display: flex; align-items: flex-end; gap: var(--sp-1h); font-size: var(--fs-xs); color: var(--c-ink-2); }
+.scale i { width: 72px; height: 7px; border: 2px solid var(--c-ink-2); border-top: 0; display: block; }
+
+/* ── 会話パネル（右） ── */
+.thread { position: absolute; z-index: 5; right: 0; top: 0; bottom: 0; width: var(--panel-w); background: var(--c-thread); box-shadow: var(--sh-panel); display: flex; flex-direction: column; }
+.th-head { height: var(--head-h); flex: none; display: flex; align-items: center; gap: var(--sp-2h); padding: 0 var(--sp-4) 0 var(--sp-5); border-bottom: 1px solid var(--c-line); background: var(--c-surface); }
+.brand { font-family: var(--f-brand); font-weight: 800; font-size: var(--fs-brand); letter-spacing: .06em; }
+.mark { width: 30px; height: 30px; border-radius: var(--r-sm); background: var(--c-ink); color: var(--c-on-dark); display: grid; place-items: center; }
+.dot { fill: var(--c-mark-dot); }
+.th-head .ttl { margin-left: auto; font-size: var(--fs-xs); color: var(--c-ink-3); display: flex; align-items: center; gap: var(--sp-1h); }
+.btn-ghost { height: 30px; display: inline-flex; align-items: center; gap: var(--sp-1); padding: 0 var(--sp-2h); border-radius: var(--r-sm); border: 1px solid var(--c-line-2);
+  font-size: var(--fs-sm); font-weight: 700; color: var(--c-ink); background: var(--c-surface); }
+
+.th-body { flex: 1; overflow: hidden; padding: var(--sp-2) var(--sp-4) 0 var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-1h); }
+.who { font-size: var(--fs-xs); color: var(--c-ink-3); display: flex; align-items: center; gap: var(--sp-1h); }
+.who b { color: var(--c-ink); }
+.user { align-self: flex-end; max-width: 92%; display: grid; justify-items: end; gap: var(--sp-1); }
+.bubble { background: var(--c-ink); color: var(--c-on-dark); border-radius: var(--r-bubble); padding: var(--sp-2) var(--sp-4); font-size: var(--fs-lg); line-height: 1.5; font-weight: 700; }
+.bubble u { text-decoration: underline dotted 2px; text-decoration-color: var(--c-accent-hl); text-underline-offset: 5px; }
+.one { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--c-ink-2); }
+
+/* 返信：左の縦線で1つの返信にまとめる */
+.reply { position: relative; padding-left: var(--rail); display: flex; flex-direction: column; gap: var(--sp-1h); }
+.reply::before { content: ""; position: absolute; left: 10px; top: 24px; bottom: 18px; width: 2px; background: var(--c-line-2); }
+.reply .av { position: absolute; left: 0; top: 0; width: 22px; height: 22px; border-radius: var(--r-xs); background: var(--c-ink); color: var(--c-on-dark); display: grid; place-items: center; }
+.reply .who { height: 22px; }
+.step { position: relative; }
+.step::before { content: ""; position: absolute; left: -24px; top: 13px; width: 10px; height: 10px; border-radius: 50%; background: var(--c-thread); border: 2px solid var(--c-ink-3); }
+.step.done::before { background: var(--c-ink-3); }
+.step.last::before { background: var(--c-pass); border-color: var(--c-pass); }
+
+.card { background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-md); box-shadow: var(--sh-1); }
+.interp { position: relative; padding: var(--sp-1h) var(--sp-3); }
+.interp p { flex: 1; font-size: var(--fs-md); line-height: 1.6; }
+.interp .k { font-weight: 700; }
+.interp .tag { font-family: var(--f-code); font-weight: 500; font-size: var(--fs-code); background: var(--c-sunken); border-radius: var(--r-xs); padding: 0 var(--sp-1); }
+.fix { position: absolute; right: var(--sp-2); bottom: var(--sp-1h); height: 24px; display: inline-flex; align-items: center; gap: var(--sp-0h); padding: 0 var(--sp-2); border-radius: var(--r-xs); border: 1px solid var(--c-line-2);
+  font-size: var(--fs-xs); font-weight: 700; color: var(--c-ink-2); background: var(--c-surface); }
+
+.ops { display: grid; padding: var(--sp-1h) var(--sp-2h) var(--sp-1); }
+.op { height: var(--h-op); display: flex; align-items: center; gap: var(--sp-2); }
+.op + .op { border-top: 1px dashed var(--c-line); }
+.op .fn { font-family: var(--f-code); font-weight: 700; font-size: var(--fs-code); height: var(--h-tag); display: inline-flex; align-items: center; padding: 0 var(--sp-1h);
+  border-radius: var(--r-xs); background: var(--c-sunken); color: var(--c-ink); }
+.op .arg { font-size: var(--fs-md); white-space: nowrap; }
+.op .res { font-weight: 700; color: var(--c-pass); white-space: nowrap; display: inline-flex; align-items: center; gap: var(--sp-0h); }
+.op .why { margin-left: auto; font-size: var(--fs-xs); color: var(--c-ink-3); white-space: nowrap; }
+.op .arrow { color: var(--c-ink-3); }
+.ops-h { display: flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-xs); color: var(--c-ink-2); font-weight: 700; height: 18px; }
+.ops-h .cnt { margin-left: auto; font-weight: 400; color: var(--c-ink-3); }
+
+.result { border-color: var(--c-line-2); }
+.res-h { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1h) var(--sp-3); border-bottom: 1px solid var(--c-line); }
+.res-h .t { font-family: var(--f-brand); font-weight: 700; font-size: var(--fs-xl); }
+.res-h .try { font-size: var(--fs-xs); color: var(--c-ink-2); border: 1px solid var(--c-line-2); border-radius: var(--r-pill); padding: 0 var(--sp-2); line-height: 20px; }
+.res-h .prev { font-size: var(--fs-xs); color: var(--c-ink-3); display: inline-flex; align-items: center; gap: var(--sp-0h); }
+.res-h .prev b { color: var(--c-fail); font-weight: 700; display: inline-flex; align-items: center; gap: var(--sp-0); }
+.verdict { display: inline-flex; align-items: center; gap: var(--sp-1); height: var(--h-tag); padding: 0 var(--sp-2); border-radius: var(--r-xs); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
+.verdict.pass { color: var(--c-pass); background: var(--c-pass-bg); border: 1px solid var(--c-pass-line); }
+.verdict.unk { color: var(--c-unk); background: var(--c-unk-bg); border: 1px dashed var(--c-unk); }
+.verdict.fail { color: var(--c-fail); background: var(--c-fail-bg); border: 3px double var(--c-fail-line); }
+.verdict.big { height: 26px; font-size: var(--fs-sm); padding: 0 var(--sp-2h); margin-left: auto; background: var(--c-pass); color: var(--c-on-dark); border-color: var(--c-pass); }
+table { width: 100%; border-collapse: collapse; }
+td { height: var(--h-row); padding: 0 var(--sp-3); border-bottom: 1px solid var(--c-line); font-size: var(--fs-md); white-space: nowrap; }
+td.c { width: 1%; }
+td.v { color: var(--c-ink-2); }
+td.v b { color: var(--c-ink); }
+td.j { text-align: right; width: 1%; }
+tr.unk td { background: repeating-linear-gradient(135deg, var(--c-unk-bg) 0 6px, var(--c-unk-bg-2) 6px 12px) fixed; } /* fixed：斜線をセルの境目でずらさない */
+tr.unk td:first-child { box-shadow: inset 3px 0 0 var(--c-unk); }
+.mk { display: inline-flex; gap: var(--sp-0h); vertical-align: middle; margin-left: var(--sp-1); }
+.mk i { font-style: normal; width: 17px; height: 17px; border-radius: var(--r-2xs); font-family: var(--f-code); font-size: var(--fs-xs); font-weight: 700; display: grid; place-items: center; }
+.mk.t i { background: var(--c-accent-deep); color: var(--c-on-dark); }
+.mk.q i { border-radius: 50%; border: 1.5px dashed var(--c-unk); color: var(--c-unk); background: var(--c-surface); }
+.onmap { font-size: var(--fs-xs); color: var(--c-unk); font-weight: 700; display: inline-flex; align-items: center; gap: var(--sp-0h); margin-left: var(--sp-1); }
+.lg { display: flex; gap: var(--sp-3); padding: var(--sp-1h) var(--sp-3); font-size: var(--fs-xs); color: var(--c-ink-3); }
+.lg span { display: inline-flex; align-items: center; gap: var(--sp-0h); }
+.acts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-1h); padding: var(--sp-2) var(--sp-3) var(--sp-2); }
+.btn { height: var(--h-btn); border-radius: var(--r-sm); display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1h); font-size: var(--fs-sm); font-weight: 700;
+  border: 1px solid var(--c-line-2); background: var(--c-surface); color: var(--c-ink); white-space: nowrap; }
+.btn.pri { background: var(--c-accent); border-color: var(--c-accent); color: var(--c-on-dark); }
+.btn .sub { font-weight: 400; color: var(--c-ink-3); }
+
+.composer { flex: none; padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--c-line); background: var(--c-surface); }
+.input { height: 40px; border: 1.5px solid var(--c-line-2); border-radius: var(--r-pill); display: flex; align-items: center; padding: 0 var(--sp-1) 0 var(--sp-4); font-size: var(--fs-lg); color: var(--c-ink-3); }
+.input .send { margin-left: auto; width: 32px; height: 32px; border-radius: 50%; background: var(--c-ink); color: var(--c-on-dark); display: grid; place-items: center; }
+.out { margin-left: auto; height: var(--h-chip); display: inline-flex; align-items: center; gap: var(--sp-1h); font-size: var(--fs-xs); color: var(--c-ink-2);
+  padding: 0 var(--sp-2h); border: 1px solid var(--c-line); border-radius: var(--r-pill); background: var(--c-thread); white-space: nowrap; }
+.out .code { color: var(--c-ink); font-weight: 700; }
+
+/* ── 絵コンテの帯 ── */
+.cap { position: absolute; left: 0; right: 0; bottom: 0; height: 80px; background: var(--c-story); color: var(--c-story-ink); display: flex; align-items: center; gap: var(--sp-4); padding: 0 var(--sp-6); }
+.cap .scene { flex: none; height: 30px; display: inline-flex; align-items: center; padding: 0 var(--sp-3); border-radius: var(--r-sm); background: var(--c-accent-map); color: var(--c-story); font-size: var(--fs-sm); font-weight: 700; }
+.cap .line { font-family: var(--f-brand); font-size: var(--fs-caption); font-weight: 700; letter-spacing: .02em; }
+.cap .note { margin-left: auto; flex: none; font-size: var(--fs-xs); color: var(--c-story-ink-2); border: 1px dashed var(--c-story-line); border-radius: var(--r-xs); padding: var(--sp-0h) var(--sp-2); }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="app">
+    <!-- 地図の上 -->
+    <div class="float region">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4l4-1.5 4 1.5 4-1.5v9.5L10 13.5 6 12l-4 1.5z"/><path d="M6 2.5V12M10 4v9.5"/></svg>
+      東京都（島しょ部を除く）
+    </div>
+    <div class="float promise">
+      <span class="lbl">約束</span>
+      <span class="it"><span class="box"></span>① 1社に頼らない</span>
+      <span class="it on"><span class="box"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 5.2l2 2 4-4.4"/></svg></span>② 詳しくなくても</span>
+      <span class="it on"><span class="box"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 5.2l2 2 4-4.4"/></svg></span>③ 確かめられる</span>
+    </div>
+    <div class="stamp">
+      <span class="no">③ 解決</span>
+      <div><p class="t">合否はタグで機械的に判定</p><p class="s">タグがなければ「判定不能」</p></div>
+    </div>
+
+    <div class="lab goal" style="left:248px; top:74px"><span class="k">到着</span>東京タワー</div>
+    <div class="lab" style="left:310px; top:549px"><span class="k">出発</span>品川駅</div>
+    <div class="tun" style="left:204px; top:504px"><span class="n">1</span>トンネル</div>
+    <div class="tun" style="left:270px; top:296px"><span class="n">2</span>トンネル</div>
+    <div class="q" style="left:328px; top:413px">?</div>
+    <div class="q" style="left:400px; top:197px">?</div>
+    <div class="q" style="left:412px; top:118px">?</div>
+
+    <div class="ctl">
+      <span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3v10M3 8h10"/></svg></span>
+      <span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h10"/></svg></span>
+      <span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 1.8v2.4M8 11.8v2.4M1.8 8h2.4M11.8 8h2.4"/><circle cx="8" cy="8" r="3.6"/></svg></span>
+    </div>
+    <div class="legend">
+      <div class="h"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 6s2-3.5 5-3.5S11 6 11 6 9 9.5 6 9.5 1 6 1 6z"/><circle cx="6" cy="6" r="1.5"/></svg>地図に表示中：<b>合否表（2回目）</b></div>
+      <div class="r"><span class="sw route"></span>経路（高速道路・有料道路を除外）</div>
+      <div class="r"><span class="sw tunnel"></span>トンネル <span class="code">tunnel=yes</span></div>
+      <div class="r"><span class="sw unk"></span>判定不能（車線数のタグなし）</div>
+    </div>
+    <div class="scale"><i></i>500 m</div>
+    <div class="attr">
+      <b>© OpenStreetMap contributors</b> ｜ Protomaps ｜ 経路：Valhalla<br>
+      データ時点：OSM 2026-11-03／地図 2026-11-04
+    </div>
+
+    <!-- 会話パネル -->
+    <aside class="thread">
+      <div class="th-head">
+        <span class="mark"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5.5h12M3 10h6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="13.2" cy="10" r="2.3" class="dot"/><path d="M3 14.5h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55"/></svg></span>
+        <span class="brand">ことづて</span>
+        <span class="out"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1.5l4.5 1.8v3.4c0 2.8-1.9 4.8-4.5 5.8-2.6-1-4.5-3-4.5-5.8V3.3z"/></svg>外部通信：<span class="code">api.anthropic.com</span> のみ</span>
+      </div>
+
+      <div class="th-body">
+        <div class="user">
+          <div class="bubble"><span class="nw">出発から到着まで、</span><span class="nw"><u>トンネルを2本通り</u>、<u>高速なし</u>、<u>60分以内</u></span></div>
+          <div class="who"><span class="one"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3.5h10v6H6l-3 2.5v-2.5H2z"/></svg>入力はこの1文だけ</span>・<b>あなた</b></div>
+        </div>
+
+        <div class="reply">
+          <span class="av"><svg width="12" height="12" viewBox="0 0 18 18" fill="none"><path d="M3 5.5h12M3 10h6.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="13.2" cy="10" r="2.8" class="dot"/></svg></span>
+          <div class="who"><b>ことづて</b><span>こう解釈して、こう動かしました</span></div>
+
+          <div class="step done card interp">
+            <p><span class="nw"><span class="k">解釈：</span>トンネル＝道路の <span class="tag">tunnel=yes</span>（連続する区間は1本）／</span><span class="nw">高速＝高速道路と有料道路を除外</span></p>
+            <span class="fix"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 10l.6-2.6L8 2l2 2-5.4 5.4z"/></svg>直す</span>
+          </div>
+
+          <div class="step done card ops">
+            <div class="ops-h"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 3.5L5 6l2.5-2.5"/></svg>操作ログ<span class="cnt">2件・型つきの操作だけを実行</span></div>
+            <div class="op"><span class="fn">route</span><span class="arg">Valhalla（高速除外）</span><span class="arrow">→</span><span class="why">「高速なし」から</span></div>
+            <div class="op"><span class="fn">check_route</span><span class="arg">トンネル 2/2</span><span class="arrow">→</span><span class="res"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 7.3l3 3 6-6.6"/></svg>合格</span><span class="why">「トンネルを2本」から</span></div>
+          </div>
+
+          <div class="step last card result">
+            <div class="res-h">
+              <span class="t">合否表</span><span class="try">2回目</span><span class="prev">1回目は<b><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 2l6 6M8 2L2 8"/></svg>不合格</b></span>
+              <span class="verdict big"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 7.3l3 3 6-6.6"/></svg>合格</span>
+            </div>
+            <table>
+              <tr><td>トンネル 2本<span class="mk t"><i>1</i><i>2</i></span></td><td class="v"><b>2/2</b></td><td class="j"><span class="verdict pass"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 7.3l3 3 6-6.6"/></svg>合格</span></td></tr>
+              <tr><td>高速を使わない</td><td class="v">—</td><td class="j"><span class="verdict pass"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 7.3l3 3 6-6.6"/></svg>合格</span></td></tr>
+              <tr><td>60分以内</td><td class="v"><b>52分</b></td><td class="j"><span class="verdict pass"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 7.3l3 3 6-6.6"/></svg>合格</span></td></tr>
+              <tr class="unk"><td>車線数<span class="mk q"><i>?</i></span></td><td class="v"><b>3区間</b>（タグなし）</td><td class="j"><span class="verdict unk"><b>?</b>判定不能</span></td></tr>
+            </table>
+            <div class="acts">
+              <span class="btn pri"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 1.5v7.5M3.8 6L7 9.2 10.2 6M2 12.5h10"/></svg>画像を書き出す</span>
+              <span class="btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 8a2.6 2.6 0 0 0 3.7 0l2-2a2.6 2.6 0 0 0-3.7-3.7l-.8.8M8 6a2.6 2.6 0 0 0-3.7 0l-2 2a2.6 2.6 0 0 0 3.7 3.7l.8-.8"/></svg>共有リンク</span>
+              <span class="btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6.2" width="8" height="6" rx="1.2"/><path d="M4.8 6.2V4.6a2.2 2.2 0 0 1 4.4 0v1.6"/></svg>GPX<span class="sub">（社内用）</span></span>
+              <span class="btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3.5 1.8h7v10.5L7 9.8l-3.5 2.5z"/></svg>レシピを保存</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="composer">
+        <div class="input">日本語で頼んでください<span class="send"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M7 12V2.5M3 6.5l4-4 4 4"/></svg></span></div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="cap">
+    <span class="scene">(c) ルート・試走コース</span>
+    <span class="line">2回目で合格。タグのない区間は「判定不能」と、正直に出します。</span>
+    <span class="note">絵コンテ（イメージ）・画面と数値は架空</span>
+  </div>
+</div>
+</body>
+</html>
