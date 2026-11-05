@@ -96,7 +96,7 @@ try {
     check(`地図のボタン ${id}：右下`, b && b.x > 1280 - 80 && b.y > 360);
   }
   const status = await text(page, '.status');
-  check('状態の札', status.includes('東京都（島しょ部を除く）') && status.includes('外部通信：api.anthropic.com のみ'), status);
+  check('状態の札：地域だけ（外部通信は「詳細」へ）', status.includes('東京都（島しょ部を除く）') && !status.includes('外部通信'), status);
   const attr = await text(page, '#attr');
   check('出典：OSM・Protomaps・データ時点', attr.includes('© OpenStreetMap contributors') && attr.includes('Protomaps') && attr.includes('データ時点：OSM'), attr);
   check('出典のリンク先', await page.locator('#attr a[href="https://www.openstreetmap.org/copyright"]').count() === 1);
@@ -127,8 +127,11 @@ try {
     const n = Number(panelText.match(/郵便局 (\d+)件/)?.[1]);
     const drawn = await page.evaluate(async () => (await window.map.getSource('feat').getData()).features.length);
     check('札：件数と地図の印の数が同じ', n === drawn, `${n} / ${drawn}`);
-    const net = await text(page, '#panel .net');
-    check('外部通信の記録：札の結果の下にある', net.includes('外部通信の記録（この操作の間）') && /api\.anthropic\.com\s?0件/.test(net) && /その他の外部\s?0件/.test(net), net);
+    const net = await text(page, '#panel details.adv .net');
+    check('外部通信の記録：札の結果の「詳細」の中にある', net.includes('外部通信の記録（この操作の間）') && /api\.anthropic\.com\s?0件/.test(net) && /その他の外部\s?0件/.test(net), net);
+    check('詳細：はじめは閉じている', await page.locator('#panel details.adv').evaluate((d) => !d.open));
+    const mainText = await page.evaluate(() => { const p = document.querySelector('#panel').cloneNode(true); p.querySelector('details.adv')?.remove(); return p.textContent; });
+    check('詳細：OSM のタグは本体に出さず「詳細」に出す', !mainText.includes('amenity=') && (await text(page, '#panel details.adv')).includes('amenity=post_office'), mainText.match(/amenity=.{0,30}/)?.[0]);
   } else {
     check('札：API がないときはエラーを出す', panelText.includes('サーバに接続できません'), panelText.slice(0, 80));
   }
@@ -184,6 +187,27 @@ try {
   } else {
     const ok = await page.waitForFunction(() => document.querySelector('#toast')?.textContent?.includes('サーバに接続できません'), null, { timeout: 5000 }).then(() => true, () => false);
     check('クリック：API がないときは案内を出す', ok, await text(page, '#toast'));
+  }
+
+  // 「今いる場所から」の依頼で現在地が使えないとき：Claude に送らず、理由と次の手を出す（送ると住所だけ調べて黙って止まる）
+  let chatCalls = 0;
+  await page.route('**/api/chat', (r) => { chatCalls++; return r.fulfill({ json: { steps: [], stop: 'done' } }); });
+  await page.fill('#q', '今いる場所から郵便局に寄って港区芝公園4-2-8へ');
+  await page.press('#q', 'Enter');
+  const noHere = await page.waitForFunction(() => document.querySelector('#panel')?.textContent.includes('依頼を送りませんでした'), null, { timeout: 20000 }).then(() => true, () => false);
+  check('現在地なし：依頼を送らずに理由を出す', noHere && chatCalls === 0 && (await page.inputValue('#q')).startsWith('今いる場所から'), await text(page, '#panel'));
+  await page.unroute('**/api/chat');
+
+  // 「今いる場所から」の依頼で現在地がまだないとき：送る前に位置情報を取る
+  if (apiUp) {
+    const page3 = await open({ viewport: { width: 1280, height: 720 }, permissions: ['geolocation'], geolocation: { latitude: 35.6458, longitude: 139.7479, accuracy: 30 } });
+    let sent = 0;
+    await page3.route('**/api/chat', (r) => { sent++; return r.fulfill({ json: { steps: [], stop: 'done' } }); });
+    await page3.fill('#q', '今いる場所から郵便局に寄って港区芝公園4-2-8へ');
+    await page3.press('#q', 'Enter');
+    const got = await page3.locator('#panel .req').waitFor({ timeout: 20000 }).then(() => true, () => false);
+    check('現在地なし→許可あり：位置情報を取ってから送る', got && sent === 1 && await until(page3, async () => (await window.map.getSource('here').getData()).features.length === 1), `sent=${sent}`);
+    await page3.context().close();
   }
 
   // 現在地：許可したとき
@@ -259,7 +283,7 @@ try {
     check('レシピ：現在地が入っている注意', rc.includes('現在地が入っています'), rc);
     for (const [name, vp] of [['desktop', { width: 1280, height: 720 }], ['mobile', { width: 390, height: 844 }]]) {
       const rp = await open({ viewport: vp, ...(name === 'mobile' ? { deviceScaleFactor: 2, isMobile: true, hasTouch: true } : {}) }, href);
-      await rp.locator('#panel .net').waitFor({ timeout: 60000 });
+      await rp.locator('#panel .net').waitFor({ state: 'attached', timeout: 60000 });
       const rt = await text(rp, '#panel');
       check(`レシピ（${name}）：Claude を使わずに再実行`, rt.includes('Claude を使わずに再実行') && rt.includes('手順') && !rt.includes('エラー'), rt.slice(0, 160));
       check(`レシピ（${name}）：保存した人の現在地を「現在地」と呼ばない`, rt.includes('レシピを保存した人の現在地') && !/現在地 半径|出発：現在地/.test(rt), rt.slice(0, 300));
@@ -337,7 +361,9 @@ try {
     await page2.press('#q', 'Enter');
     await page2.locator('#panel .vt').first().waitFor();
     const t4 = await text(page2, '#panel');
-    check('試走：合否表に合格と4つの行', /合否表\s?合格/.test(t4) &&['トンネル 2本', '高速を使わない', '60分以内', '車線数（参考）'].every((s) => t4.includes(s)), t4.slice(0, 300));
+    const vt = await text(page2, '#panel .vt');
+    check('試走：合否表に合格と3つの行、車線数（参考）は「詳細」', /合否表\s?合格/.test(t4) && ['トンネル 2本', '高速を使わない', '60分以内'].every((s) => vt.includes(s)) && !vt.includes('車線数')
+      && (await text(page2, '#panel details.adv')).includes('車線数（参考）'), vt.slice(0, 300));
     check('試走：案ごとの札（1回目・2回目）', await page2.locator('#panel .chipline span').count() === courseRes.steps[1].output?.attempts.length);
     check('試走：トンネルの数え方を出す', t4.includes('連続する tunnel=yes を1本、50m未満は数えない'));
     check('試走：解釈に出発・トンネル・時間', t4.includes('出発・到着：') && t4.includes('トンネル（本）：2') && t4.includes('時間の上限（分）：60'), t4.match(/試走コース.{0,80}/)?.[0]);

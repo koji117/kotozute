@@ -70,7 +70,6 @@ svg { display: block; flex: none; }
 .sec { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; font-size: var(--fs-ui); font-weight: 800; }
 .sec:first-child { margin-top: 0; }
 .sw { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--white); box-shadow: 0 0 0 1px var(--line-2); flex: none; }
-.interp { font-size: var(--fs-small); color: var(--text-2); }
 .note { margin-top: 6px; font-size: var(--fs-small); color: var(--text-3); }
 .zero { margin-top: 6px; padding: 8px 10px; border: 1.5px dashed var(--line-2); border-radius: var(--r-md); font-weight: 700; }
 .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -139,6 +138,14 @@ body:not(.has-route) [data-act="gpx"] { display: none; } /* ルートがある�
 .net .row b.ng { color: var(--ng-700); }
 .net .t { margin-bottom: 2px; }
 .wait { color: var(--text-2); font-weight: 500; }
+/* 詳細（技術的な情報と外部通信の記録）。閉じておき、中身がなければ出さない */
+.adv { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+.adv:not(:has(.adv-body > *)) { display: none; }
+.adv > summary { color: var(--text-2); }
+.adv-body { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.adv-body > .card { margin-top: 0; }
+.adv-item h4 { margin: 0; font-size: var(--fs-small); font-weight: 700; color: var(--text); }
+.adv-item .note { margin-top: 2px; }
 
 /* OSM ノートの下書き（確認方法は本人が選ぶ。止める語があればコピーできない） */
 .meth { display: flex; flex-direction: column; gap: 2px; margin: 10px 0 0; padding: 0; border: 0; }
@@ -166,7 +173,6 @@ a.btn { color: var(--text); text-decoration: none; }
 .pill { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: var(--r-pill); background: var(--glass); border: 1px solid var(--glass-line); box-shadow: var(--sh-pill); font-size: var(--fs-small); font-weight: 500; white-space: nowrap; }
 .pill.sm { height: 30px; font-size: var(--fs-label); padding: 0 10px; gap: 6px; }
 .pill svg { color: var(--text-2); }
-.pill .k { color: var(--text-3); }
 .attr { padding: 5px 10px; border-radius: var(--r-sm); background: var(--glass); border: 1px solid var(--glass-line); font-size: var(--fs-label); line-height: 1.45; color: var(--text-2); text-align: right; }
 .attr a { color: inherit; text-decoration: none; }
 .attr a:hover { text-decoration: underline; }

@@ -22,7 +22,7 @@ import type {
 } from '../ops/types';
 import type { NoteDraftOutput } from '../ops/draft_osm_note';
 import {
-  CHIP_ICON, COLOR, html, nm, type Raw, recipeCard, renderChat, renderDirect, renderError, renderRecipe, renderWait, stepHtml,
+  type Card, CHIP_ICON, COLOR, html, nm, type Raw, recipeCard, renderChat, renderDirect, renderError, renderRecipe, renderWait, stepHtml,
 } from './panel';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
@@ -293,7 +293,24 @@ function show(content: Raw, mode = '') {
   panel.hidden = false;
   panel.scrollTop = 0;
   panel.querySelectorAll<HTMLElement>('.ncard').forEach((c) => noteCheck(c)); // 場所の名前に止める語があれば、すぐ出す
+  panel.querySelector('details.adv')?.toggleAttribute('open', advOpen);
 }
+/** あとから足すカード（共有リンク、GPX、レシピ）。待つ間にパネルが替わっていたら出さない */
+function addCard(c: Card) {
+  const foot = panel.querySelector('.foot');
+  if (!foot) return;
+  foot.insertAdjacentHTML('beforebegin', c.main.s);
+  if (c.adv) panel.querySelector('.adv-body')?.insertAdjacentHTML('afterbegin', c.adv.s);
+}
+// 「詳細」を開いたかどうかは、このブラウザで覚える（保存できなくても動く）
+let advOpen = false;
+try { advOpen = localStorage.getItem('kotozute.adv') === 'open'; } catch {}
+panel.addEventListener('toggle', (e) => { // toggle は泡立たないので、捕まえる側で受ける
+  const d = e.target as HTMLElement;
+  if (!d.matches('details.adv')) return;
+  advOpen = (d as HTMLDetailsElement).open;
+  try { localStorage.setItem('kotozute.adv', advOpen ? 'open' : 'closed'); } catch {}
+}, true);
 // スマホでは下部シートの高さだけ、右下の札とボタンを上げる
 new ResizeObserver(() => document.documentElement.style.setProperty('--sheet-h', `${panel.hidden ? 0 : panel.offsetHeight}px`)).observe(panel);
 
@@ -322,7 +339,7 @@ async function shareLink(b: HTMLButtonElement) {
   b.disabled = true;
   try {
     const r = await api<OpResult>('/api/op/make_share_link', { sessionId, input: {}, view: viewNow() });
-    panel.querySelector('.foot')?.insertAdjacentHTML('beforebegin', stepHtml(r).s); // 待つ間にパネルが替わっていたら出さない
+    addCard(stepHtml(r));
     [...panel.querySelectorAll('.share input')].at(-1)?.scrollIntoView({ block: 'nearest' });
   } catch (err) { toast((err as Error).message); }
   b.disabled = false;
@@ -333,7 +350,7 @@ async function gpxFile(b: HTMLButtonElement) {
   try {
     const r = await api<OpResult>('/api/op/export_route', { sessionId, input: { format: 'gpx' } });
     if (r.ok) saveRoute(r.output as ExportRouteOutput);
-    panel.querySelector('.foot')?.insertAdjacentHTML('beforebegin', stepHtml(r).s); // 注意（ODbL）のカード
+    addCard(stepHtml(r)); // 注意（ODbL）のカード
   } catch (err) { toast((err as Error).message); }
   b.disabled = false;
 }
@@ -357,7 +374,7 @@ async function saveRecipe(b: HTMLButtonElement) {
   b.disabled = true;
   try {
     const r = await api<RecipeSaved>('/api/recipe', { sessionId });
-    panel.querySelector('.foot')?.insertAdjacentHTML('beforebegin', recipeCard(r).s);
+    addCard(recipeCard(r));
     [...panel.querySelectorAll('.recipe')].at(-1)?.scrollIntoView({ block: 'nearest' });
   } catch (err) { toast((err as Error).message); }
   b.disabled = false;
@@ -426,6 +443,7 @@ function noteCopy(card: HTMLElement) {
 }
 
 // ===== 検索（日本語の依頼 → Claude） =====
+const HERE_WORDS = /今いる|いまいる|現在地|現在位置|今の場所|いまの場所/;
 const form = $<HTMLFormElement>('#search');
 const q = $<HTMLTextAreaElement>('#q');
 q.addEventListener('keydown', (e) => {
@@ -438,6 +456,16 @@ form.addEventListener('submit', async (e) => {
   const send = form.querySelector('button')!;
   if (!text || send.disabled || replaying) return;
   send.disabled = true;
+  // 現在地がないと Claude は here: を使えず、住所だけ調べて黙って止まる。送る前に位置情報の許可を求め、取れなければ送らない
+  // ponytail: 言葉で判定するので「ここから」などは拾わない。拾い漏れが目立てば言葉を足す
+  if (!st.here && HERE_WORDS.test(text)) {
+    const why = await locate(false);
+    if (why) {
+      show(renderError(`依頼を送りませんでした。「今いる場所」を使うには現在地が要りますが、${why}。右下の現在地のボタンで位置情報を許可するか、地図で出発地をクリックしてから「クリックした場所から…」と頼んでください`));
+      send.disabled = false;
+      return;
+    }
+  }
   show(renderWait());
   try {
     const res = await api<ChatResponse>('/api/chat', { sessionId, text, view: viewNow() });
@@ -488,18 +516,24 @@ async function chip(w: DictKey, b: HTMLButtonElement) {
 // ===== 地図のボタンとクリック =====
 $('#zin').addEventListener('click', () => map.zoomIn());
 $('#zout').addEventListener('click', () => map.zoomOut());
-const NO_GEO = '位置情報が使えません。地図をクリックして場所を指定できます';
-$('#locate').addEventListener('click', () => {
-  if (replaying) return;
-  if (!navigator.geolocation) return toast(NO_GEO);
-  navigator.geolocation.getCurrentPosition(async (pos) => {
+const GEO_OFF = '位置情報が使えません';
+/** 現在地を取ってサーバに渡す。使えなければ理由を返す */
+function locate(fly: boolean): Promise<string | null> {
+  if (!navigator.geolocation) return Promise.resolve(GEO_OFF);
+  return new Promise((done) => navigator.geolocation.getCurrentPosition(async (pos) => {
     const here: Session['here'] = { coord: [r6(pos.coords.longitude), r6(pos.coords.latitude)], accuracy_m: Math.max(1, Math.round(pos.coords.accuracy)) };
     // サーバが受けた（東京都の中で、here: として使える）ときだけ地図に出す
-    try { await api<ContextResponse>('/api/context', { sessionId, here }); } catch (err) { return toast((err as Error).message); }
+    try { await api<ContextResponse>('/api/context', { sessionId, here }); } catch (err) { return done((err as Error).message); }
     st.here = here;
     draw();
-    map.flyTo({ center: here.coord, zoom: Math.max(map.getZoom(), 15) });
-  }, () => toast(NO_GEO), { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+    if (fly) map.flyTo({ center: here.coord, zoom: Math.max(map.getZoom(), 15) });
+    done(null);
+  }, () => done(GEO_OFF), { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }));
+}
+$('#locate').addEventListener('click', async () => {
+  if (replaying) return;
+  const why = await locate(true);
+  if (why) toast(why === GEO_OFF ? `${GEO_OFF}。地図をクリックして場所を指定できます` : why);
 });
 map.on('click', async (e) => {
   if (shareId || replaying) return;

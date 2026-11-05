@@ -18,6 +18,11 @@ export const html = (s: TemplateStringsArray, ...v: unknown[]) =>
   new Raw(s.reduce((a, x, i) => a + x + (i < v.length ? val(v[i]) : ''), ''));
 const raw = (s: string) => new Raw(s);
 
+/** 結果のカード。adv は「詳細」の欄に入れる技術的な情報（OSM のタグ、数え方、内訳、ID、ファイル名）。画面の本体は要点だけにする */
+export interface Card { main: Raw; adv?: Raw }
+const card = (main: Raw, adv?: Raw | ''): Card => ({ main, adv: adv || undefined });
+const advItem = (title: string, body: Raw) => html`<div class="adv-item"><h4>${title}</h4>${body}</div>`;
+
 /** 言葉ごとの印の色（案E の色） */
 export const COLOR: Record<DictKey, string> = {
   post_office: '#0B6E78', souvenir: '#8A5A00', convenience: '#18703E', cafe: '#734700', parking: '#085862', fuel: '#B3261E',
@@ -83,7 +88,7 @@ function inVal(k: string, v: unknown): string {
   if (Array.isArray(v)) return v.map((x) => inVal(k, x)).join('、');
   if (typeof v === 'boolean') return v ? 'はい' : 'いいえ';
   if (typeof v === 'string' && k === 'issue' && Object.hasOwn(ISSUES, v)) return ISSUES[v as Issue].label;
-  if (typeof v === 'string') return isWord(v) ? (k === 'words' ? DICT[v].interpretation : DICT[v].label) : refName(v);
+  if (typeof v === 'string') return isWord(v) ? DICT[v].label : refName(v); // OSM のタグでの解釈は「詳細」に出す
   if (v && typeof v === 'object') return pairs(v, '、');
   return String(v);
 }
@@ -108,34 +113,34 @@ const dist = (k: number) => (k < 1 ? `${Math.round(k * 1000)} m` : `${Math.round
 
 // ===== 操作ごとのカード =====
 function geocode(o: GeocodeOutput) {
-  return html`<div class="card">
+  return card(html`<div class="card">
     <div class="t"><span class="dotn">住</span><h3>${o.matched}</h3></div>
     <div class="badges"><span class="badge b-acc">座標の精度：${o.precision}</span>
-      ${o.unmatched ? html`<span class="badge b-unk">一致しなかった部分：${o.unmatched}</span>` : ''}</div>
-    <div class="note">${ATTRIBUTION.abr.text}</div></div>`;
+      ${o.unmatched ? html`<span class="badge b-unk">一致しなかった部分：${o.unmatched}</span>` : ''}</div></div>`,
+  html`<div class="note">${ATTRIBUTION.abr.text}</div>`);
 }
 
 function features(o: FindFeaturesOutput) {
-  return html`<div class="card">
+  return card(html`<div class="card">
     <div class="od">範囲：${o.area.label}${o.area.radius_m != null ? `（半径${o.area.radius_m}m）` : ''}</div>
     ${o.groups.map((g) => html`
       <div class="sec"><span class="sw" style="background:${COLOR[g.word]}"></span>${g.label} ${g.count}${g.word === 'tunnel' ? '本' : '件'}${g.truncated ? '以上' : ''}</div>
-      <div class="interp">${g.interpretation}</div>
       ${g.count === 0 ? html`<div class="zero">OSM上で0件（現地にないとは限らない）</div>` : html`
         ${g.truncated ? html`<div class="note">上限の${g.items.length}件で切りました（全部ではありません）</div>` : ''}
         <details ${g.count <= 8 ? 'open' : ''}><summary>名前の一覧</summary>
           <ol class="names">${g.items.map((p) => html`<li>${nm(p)}</li>`)}</ol></details>`}`)}
-  </div>`;
+  </div>`,
+  html`${o.groups.map((g) => html`<div class="note">${g.interpretation}</div>`)}`);
 }
 
 function search(o: SearchPlaceOutput) {
-  return html`<div class="card">
+  return card(html`<div class="card">
     <h3>「${o.query}」 ${o.items.length ? `${o.total}件${o.capped ? '以上' : ''}` : ''}</h3>
     ${o.widened ? html`<div class="note">画面の中になかったので、東京都全体から探しました</div>` : ''}
     ${o.items.length === 0 ? html`<div class="zero">OSM上で見つかりません（現地にないとは限らない）</div>` : html`
       ${o.truncated ? html`<div class="note">多いので近い${o.items.length}件だけ${o.capped ? '（上限で切ったので、近い順は一部の中で）' : ''}</div>` : ''}
       <ol class="names">${o.items.map((p) => html`<li>${nm(p)}</li>`)}</ol>`}
-  </div>`;
+  </div>`);
 }
 
 function route(r: RouteOutput, hereAcc?: number) {
@@ -148,7 +153,7 @@ function route(r: RouteOutput, hereAcc?: number) {
       ${leg.steps.filter((s) => s.type < 4 || s.type > 6).map((s) => html`<div class="stp">${turnIcon(s.type)}<span>${s.text}</span><small>${dist(s.km)}</small></div>`)}
       <div class="stp stop"><span class="dotn">${i < nStops ? i + 1 : '終'}</span><b>${nm(stop)}</b><small>${i < nStops ? side : ['到着', side].filter(Boolean).join('・')}</small></div>`;
   });
-  return html`<div class="card">
+  return card(html`<div class="card">
     <div class="pts">
       ${r.from.kind === 'here'
         ? html`<div class="pt"><span class="dot here"></span><span>現在地</span><small>${hereAcc != null ? `半径${hereAcc}m` : ''}</small></div>`
@@ -158,21 +163,20 @@ function route(r: RouteOutput, hereAcc?: number) {
     </div>
     <div class="ph-h" style="margin-top:12px">${CAR}<h2>車</h2><span class="big">${min(r.total.minutes)}</span><span class="od">${km(r.total.km)}</span>
       ${nStops ? html`<span class="badge b-acc" style="margin-left:auto">寄り道で +${min(r.extra_min)}</span>` : ''}</div>
-    ${nStops ? html`<div class="od">寄らない場合 ${min(r.direct.minutes)}・${km(r.direct.km)}${r.legs.length > 1 ? `（区間ごと ${r.legs.map((l) => min(l.minutes)).join('／')}）` : ''}</div>` : ''}
-    <div class="badges">
-      ${r.avoid_highways ? html`<span class="badge b-acc">高速を使わない</span>` : ''}
-      ${nStops ? html`<span class="badge b-acc">試した組み合わせ ${r.tried}通り</span>` : ''}
-    </div>
-    <div class="steps">${legs}</div></div>`;
+    ${nStops ? html`<div class="od">寄らない場合 ${min(r.direct.minutes)}・${km(r.direct.km)}</div>` : ''}
+    ${r.avoid_highways ? html`<div class="badges"><span class="badge b-acc">高速を使わない</span></div>` : ''}
+    <div class="steps">${legs}</div></div>`,
+  html`${r.legs.length > 1 ? html`<div class="note">区間ごと：${r.legs.map((l) => min(l.minutes)).join('／')}</div>` : ''}
+    ${nStops ? html`<div class="note">寄り先の候補の組み合わせを ${r.tried}通り試しました</div>` : ''}`);
 }
 
 function setView(o: SetViewOutput) {
-  return html`<div class="card"><div class="kv" style="margin-top:0">
+  return card(html`<div class="card"><div class="kv" style="margin-top:0">
     <div><b>場所</b><span>${o.target ? nm(o.target) : '画面の範囲'}</span></div>
     <div><b>表示</b><span>${o.target ? 'その場所が入る大きさに動かしました' : '地図は動かしていません'}</span></div>
     ${o.shown.length ? html`<div><b>残す</b><span>${o.shown.map(label).join('、')}</span></div>` : ''}
     ${o.hidden.length ? html`<div><b>隠す</b><span>${o.hidden.map(label).join('、')}</span></div>` : ''}
-  </div></div>`;
+  </div></div>`);
 }
 
 // ===== 合否表（plan_course、check_route） =====
@@ -197,22 +201,17 @@ function checkRow(r: CheckRow) {
   return html`<div class="c">${c}</div><div class="v">${v}</div><div class="j">${judged(r.result)}</div>`;
 }
 
-/** 合否表。車線数は参考の行（合否に使わない） */
-function checkTable(c: CheckOutput) {
-  const n = c.lanes.untagged_runs, u = n ? 'u' : '';
+/** 合否表。車線数（参考、合否に使わない）と数え方の内訳は「詳細」へ */
+function checkTable(c: CheckOutput): Card {
+  const n = c.lanes.untagged_runs;
   const counted = c.tunnels.filter((t) => !t.skip), skipped = c.tunnels.filter((t) => t.skip);
   const tname = (t: CheckOutput['tunnels'][number]) => t.name ?? '名前なし';
-  return html`<div class="vt">
-      ${c.rows.map(checkRow)}
-      <div class="c ${u}"><i class="sw-unk"></i>車線数（参考）</div>
-      <div class="v ${u}">${n ? html`${n}<small>区間</small>` : html`<span class="muted">すべてタグあり</span>`}</div>
-      <div class="j ${u}">${n ? judged('unknown') : ''}</div>
-    </div>
-    <div class="od" style="margin-top:6px">車線数のタグ（lanes）があるのはコースの ${Math.round(c.lanes.tagged_share * 100)}%${n ? `。タグのない ${n}区間は判定不能` : ''}（車線数は合否に使いません）</div>
+  return card(html`<div class="vt">${c.rows.map(checkRow)}</div>`,
+    html`<div class="note">車線数（参考）：${n ? html`タグのない ${n}区間は ${judged('unknown')}` : 'すべてタグあり'}。車線数のタグ（lanes）があるのはコースの ${Math.round(c.lanes.tagged_share * 100)}%（車線数は合否に使いません）</div>
     <div class="note">トンネルの数え方：連続する tunnel=yes を1本、50m未満は数えない。同じトンネルを2回通ったら（上下線など）1本</div>
     ${counted.length ? html`<div class="note">数えたトンネル：${counted.map((t) => `${tname(t)}（${dist(t.m / 1000)}）`).join('、')}</div>` : ''}
     ${skipped.length ? html`<div class="note">数えなかったもの：${skipped.map((t) => `${tname(t)}（${t.skip === 'short' ? `${t.m} m・50m未満` : '2回目'}）`).join('、')}</div>` : ''}
-    ${c.missing ? html`<div class="note">OSM のタグを取り直せなかった道が ${c.missing}本あります</div>` : ''}`;
+    ${c.missing ? html`<div class="note">OSM のタグを取り直せなかった道が ${c.missing}本あります</div>` : ''}`);
 }
 
 const STOPPED: Record<NonNullable<CourseOutput['stopped_by']>, string> = {
@@ -223,54 +222,59 @@ const STOPPED: Record<NonNullable<CourseOutput['stopped_by']>, string> = {
 function course(o: CourseOutput) {
   const i = o.chosen ?? o.attempts.length - 1, a = o.attempts[i], v = a.check.verdict;
   const start = nm(o.start);
-  return html`<div class="card">
+  const t = checkTable(a.check);
+  return card(html`<div class="card">
     <div class="ph-h"><h2>合否表</h2>${verdictTag(v)}
       <span class="chipline">${o.attempts.map((x, k) => html`<span class="${k === i ? 'on' : ''}">${k + 1}回目${k === i ? '' : ` ${V_TEXT[x.check.verdict]}`}</span>`)}</span></div>
     <div class="od" style="margin-top:6px">${start} 発着（周回）・${min(a.minutes)}・${km(a.km)}・経由：${a.via.map((x) => x.name ?? '名前なし').join('、')}</div>
-    <div class="kv"><div><b>解釈</b><span>トンネル＝道路の tunnel=yes（連続する区間は1本）${o.conditions.avoid_highways ? '／高速＝高速道路と有料道路を除外して計算' : ''}／${start}から${start}へ（周回）</span></div></div>
-    ${checkTable(a.check)}
-    <div class="note">経由地の候補はプログラムが作りました：出発地から${o.radius_m / 1000}km以内の、東京都の中の名前のある道路トンネル ${o.candidates}本（有料・自動車専用・車両通行不可・高さ2.1m未満の ${o.excluded}本は除外）。ルート計算 ${o.routes}回</div>
+    ${t.main}
     ${o.chosen == null ? html`<div class="zero">条件を満たすコースは見つかりませんでした（${STOPPED[o.stopped_by ?? 'other']}）。地図には最後の案を出しています</div>` : ''}
-  </div>`;
+  </div>`,
+  html`<div class="note">解釈：トンネル＝道路の tunnel=yes（連続する区間は1本）${o.conditions.avoid_highways ? '／高速＝高速道路と有料道路を除外して計算' : ''}／${start}から${start}へ（周回）</div>
+    ${t.adv}
+    <div class="note">経由地の候補はプログラムが作りました：出発地から${o.radius_m / 1000}km以内の、東京都の中の名前のある道路トンネル ${o.candidates}本（有料・自動車専用・車両通行不可・高さ2.1m未満の ${o.excluded}本は除外）。ルート計算 ${o.routes}回</div>`);
 }
 
 function checkCard(o: CheckRouteOutput) {
-  return html`<div class="card">
+  const t = checkTable(o);
+  return card(html`<div class="card">
     <div class="ph-h"><h2>合否表</h2>${verdictTag(o.verdict)}</div>
     <div class="od" style="margin-top:6px">いま地図にあるルート：${o.from} → ${o.to}・${min(o.minutes)}・${km(o.km)}</div>
-    ${checkTable(o)}
-  </div>`;
+    ${t.main}
+  </div>`, t.adv);
 }
 
 export function shareCard(o: ShareOutput) {
-  return html`<div class="card"><h3>共有リンク</h3>
+  return card(html`<div class="card"><h3>共有リンク</h3>
     <div class="share"><input readonly value="${location.origin + o.url}" aria-label="共有リンク"><button class="btn" type="button" data-act="copy">コピー</button></div>
     <div class="note">開いた人は、同じ地図を読み取りだけで見られます</div>
-    ${o.includes_here ? html`<div class="note warn">このリンクには、あなたの現在地が入っています</div>` : ''}</div>`;
+    ${o.includes_here ? html`<div class="note warn">このリンクには、あなたの現在地が入っています</div>` : ''}</div>`);
 }
 
 function pin(o: AddPinOutput) {
-  return html`<div class="card"><div class="t"><span class="dotn pin" aria-hidden="true"></span><h3>${nm(o.pin)}</h3></div>
-    <div class="note">ピンを立てました（全部で${o.count}本）。共有リンクと画像に入ります</div></div>`;
+  return card(html`<div class="card"><div class="t"><span class="dotn pin" aria-hidden="true"></span><h3>${nm(o.pin)}</h3></div>
+    <div class="note">ピンを立てました（全部で${o.count}本）。共有リンクと画像に入ります</div></div>`);
 }
 
 function png(o: ExportPngOutput) {
-  return html`<div class="card"><h3>資料用の画像</h3>
-    <div class="note">${o.mode === 'file' ? `保存しました：${o.path}` : '地図を画像にしました'}。出典（${ATTRIBUTION.osm.text} ほか）とデータ時点を画像の下に焼き込んであります</div></div>`;
+  return card(html`<div class="card"><h3>資料用の画像</h3>
+    <div class="note">地図を画像にしました。出典（${ATTRIBUTION.osm.text} ほか）とデータ時点を画像の下に焼き込んであります</div></div>`,
+  o.mode === 'file' ? html`<div class="note">保存先：${o.path}</div>` : '');
 }
 
 function routeFile(o: ExportRouteOutput) {
-  return html`<div class="card"><h3>${o.filename.endsWith('.gpx') ? 'GPX' : 'GeoJSON'}（社内用）を書き出しました</h3>
-    <div class="note">${o.filename}</div><div class="note warn">${o.warning}</div>
-    ${o.includes_here ? html`<div class="note warn">このファイルには、あなたの現在地が入っています</div>` : ''}</div>`;
+  return card(html`<div class="card"><h3>${o.filename.endsWith('.gpx') ? 'GPX' : 'GeoJSON'}（社内用）を書き出しました</h3>
+    <div class="note warn">${o.warning}</div>
+    ${o.includes_here ? html`<div class="note warn">このファイルには、あなたの現在地が入っています</div>` : ''}</div>`,
+  html`<div class="note">ファイル名：${o.filename}</div>`);
 }
 
-export function recipeCard(o: RecipeSaved) {
-  return html`<div class="card recipe"><h3>レシピ</h3>
-    <div class="od">ID <span class="mono">${o.id}</span>・操作 ${o.steps.length}回</div>
+export function recipeCard(o: RecipeSaved): Card {
+  return card(html`<div class="card recipe"><h3>レシピ</h3>
     <div class="share"><a class="btn primary" href="${o.url}" target="_blank" rel="noopener">再実行</a></div>
     <div class="note">Claude を使わずに、同じ操作を同じ順にやり直します（いまの OSM のデータで）</div>
-    ${o.includes_here ? html`<div class="note warn">このレシピには、あなたの現在地が入っています</div>` : ''}</div>`;
+    ${o.includes_here ? html`<div class="note warn">このレシピには、あなたの現在地が入っています</div>` : ''}</div>`,
+  advItem('レシピ', html`<div class="note">ID <span class="mono">${o.id}</span>・操作 ${o.steps.length}回</div>`));
 }
 
 const NOT_OTHER = ['localhost', '127.0.0.1', '[::1]', 'api.anthropic.com']; // src/server/netlog.ts の分け方と同じ
@@ -290,12 +294,12 @@ export function netCard(n?: NetLog) {
 let noteN = 0;
 function note(o: NoteDraftOutput) {
   const id = `note${++noteN}`;
-  return html`<div class="card ncard">
+  return card(html`<div class="card ncard">
     <h3>OSMノートの下書き</h3>
     <div class="od">アプリはOSMと通信しない。投稿は現地を見た本人</div>
     <div class="kv">
       <div><b>何が</b><span>${o.issue_label}：${o.what}</span></div>
-      <div><b>どこで</b><span>${nm(o.target)}${o.target.osm ? `（OSM要素 ${o.target.osm}）` : ''}</span></div>
+      <div><b>どこで</b><span>${nm(o.target)}</span></div>
     </div>
     <fieldset class="meth"><legend>確認方法（ご自身で選んでください）</legend>
       ${o.methods.map((m) => html`<label${m.allowed ? '' : raw(' class="off"')}><input type="radio" name="${id}" value="${m.label}"${m.allowed ? '' : raw(' disabled')}>${m.label}${m.reason ? html`<small>選べません：${m.reason}</small>` : ''}</label>`)}
@@ -306,11 +310,16 @@ function note(o: NoteDraftOutput) {
     <div class="nwarn" role="alert" hidden></div>
     <div class="nact"><button class="btn" type="button" data-act="note-copy" disabled>下書きをコピー</button>
       <a class="btn primary" href="${o.note_url}" target="_blank" rel="noopener">OSMのノート画面へ</a></div>
-  </div>`;
+  </div>`, o.target.osm ? html`<div class="note">OSM要素：${o.target.osm}</div>` : '');
 }
 
-export function stepHtml(s: OpResult, hereAcc?: number): Raw {
-  if (!s.ok) return html`<div class="card err"><h3>${s.title}</h3><div>${s.error.message}</div></div>`;
+/** 操作の結果のカード。「詳細」に入れるものは、操作の名前を見出しにつける */
+export function stepHtml(s: OpResult, hereAcc?: number): Card {
+  const c = opCard(s, hereAcc);
+  return c.adv ? { main: c.main, adv: advItem(s.title, c.adv) } : c;
+}
+function opCard(s: OpResult, hereAcc?: number): Card {
+  if (!s.ok) return card(html`<div class="card err"><h3>${s.title}</h3><div>${s.error.message}</div></div>`);
   switch (s.op) {
     case 'geocode_address': return geocode(s.output as GeocodeOutput);
     case 'find_features': return features(s.output as FindFeaturesOutput);
@@ -324,8 +333,8 @@ export function stepHtml(s: OpResult, hereAcc?: number): Raw {
     case 'export_png': return png(s.output as ExportPngOutput);
     case 'export_route': return routeFile(s.output as ExportRouteOutput);
     case 'draft_osm_note': return note(s.output as NoteDraftOutput);
-    case 'unknown_words': return html`<div class="card"><div>辞書にない言葉：${(s.output as UnknownWordsOutput).words.join('、')}（地物の検索には使えません）</div></div>`;
-    default: return html`<div class="card"><h3>${s.title}</h3></div>`;
+    case 'unknown_words': return card(html`<div class="card"><div>辞書にない言葉：${(s.output as UnknownWordsOutput).words.join('、')}（地物の検索には使えません）</div></div>`);
+    default: return card(html`<div class="card"><h3>${s.title}</h3></div>`);
   }
 }
 
@@ -344,20 +353,25 @@ const foot = raw(`<div class="foot">
   <button class="btn" type="button" data-act="gpx"><svg width="18" height="18" aria-hidden="true"><use href="#i-dl"/></svg>GPX（社内用）</button>
   <button class="btn" type="button" data-act="recipe"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3.5 9a5.5 5.5 0 1 0 1.6-3.9M3.5 2.8v2.6h2.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>レシピ</button></div>`);
 
-/** 操作ごとの「名前：入力」と、結果のカード */
-const opsHtml = (steps: OpResult[], hereAcc: number | undefined, h2: string, od: string) => html`
-  ${steps.length ? html`<div class="ph-h" style="margin-top:10px"><h2>${h2}</h2><span class="od">${od}</span></div>
-    <div class="kv">${steps.map((s) => html`<div><b>${s.title}</b><span>${shownInput(s)}</span></div>`)}</div>` : ''}
-  ${steps.map((s) => stepHtml(s, hereAcc))}`;
+/** 操作ごとの「名前：入力」 */
+const opsList = (steps: OpResult[], h2: string, od: string) => steps.length
+  ? html`<div class="ph-h" style="margin-top:10px"><h2>${h2}</h2><span class="od">${od}</span></div>
+    <div class="kv">${steps.map((s) => html`<div><b>${s.title}</b><span>${shownInput(s)}</span></div>`)}</div>` : '';
 
-/** 日本語の依頼の結果：依頼、解釈（操作と入力）、操作ごとのカード、止まった理由 */
+/** 「詳細」の欄（技術的な情報と外部通信の記録）。閉じておく。中身がなければ CSS で隠す。開いたかどうかは main.ts が覚える */
+const advSection = (items: (Raw | undefined)[], net?: NetLog) =>
+  html`<details class="adv"><summary>詳細</summary><div class="adv-body">${items}${netCard(net)}</div></details>`;
+
+/** 日本語の依頼の結果：依頼、解釈（操作と入力）、操作ごとのカード、止まった理由、詳細 */
 export function renderChat(text: string, res: ChatResponse, hereAcc?: number) {
   res.steps.forEach((s) => s.ok && remember(s.output));
+  const cards = res.steps.map((s) => stepHtml(s, hereAcc));
   const stop = STOP[res.stop];
   return html`${close}<div class="req"><b>依頼</b>　${text}</div>
-    ${opsHtml(res.steps, hereAcc, '解釈', '頼まれた言葉をこう受け取りました')}
+    ${opsList(res.steps, '解釈', '頼まれた言葉をこう受け取りました')}
+    ${cards.map((c) => c.main)}
     ${stop ? html`<div class="card err"><div>${stop}${res.stop === 'error' && res.error ? `：${res.error}` : ''}</div></div>` : ''}
-    ${foot}${netCard(res.net)}`;
+    ${foot}${advSection(cards.map((c) => c.adv), res.net)}`;
 }
 
 /** レシピの再実行（/?r=<id>）の結果。日本語の依頼の結果と同じ形で、Claude を使っていないことを見出しに出す。
@@ -365,21 +379,22 @@ export function renderChat(text: string, res: ChatResponse, hereAcc?: number) {
 export function renderRecipe(res: RecipeRunResponse) {
   res.steps.forEach((s) => s.ok && remember(s.output));
   const r = res.recipe;
+  const cards = res.steps.map((s) => stepHtml(s));
   return html`${close}<div class="ph-h"><h2>レシピ</h2><span class="badge b-ok">Claude を使わずに再実行</span></div>
-    <div class="od">ID <span class="mono">${r.id}</span>・保存 ${r.created_at.slice(0, 10)}・保存したときの OSM ${r.osm_as_of.slice(0, 10)}${
-      r.osm_as_of !== OSM_DATA_AS_OF ? '（いまのデータで実行したので、結果が違うことがあります）' : ''}</div>
-    ${opsHtml(res.steps, undefined, '手順', '保存した操作を同じ順にやり直しました')}
-    ${foot}${netCard(res.net)}`;
+    ${r.osm_as_of !== OSM_DATA_AS_OF ? html`<div class="od">いまのデータで実行したので、保存したときと結果が違うことがあります</div>` : ''}
+    ${opsList(res.steps, '手順', '保存した操作を同じ順にやり直しました')}
+    ${cards.map((c) => c.main)}
+    ${foot}${advSection([advItem('レシピ', html`<div class="note">ID <span class="mono">${r.id}</span>・保存 ${r.created_at.slice(0, 10)}・保存したときの OSM ${r.osm_as_of.slice(0, 10)}</div>`), ...cards.map((c) => c.adv)], res.net)}`;
 }
 
 /** 札（AI を通さない）の結果 */
 export function renderDirect(steps: OpResult[]) {
   steps.forEach((s) => s.ok && remember(s.output));
+  const cards = steps.map((s) => stepHtml(s));
   return html`${close}<div class="ph-h"><h2>この画面の範囲</h2><span class="badge b-ok">AIを通さない</span></div>
-    ${steps.map((s) => stepHtml(s))}
-    <div class="note">札は AI を通さずに、自社の Overpass へ直接たずねます</div>
-    ${foot}${netCard((steps.at(-1) as { net?: NetLog } | undefined)?.net)}`;
+    ${cards.map((c) => c.main)}
+    ${foot}${advSection([html`<div class="note">札は AI を通さずに、自社の Overpass へ直接たずねます</div>`, ...cards.map((c) => c.adv)], (steps.at(-1) as { net?: NetLog } | undefined)?.net)}`;
 }
 
-export const renderError = (msg: string) => html`${close}<div class="card err" style="margin-top:0"><div>${msg}</div></div>${foot}`;
+export const renderError = (msg: string) => html`${close}<div class="card err" style="margin-top:0"><div>${msg}</div></div>${foot}${advSection([])}`;
 export const renderWait = () => html`<div class="wait">ことづてが地図を操作しています…</div>`;
