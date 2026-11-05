@@ -3,7 +3,7 @@
  "label": "1回目：M1（評価セットのコミット直後、プロンプト調整なし）",
  "model": "claude-sonnet-5-5",
  "filter": {},
- "commit": "dba0608",
+ "commit": "be68c41",
  "summary": {
   "total": 50,
   "passed": 39,

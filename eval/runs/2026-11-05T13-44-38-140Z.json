@@ -3,7 +3,7 @@
  "label": "2回目：6つの機能（試走コース・ピン・書き出し・レシピ・ノート・MCP）とレビューの修正のあと。SYSTEM プロンプトは未調整",
  "model": "claude-sonnet-5-5",
  "filter": {},
- "commit": "3b6ff6f",
+ "commit": "42eb348",
  "summary": {
   "total": 50,
   "passed": 47,
