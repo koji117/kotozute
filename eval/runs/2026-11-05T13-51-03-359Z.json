@@ -1,0 +1,1475 @@
+{
+ "started_at": "2026-11-05T13:51:03.359Z",
+ "label": "3回目：SYSTEM プロンプトに2行（頼まれていない地物を足さない、0件なら言い換えて探し直さない）",
+ "model": "claude-sonnet-5-5",
+ "filter": {},
+ "commit": "17b1ba4",
+ "summary": {
+  "total": 50,
+  "passed": 50,
+  "rate": 100,
+  "by_group": {
+   "a": "10/10",
+   "b": "10/10",
+   "c": "10/10",
+   "d": "10/10",
+   "trap": "10/10"
+  },
+  "fabrications": 0,
+  "claude_calls": 138,
+  "usage": {
+   "calls": 138,
+   "input": 61094,
+   "output": 10489,
+   "cache_read": 960618,
+   "cache_write": 0
+  },
+  "cost_usd": 0.42,
+  "minutes": 4.7
+ },
+ "rows": [
+  {
+   "id": "a01",
+   "group": "a",
+   "text": "客先の住所が東京都港区芝公園4-2-8なので、地図で場所を見せてください。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 5552,
+   "claude_calls": 4,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "geocode_address",
+     "ok": true,
+     "input": {
+      "address": "東京都港区芝公園4-2-8"
+     }
+    },
+    {
+     "op": "add_pin",
+     "ok": true,
+     "input": {
+      "target": "abr:1"
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "abr:1",
+      "show": [],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "a02",
+   "group": "a",
+   "text": "世田谷区世田谷４－２１－２７ってどこ？",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 6387,
+   "claude_calls": 4,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "geocode_address",
+     "ok": true,
+     "input": {
+      "address": "東京都世田谷区世田谷4-21-27"
+     }
+    },
+    {
+     "op": "add_pin",
+     "ok": true,
+     "input": {
+      "target": "abr:1"
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "abr:1",
+      "show": [],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "a03",
+   "group": "a",
+   "text": "来週、台東区東上野四丁目5番6号に書類を出しに行きます。場所を確認したいので地図に出してもらえますか。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 5648,
+   "claude_calls": 4,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "geocode_address",
+     "ok": true,
+     "input": {
+      "address": "東京都台東区東上野四丁目5番6号"
+     }
+    },
+    {
+     "op": "add_pin",
+     "ok": true,
+     "input": {
+      "target": "abr:1"
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "abr:1",
+      "show": [],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "a04",
+   "group": "a",
+   "text": "足立区中央本町1丁目17-1 を表示して",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 4328,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "geocode_address",
+     "ok": true,
+     "input": {
+      "address": "東京都足立区中央本町1丁目17-1"
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "abr:1",
+      "show": [],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "a05",
+   "group": "a",
+   "text": "東京都新宿区西新宿4-33-7 の地図をお願いします",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3880,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "geocode_address",
+     "ok": true,
+     "input": {
+      "address": "東京都新宿区西新宿4-33-7"
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "abr:1",
+      "show": [],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "a06",
+   "group": "a",
+   "text": "明日の午後、東京都品川区北品川５丁目２番１号の施設で打ち合わせがあります。初めて行く場所なので、まず地図でどこにあるか確認させてください。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 8432,
+   "claude_calls": 4,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "geocode_address",
+     "ok": true,
+     "input": {
+      "address": "東京都品川区北品川5丁目2番1号"
+     }
+    },
+    {
+     "op": "add_pin",
+     "ok": true,
+     "input": {
+      "target": "abr:1"
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "abr:1",
+      "show": [],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "a07",
+   "group": "a",
+   "text": "浜松町駅はどこですか",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 4590,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "浜松町駅",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "result:1",
+      "show": [],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "a08",
+   "group": "a",
+   "text": "浜離宮恩賜庭園ってどのへん？地図で見せて",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 5578,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "浜離宮恩賜庭園",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "result:1",
+      "show": [],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "a09",
+   "group": "a",
+   "text": "午後に中央区役所へ書類を出しに行くので、場所を地図に出しておいてください。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 6170,
+   "claude_calls": 4,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "中央区役所",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "add_pin",
+     "ok": true,
+     "input": {
+      "target": "result:1"
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "result:1",
+      "show": [],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "a10",
+   "group": "a",
+   "text": "東京スカイツリーを地図で表示してください",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 5206,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "東京スカイツリー",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "result:1",
+      "show": [],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "b01",
+   "group": "b",
+   "text": "この画面に出ている範囲の郵便局を全部見せてください",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3302,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "find_features",
+     "ok": true,
+     "input": {
+      "words": [
+       "post_office"
+      ],
+      "area": "view:",
+      "radius_m": 500
+     }
+    }
+   ]
+  },
+  {
+   "id": "b02",
+   "group": "b",
+   "text": "今いるところの近くで喫茶店かコンビニを探して",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3946,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "find_features",
+     "ok": true,
+     "input": {
+      "words": [
+       "cafe",
+       "convenience"
+      ],
+      "area": "here:",
+      "radius_m": 500
+     }
+    }
+   ]
+  },
+  {
+   "id": "b03",
+   "group": "b",
+   "text": "さっき地図でクリックしたところから２ｋｍ以内のガソリンスタンドを出してください",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3669,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "find_features",
+     "ok": true,
+     "input": {
+      "words": [
+       "fuel"
+      ],
+      "area": "click:1",
+      "radius_m": 2000
+     }
+    }
+   ]
+  },
+  {
+   "id": "b04",
+   "group": "b",
+   "text": "東京タワーの周り500mで、菓子折りを買えるお店を探してください。客先に持っていきます。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 6966,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "東京タワー",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "find_features",
+     "ok": true,
+     "input": {
+      "words": [
+       "souvenir"
+      ],
+      "area": "result:1",
+      "radius_m": 500
+     }
+    }
+   ]
+  },
+  {
+   "id": "b05",
+   "group": "b",
+   "text": "台東区東上野４丁目５番６号の近くにコインパーキングある？車で書類を出しに行きたい",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 7607,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "geocode_address",
+     "ok": true,
+     "input": {
+      "address": "東京都台東区東上野4-5-6"
+     }
+    },
+    {
+     "op": "find_features",
+     "ok": true,
+     "input": {
+      "words": [
+       "parking"
+      ],
+      "area": "abr:1",
+      "radius_m": 500
+     }
+    }
+   ]
+  },
+  {
+   "id": "b06",
+   "group": "b",
+   "text": "この辺に病院ってありますか？",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3796,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "find_features",
+     "ok": true,
+     "input": {
+      "words": [
+       "hospital"
+      ],
+      "area": "view:",
+      "radius_m": 1000
+     }
+    }
+   ]
+  },
+  {
+   "id": "b07",
+   "group": "b",
+   "text": "この範囲の踏切を全部地図に出して",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3173,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "find_features",
+     "ok": true,
+     "input": {
+      "words": [
+       "level_crossing"
+      ],
+      "area": "view:",
+      "radius_m": 500
+     }
+    }
+   ]
+  },
+  {
+   "id": "b08",
+   "group": "b",
+   "text": "画面に映っているところで、車で通るトンネルはどこですか",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3652,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "find_features",
+     "ok": true,
+     "input": {
+      "words": [
+       "tunnel"
+      ],
+      "area": "view:",
+      "radius_m": 300
+     }
+    }
+   ]
+  },
+  {
+   "id": "b09",
+   "group": "b",
+   "text": "日比谷公園の中にあるお手洗いの場所を教えてください",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 6893,
+   "claude_calls": 4,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "日比谷公園",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "find_features",
+     "ok": true,
+     "input": {
+      "words": [
+       "toilets"
+      ],
+      "area": "result:1",
+      "radius_m": 500
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "result:1",
+      "show": [
+       "toilets"
+      ],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "b10",
+   "group": "b",
+   "text": "東京都北区王子本町1-15-22から1km以内の駅と公園を地図に出してほしいです",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 7249,
+   "claude_calls": 4,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "geocode_address",
+     "ok": true,
+     "input": {
+      "address": "東京都北区王子本町1-15-22"
+     }
+    },
+    {
+     "op": "find_features",
+     "ok": true,
+     "input": {
+      "words": [
+       "station",
+       "park"
+      ],
+      "area": "abr:1",
+      "radius_m": 1000
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "abr:1",
+      "show": [
+       "station",
+       "park"
+      ],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "c01",
+   "group": "c",
+   "text": "今いるところから出て、まず郵便局に寄って、そのあと手土産を買ってから、港区芝公園4-2-8の客先に行きたいです。この順番でお願いします。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 6319,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "geocode_address",
+     "ok": true,
+     "input": {
+      "address": "東京都港区芝公園4-2-8"
+     }
+    },
+    {
+     "op": "route",
+     "ok": true,
+     "input": {
+      "from": "here:",
+      "to": "abr:1",
+      "stops": [
+       {
+        "ref": null,
+        "word": "post_office"
+       },
+       {
+        "ref": null,
+        "word": "souvenir"
+       }
+      ],
+      "keep_order": true,
+      "avoid_highways": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "c02",
+   "group": "c",
+   "text": "浜松町駅から五反田駅まで車で行きたいです。高速道路は使わないでください。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 9772,
+   "claude_calls": 5,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "浜松町駅",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "五反田駅",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "五反田駅",
+      "area": "result:1"
+     }
+    },
+    {
+     "op": "route",
+     "ok": true,
+     "input": {
+      "from": "result:1",
+      "to": "result:9",
+      "stops": [],
+      "keep_order": false,
+      "avoid_highways": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "c03",
+   "group": "c",
+   "text": "田町駅から有楽町駅まで、途中でガソリンスタンドと郵便局に寄りたいです。寄る順番はどちらでもかまいません。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 7176,
+   "claude_calls": 4,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "田町駅",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "有楽町駅",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "route",
+     "ok": true,
+     "input": {
+      "from": "result:2",
+      "to": "result:3",
+      "stops": [
+       {
+        "ref": null,
+        "word": "fuel"
+       },
+       {
+        "ref": null,
+        "word": "post_office"
+       }
+      ],
+      "keep_order": false,
+      "avoid_highways": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "c04",
+   "group": "c",
+   "text": "東京タワーから田町駅までのルートを出して。途中でコンビニに1回寄りたい",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 6736,
+   "claude_calls": 4,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "東京タワー",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "田町駅",
+      "area": "result:1"
+     }
+    },
+    {
+     "op": "route",
+     "ok": true,
+     "input": {
+      "from": "result:1",
+      "to": "result:6",
+      "stops": [
+       {
+        "ref": null,
+        "word": "convenience"
+       }
+      ],
+      "keep_order": false,
+      "avoid_highways": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "c05",
+   "group": "c",
+   "text": "さっき地図でクリックしたところから港区役所まで、車で行く道を出してもらえますか",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 5485,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "港区役所",
+      "area": "click:1"
+     }
+    },
+    {
+     "op": "route",
+     "ok": true,
+     "input": {
+      "from": "click:1",
+      "to": "result:1",
+      "stops": [],
+      "keep_order": false,
+      "avoid_highways": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "c06",
+   "group": "c",
+   "text": "有楽町駅から東京都港区芝公園１丁目５番２５号まで車で行きます。高速は使ってもかまいません。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 6481,
+   "claude_calls": 4,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "有楽町駅",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "geocode_address",
+     "ok": true,
+     "input": {
+      "address": "東京都港区芝公園1丁目5番25号"
+     }
+    },
+    {
+     "op": "route",
+     "ok": true,
+     "input": {
+      "from": "result:1",
+      "to": "abr:1",
+      "stops": [],
+      "keep_order": false,
+      "avoid_highways": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "c07",
+   "group": "c",
+   "text": "品川駅を出て品川駅に戻ってくる試走コースを作ってください。トンネルを2本通って、高速は使わずに、60分以内でお願いします。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 5693,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "品川駅",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "plan_course",
+     "ok": true,
+     "input": {
+      "start": "result:1",
+      "tunnels": 2,
+      "max_minutes": 60,
+      "avoid_highways": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "c08",
+   "group": "c",
+   "text": "浜松町駅スタートで浜松町駅に戻る試走のコースがほしい。トンネル１本、４５分以内で。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 5572,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "浜松町駅",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "plan_course",
+     "ok": true,
+     "input": {
+      "start": "result:1",
+      "tunnels": 1,
+      "max_minutes": 45,
+      "avoid_highways": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "c09",
+   "group": "c",
+   "text": "今いる場所から出発して、ここに戻ってくる試走コースをお願いします。時間は1時間半まで。トンネルは3本通りたいです。高速道路は使っても大丈夫です。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 6551,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "plan_course",
+     "ok": true,
+     "input": {
+      "start": "here:",
+      "tunnels": 3,
+      "max_minutes": 90,
+      "avoid_highways": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "c10",
+   "group": "c",
+   "text": "いま地図に出ているルートが条件に合うか確かめてください。高速を使っていないか、60分以内か、トンネルを2本通るか、を見たいです。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3675,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "check_route",
+     "ok": true,
+     "input": {
+      "tunnels": 2,
+      "max_minutes": 60,
+      "avoid_highways": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "d01",
+   "group": "d",
+   "text": "このルートを共有リンクにして",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 2673,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "make_share_link",
+     "ok": true,
+     "input": {}
+    }
+   ]
+  },
+  {
+   "id": "d02",
+   "group": "d",
+   "text": "いま地図に出ている郵便局を、ほかの部署の人にも見てもらいたいです。リンクで送りたいので作ってもらえますか。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 2665,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "make_share_link",
+     "ok": true,
+     "input": {}
+    }
+   ]
+  },
+  {
+   "id": "d03",
+   "group": "d",
+   "text": "東京タワーにピンを立てて",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 5776,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "東京タワー",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "add_pin",
+     "ok": true,
+     "input": {
+      "target": "result:1"
+     }
+    }
+   ]
+  },
+  {
+   "id": "d04",
+   "group": "d",
+   "text": "港区芝公園１丁目５番２５号にピンを立てておいてください",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 5069,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "geocode_address",
+     "ok": true,
+     "input": {
+      "address": "東京都港区芝公園1-5-25"
+     }
+    },
+    {
+     "op": "add_pin",
+     "ok": true,
+     "input": {
+      "target": "abr:1"
+     }
+    }
+   ]
+  },
+  {
+   "id": "d05",
+   "group": "d",
+   "text": "この地図、来週の会議資料に貼りたいので画像にしてもらえますか？",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3678,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "export_png",
+     "ok": true,
+     "input": {}
+    }
+   ]
+  },
+  {
+   "id": "d06",
+   "group": "d",
+   "text": "さっきのルート、GPXで書き出してほしいです",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3065,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "export_route",
+     "ok": true,
+     "input": {
+      "format": "gpx"
+     }
+    }
+   ]
+  },
+  {
+   "id": "d07",
+   "group": "d",
+   "text": "芝公園のあたりを大きく。郵便局だけ残して",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 5296,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "芝公園",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "result:232",
+      "show": [
+       "post_office"
+      ],
+      "hide": [
+       "souvenir"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "d08",
+   "group": "d",
+   "text": "コンビニの印、ごちゃごちゃして見にくいから隠して",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3335,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "view:",
+      "show": [],
+      "hide": [
+       "convenience"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "d09",
+   "group": "d",
+   "text": "東京駅のあたりに移動してもらえますか",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 4675,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "東京駅",
+      "area": "view:"
+     }
+    },
+    {
+     "op": "set_view",
+     "ok": true,
+     "input": {
+      "target": "result:1",
+      "show": [],
+      "hide": []
+     }
+    }
+   ]
+  },
+  {
+   "id": "d10",
+   "group": "d",
+   "text": "ここの交差点、右折禁止なのに地図に出てないみたいです。OSMのノートを下書きしてもらえますか",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 2732,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "draft_osm_note",
+     "ok": true,
+     "input": {
+      "target": "click:1",
+      "issue": "turn_restriction"
+     }
+    }
+   ]
+  },
+  {
+   "id": "t01",
+   "group": "trap",
+   "text": "横浜駅を地図に出して",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 13143,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "横浜駅",
+      "area": "view:"
+     }
+    }
+   ]
+  },
+  {
+   "id": "t02",
+   "group": "trap",
+   "text": "来週の出張先です。大阪府大阪市中央区大手前２丁目１－２２を地図に出してもらえますか。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3404,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "geocode_address",
+     "ok": false,
+     "input": {
+      "address": "大阪府大阪市中央区大手前２丁目１－２２"
+     },
+     "error": {
+      "code": "out_of_area",
+      "message": "対応する地域は東京都（島しょ部を除く）です"
+     }
+    }
+   ]
+  },
+  {
+   "id": "t03",
+   "group": "trap",
+   "text": "川崎駅の周辺を地図で見せてください",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 4298,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "川崎駅",
+      "area": "view:"
+     }
+    }
+   ]
+  },
+  {
+   "id": "t04",
+   "group": "trap",
+   "text": "来月、伊豆大島の大島町役場に書類を出しに行きます。場所を地図で見せてください。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 12816,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "大島町役場",
+      "area": "view:"
+     }
+    }
+   ]
+  },
+  {
+   "id": "t05",
+   "group": "trap",
+   "text": "新橋みなと記念ホールで来週セミナーがあるので、場所を地図に出してください。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 11876,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "新橋みなと記念ホール",
+      "area": "view:"
+     }
+    }
+   ]
+  },
+  {
+   "id": "t06",
+   "group": "trap",
+   "text": "汐留ひかり公会堂ってどこ？地図で見たい",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 12751,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "汐留ひかり公会堂",
+      "area": "view:"
+     }
+    }
+   ]
+  },
+  {
+   "id": "t07",
+   "group": "trap",
+   "text": "この辺に本屋ある？",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3021,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "unknown_words",
+     "ok": true,
+     "input": {
+      "words": [
+       "本屋"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "t08",
+   "group": "trap",
+   "text": "新橋駅の近くの駐輪場を探してください。自転車で行きます。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3251,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "unknown_words",
+     "ok": true,
+     "input": {
+      "words": [
+       "駐輪場"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "t09",
+   "group": "trap",
+   "text": "北緯35.6812、東経139.7671に地図を動かして",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3160,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "unknown_words",
+     "ok": false,
+     "input": {
+      "words": []
+     },
+     "error": {
+      "code": "bad_input",
+      "message": "入力が正しくありません（words）"
+     }
+    }
+   ]
+  },
+  {
+   "id": "t10",
+   "group": "trap",
+   "text": "この画面の踏切を出して",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 3243,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "find_features",
+     "ok": true,
+     "input": {
+      "words": [
+       "level_crossing"
+      ],
+      "area": "view:",
+      "radius_m": 500
+     }
+    }
+   ]
+  }
+ ]
+}

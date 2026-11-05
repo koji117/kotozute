@@ -1,0 +1,108 @@
+{
+ "started_at": "2026-11-05T13:50:24.479Z",
+ "label": "調整の試し（3問だけ）",
+ "model": "claude-sonnet-5-5",
+ "filter": {
+  "only": [
+   "b05",
+   "t05",
+   "t06"
+  ]
+ },
+ "commit": "17b1ba4",
+ "summary": {
+  "total": 3,
+  "passed": 3,
+  "rate": 100,
+  "by_group": {
+   "b": "1/1",
+   "trap": "2/2"
+  },
+  "fabrications": 0,
+  "claude_calls": 7,
+  "usage": {
+   "calls": 7,
+   "input": 2347,
+   "output": 489,
+   "cache_read": 41766,
+   "cache_write": 6961
+  },
+  "cost_usd": 0.04,
+  "minutes": 0.5
+ },
+ "rows": [
+  {
+   "id": "b05",
+   "group": "b",
+   "text": "台東区東上野４丁目５番６号の近くにコインパーキングある？車で書類を出しに行きたい",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 6568,
+   "claude_calls": 3,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "geocode_address",
+     "ok": true,
+     "input": {
+      "address": "東京都台東区東上野4丁目5番6号"
+     }
+    },
+    {
+     "op": "find_features",
+     "ok": true,
+     "input": {
+      "words": [
+       "parking"
+      ],
+      "area": "abr:1",
+      "radius_m": 300
+     }
+    }
+   ]
+  },
+  {
+   "id": "t05",
+   "group": "trap",
+   "text": "新橋みなと記念ホールで来週セミナーがあるので、場所を地図に出してください。",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 12481,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "新橋みなと記念ホール",
+      "area": "view:"
+     }
+    }
+   ]
+  },
+  {
+   "id": "t06",
+   "group": "trap",
+   "text": "汐留ひかり公会堂ってどこ？地図で見たい",
+   "pass": true,
+   "failures": [],
+   "stop": "done",
+   "ms": 13116,
+   "claude_calls": 2,
+   "fabrications": 0,
+   "steps": [
+    {
+     "op": "search_place",
+     "ok": true,
+     "input": {
+      "name": "汐留ひかり公会堂",
+      "area": "view:"
+     }
+    }
+   ]
+  }
+ ]
+}
