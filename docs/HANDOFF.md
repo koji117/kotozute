@@ -9,7 +9,9 @@
 - 絵コンテ動画：`docs/storyboard/demo-storyboard.mp4`（字幕あり、音声なし）と `demo-storyboard-narrated.mp4`（仮のナレーションつき）。11/5 に作り直して約4分18秒（例1の前に「いつもの操作＋日本語」の場面を追加）。本番で3分に収める
 - 手元だけのメモ：`private/`（Git に入れない。計画の見直し結果 `plan-critique.md`、背景調査、調査の生データ、共有ページの元ファイル）。勤め先の事情を含むので公開しない
 - リポジトリ：今は非公開で作る想定。公開するかは確認事項3の答えしだい
-- コード：まだない
+- コード：M1 の形まで（11/5）。住所・場所の検索・地物の絞り込み・寄り先つきのルート・地図の表示（(e)）・共有リンク・画像の書き出し。札とボタンは AI を通さない。日本語の依頼は Claude（claude-sonnet-5-5）がツールを選ぶ。Claude を実際に呼ぶ確認はまだ（`.env` にキーがない）
+- 動かし方（リポジトリの直下）：`npx vite build` のあと `ALLOWED_HOSTS=<tailnet-host> npm run server`。サーバは 127.0.0.1:8787 だけで待ち受け、tailnet からは `https://<tailnet-host>:8453/`（`tailscale serve --https=8453` が 127.0.0.1:8787 へ）。ALLOWED_HOSTS にない Host の API は 403
+- 確かめ方：`npx tsx scripts/check-places.ts`、`check-route.ts`、`check-server.ts`、`node scripts/check-web.mjs`（自社の Overpass・Valhalla・ABR とサーバが動いていること。Overpass は同じ検索が1分に4回ほど続くと断るので、続けて何度も回さない）
 
 ## まだ終わっていないこと
 

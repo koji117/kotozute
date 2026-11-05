@@ -61,7 +61,7 @@ export const searchPlace = defineOp({
       .sort((a, b) => distM(a.coord, center.coord) - distM(b.coord, center.coord))
       .slice(0, LIMITS.max_items);
     const items = found.slice(0, MAX).map((p) => addResult(session, p));
-    return { query: name, items, total: found.length, truncated: found.length > items.length };
+    return { query: name, items, total: found.length, truncated: found.length > items.length, capped: elements.length > LIMITS.max_items };
   },
-  llm: (out) => ({ query: out.query, total: out.total, truncated: out.truncated, items: out.items.map((p) => ({ ref: p.ref, name: p.name })) }),
+  llm: (out) => ({ query: out.query, total: out.total, total_is_lower_bound: out.capped, truncated: out.truncated, items: out.items.map((p) => ({ ref: p.ref, name: p.name })) }),
 });

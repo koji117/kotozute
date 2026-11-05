@@ -48,6 +48,13 @@ function withView(id: string, view: Session['view']) {
   return s;
 }
 
+// Host が手元か、ALLOWED_HOSTS（カンマ区切り。tailscale serve の名前など）のときだけ API を受ける
+const ALLOWED = new Set(['127.0.0.1', 'localhost', ...(process.env.ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim()).filter(Boolean)]);
+app.use('/api/*', async (c, next) => {
+  const host = (c.req.header('host') ?? '').replace(/:\d+$/, '').toLowerCase();
+  if (!ALLOWED.has(host)) return c.json({ error: 'この名前からは使えません（ALLOWED_HOSTS）' }, 403);
+  await next();
+});
 app.use('/api/*', bodyLimit({ maxSize: 16 * 1024, onError: (c) => c.json({ error: '送られたデータが大きすぎます' }, 413) }));
 
 // 現在地・画面の範囲・クリックを伝える。座標はここで受けてセッションに置き、LLM には参照名だけを渡す

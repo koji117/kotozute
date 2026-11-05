@@ -41,7 +41,7 @@ export const findFeatures = defineOp({
       const d = DICT[word];
       groups.push({ word, label: d.label, interpretation: d.interpretation, count: items.length, items, truncated: elements.length > LIMITS.max_items });
     }
-    return { area: { ref: input.area, label: place.name ?? '名前のない場所', bbox: bbox ?? circle }, groups };
+    return { area: { ref: input.area, label: place.name ?? '名前のない場所', bbox: bbox ?? circle, radius_m: bbox ? null : input.radius_m }, groups };
   },
   llm: (out) => ({
     area: out.area.label,

@@ -51,6 +51,8 @@ const st = {
 /** 札で出した結果（言葉ごと）。パネルにまとめて出す */
 const chipSteps = new Map<DictKey, OpResult>();
 const shareId = new URLSearchParams(location.search).get('s');
+/** 共有リンクを作ったときの OSM のデータ時点（共有の画面だけ） */
+let shareOsmAsOf: string | undefined;
 
 // 読み込むたびに新しいセッションにする。前の画面の結果が共有リンクに混ざらないように
 const sessionId = crypto.randomUUID?.() ?? Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -144,7 +146,7 @@ function draw() {
 
 function renderAttr() {
   const parts = attributionParts(usedAttribution());
-  $('#attr').innerHTML = html`${parts.map((p, i) => html`${i ? html`<span class="sep">｜</span>` : ''}<a href="${p.url}" target="_blank" rel="noopener">${p.text}</a>`)}<br>${dataAsOfText()}`.s;
+  $('#attr').innerHTML = html`${parts.map((p, i) => html`${i ? html`<span class="sep">｜</span>` : ''}<a href="${p.url}" target="_blank" rel="noopener">${p.text}</a>`)}<br>${dataAsOfText(shareOsmAsOf)}`.s;
 }
 
 // ===== カメラ =====
@@ -357,7 +359,7 @@ async function exportPng() {
   const src = map.getCanvas();
   const k = src.width / src.clientWidth;
   // 画像ではリンクを押せないので、OSM は著作権のページの URL も書く
-  const parts = [...attributionParts(usedAttribution()).map((p) => (p === ATTRIBUTION.osm ? `${p.text}（${p.url.replace(/^https:\/\/www\./, '')}）` : p.text)), dataAsOfText()];
+  const parts = [...attributionParts(usedAttribution()).map((p) => (p === ATTRIBUTION.osm ? `${p.text}（${p.url.replace(/^https:\/\/www\./, '')}）` : p.text)), dataAsOfText(shareOsmAsOf)];
   const size = 13 * k, pad = 10 * k, lh = size * 1.5;
   const font = (px: number) => `500 ${px}px "M PLUS 1", sans-serif`;
   await document.fonts.load(font(size), parts.join('')).catch(() => {});
@@ -401,6 +403,7 @@ async function loadShare(id: string) {
   banner.hidden = false;
   try {
     const s = await api<ShareState>(`/api/share/${encodeURIComponent(id)}`);
+    shareOsmAsOf = s.osm_as_of;
     for (const l of s.layers) { st.feat.set(l.word, l.items); st.visible.add(l.word); }
     st.route = s.route;
     st.pins = s.pins.map((p, i) => ({ place: p, n: p.kind === 'address' ? '住' : String(i + 1) }));

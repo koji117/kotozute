@@ -22,7 +22,8 @@ export function attributionParts(use: AttributionUse = {}) {
 }
 
 const dateJa = (iso: string) => iso.slice(0, 10);
-export const dataAsOfText = () => `データ時点：OSM ${dateJa(OSM_DATA_AS_OF)}／地図 ${dateJa(MAP_TILES_AS_OF)}`;
+/** osm：共有リンクの地図は、作ったときの OSM のデータ時点を出す */
+export const dataAsOfText = (osm: string = OSM_DATA_AS_OF) => `データ時点：OSM ${dateJa(osm)}／地図 ${dateJa(MAP_TILES_AS_OF)}`;
 
 export const attributionHtml = (use: AttributionUse = {}) =>
   [...attributionParts(use).map(p => `<a href="${p.url}" target="_blank" rel="noopener">${p.text}</a>`), dataAsOfText()].join(' | ');

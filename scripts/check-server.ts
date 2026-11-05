@@ -14,7 +14,7 @@ const { addResult, getSession } = await import('../src/server/session.ts');
 
 const sid = `check-${Date.now()}`;
 const post = async (path: string, body: unknown) => {
-  const res = await app.request(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const res = await app.request(path, { method: 'POST', headers: { host: 'localhost', 'content-type': 'application/json' }, body: JSON.stringify(body) });
   return { status: res.status, json: (await res.json()) as any };
 };
 let n = 0;
@@ -28,7 +28,7 @@ const CLICK: [number, number] = [139.74543, 35.65858]; // 東京タワーのあ�
   assert.equal(r.json.clickRef, 'click:1');
   const out = await post('/api/context', { sessionId: sid, click: [140.5, 35.6] });
   assert.equal(out.status, 400);
-  const nan = await app.request('/api/context', { method: 'POST', headers: { 'content-type': 'application/json' }, body: `{"sessionId":"${sid}","here":{"coord":[1e999,35.6],"accuracy_m":10}}` });
+  const nan = await app.request('/api/context', { method: 'POST', headers: { host: 'localhost', 'content-type': 'application/json' }, body: `{"sessionId":"${sid}","here":{"coord":[1e999,35.6],"accuracy_m":10}}` });
   assert.equal(nan.status, 400);
   ok('context: click:1、東京の外と無限大は 400');
 }
@@ -89,13 +89,15 @@ const VIEW = { bbox: [139.742, 35.652, 139.752, 35.66], zoom: 16 };
   assert.match(r.json.output.id, /^[0-9A-Za-z]{10}$/);
   assert.equal(r.json.output.url, `/?s=${r.json.output.id}`);
   assert.ok(existsSync(`data/shares/${r.json.output.id}.json`));
-  const got = await app.request(`/api/share/${r.json.output.id}`);
+  const got = await app.request(`/api/share/${r.json.output.id}`, { headers: { host: 'localhost' } });
   assert.equal(got.status, 200);
   const state = (await got.json()) as any;
   assert.deepEqual(state.layers.map((l: any) => l.word), ['post_office'], '隠したコンビニが共有に入っている');
   assert.equal(state.bbox.length, 4);
-  assert.equal((await app.request('/api/share/AAAAAAAAAA')).status, 404);
-  assert.equal((await app.request('/api/share/..%2F..%2Fpackage')).status, 404);
+  assert.equal((await app.request('/api/share/AAAAAAAAAA', { headers: { host: 'localhost' } })).status, 404);
+  // 手元でも ALLOWED_HOSTS でもない名前（DNS rebinding）は断る
+  assert.equal((await app.request('/api/share/AAAAAAAAAA', { headers: { host: 'evil.example' } })).status, 403);
+  assert.equal((await app.request('/api/share/..%2F..%2Fpackage', { headers: { host: 'localhost' } })).status, 404);
   ok(`make_share_link → GET /api/share/${r.json.output.id}`);
 }
 
@@ -135,7 +137,7 @@ const VIEW = { bbox: [139.742, 35.652, 139.752, 35.66], zoom: 16 };
   const big = await post('/api/chat', { sessionId: sid, text: 'あ'.repeat(20_000) });
   assert.equal(big.status, 413);
   // ほかのサイトのフォーム（text/plain）からは送れない
-  const form = await app.request('/api/chat', { method: 'POST', headers: { 'content-type': 'text/plain' }, body: JSON.stringify({ sessionId: sid, text: '共有して' }) });
+  const form = await app.request('/api/chat', { method: 'POST', headers: { host: 'localhost', 'content-type': 'text/plain' }, body: JSON.stringify({ sessionId: sid, text: '共有して' }) });
   assert.equal(form.status, 415);
   const r = await post('/api/chat', { sessionId: sid, text: '港区芝公園4-2-8の住所を出して' });
   assert.equal(r.status, 200);

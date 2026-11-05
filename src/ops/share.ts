@@ -2,7 +2,8 @@
 import { randomInt } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
-import { defineOp, type BBox, type Layer, type RouteOutput, type ShareOutput, type ShareState } from './types';
+import { defineOp, type BBox, type Layer, type Place, type RouteOutput, type ShareOutput, type ShareState } from './types';
+import { OSM_DATA_AS_OF } from '../attribution';
 import { resolveRef } from '../server/session';
 
 const DIR = 'data/shares'; // data/ は .gitignore 済み
@@ -23,14 +24,15 @@ export const makeShareLink = defineOp({
       id: Array.from({ length: 10 }, () => B62[randomInt(62)]).join(''),
       created_at: new Date().toISOString(),
       layers: visible.map((l) => ({ word: l.word, items: l.refs.map((r) => resolveRef(session, r)) })),
-      ...(session.route ? { route: session.route } : {}),
+      osm_as_of: OSM_DATA_AS_OF,
+      ...(session.route ? { route: sharedRoute(session.route) } : {}),
       pins: [...session.places].filter(([k]) => k.startsWith('abr:')).map(([, p]) => p),
       bbox: session.route ? routeBBox(session.route) : (session.view?.bbox ?? null),
     };
     mkdirSync(DIR, { recursive: true });
     writeFileSync(`${DIR}/${state.id}.json`, JSON.stringify(state));
     shares.set(state.id, state);
-    return { id: state.id, url: `/?s=${state.id}` };
+    return { id: state.id, url: `/?s=${state.id}`, includes_here: !!session.route && hasHere(session.route) };
   },
   llm: (out) => out,
 });
@@ -47,6 +49,18 @@ export function loadShare(id: string): ShareState | null {
   } catch {
     return null;
   }
+}
+
+// 開いた人には「現在地」ではなく、共有した人の現在地だと分かる名前で見せる（点は経路の端として残る）
+const HERE_SHARED = '出発地（共有した人の現在地）';
+const hasHere = (r: RouteOutput) => [r.from, r.to, ...r.stops.map((s) => s.chosen)].some((p) => p.kind === 'here');
+const relabel = (p: Place): Place => (p.kind === 'here' ? { ...p, name: HERE_SHARED, kind: 'place' } : p);
+function sharedRoute(r: RouteOutput): RouteOutput {
+  return {
+    ...r, from: relabel(r.from), to: relabel(r.to),
+    stops: r.stops.map((s) => ({ ...s, chosen: relabel(s.chosen) })),
+    legs: r.legs.map((l) => ({ ...l, from: l.from === '現在地' ? HERE_SHARED : l.from, to: l.to === '現在地' ? HERE_SHARED : l.to })),
+  };
 }
 
 function routeBBox(r: RouteOutput): BBox {

@@ -29,7 +29,9 @@ export const geocodeAddress = defineOp({
       throw new OpError('not_found', '住所が見つかりません（ABR で一致しませんでした）');
     }
     if (!inTokyo(m.coord)) throw new OpError('out_of_area', OUT);
-    const place = addAbr(session, { name: m.matched, coord: m.coord, kind: 'address' });
+    // 座標が一致した深さより粗い点のとき（例：町字まで一致、座標は市区町村の代表点）、名前に精度を入れる。ピン・ルート・共有・画像のどこでも細かく見せない
+    const name = m.level === m.match_level ? m.matched : `${m.matched}（${precisionOf(m.level)}）`;
+    const place = addAbr(session, { name, coord: m.coord, kind: 'address' });
     return { place, input: address, matched: m.matched, unmatched: m.unmatched, level: m.level, precision: precisionOf(m.level) };
   },
   llm: (o) => ({ ref: o.place.ref, matched: o.matched, unmatched: o.unmatched, precision: o.precision }),

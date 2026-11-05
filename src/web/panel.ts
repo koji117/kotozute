@@ -49,16 +49,21 @@ const CAR = raw('<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="tr
 // ===== 参照の名前。結果に出た場所だけ名前で出し、知らない参照はそのまま出す =====
 const names = new Map<string, string>([['here:', '現在地'], ['view:', '画面の範囲']]);
 export const nm = (p: Place) => p.name ?? '名前なし';
+const LOOKS_REF = /^(here:|view:|click:\d+|result:\d+|abr:\d+|osm:\w+\/\d+)$/; // types.ts の REF_PATTERN と同じ形（zod を画面に入れないため写す）
 export function refName(ref: string): string {
   const c = ref.match(/^click:(\d+)$/);
-  return names.get(ref) ?? (c ? `クリック${c[1]}` : ref);
+  // 参照の形なのに結果にないものは、LLM が作った文字列を出さない。住所や名前などの文字はそのまま
+  return names.get(ref) ?? (c ? `クリック${c[1]}` : LOOKS_REF.test(ref) ? '（結果にない参照）' : ref);
 }
 /** 結果の中の場所（ref と coord を持つもの）をすべて覚える */
 function remember(v: unknown) {
   if (Array.isArray(v)) return v.forEach(remember);
   if (!v || typeof v !== 'object') return;
   const o = v as Record<string, unknown>;
-  if (typeof o.ref === 'string' && Array.isArray(o.coord)) names.set(o.ref, nm(o as unknown as Place));
+  if (typeof o.ref === 'string' && Array.isArray(o.coord)) {
+    names.set(o.ref, nm(o as unknown as Place));
+    if (typeof o.osm === 'string') names.set(`osm:${o.osm}`, nm(o as unknown as Place));
+  }
   Object.values(o).forEach(remember);
 }
 
@@ -80,9 +85,14 @@ const pairs = (o: object, sep: string) => Object.entries(o)
   .filter(([, v]) => v != null && !(Array.isArray(v) && !v.length))
   .map(([k, v]) => `${KEY[k] ?? k}：${inVal(k, v)}`).join(sep);
 /** 検証に落ちた入力（bad_input）は LLM が書いたままなので出さない。座標や結果にない言葉が入りうる */
-const shownInput = (s: OpResult) =>
-  !s.ok && s.error.code === 'bad_input' ? '（入力が正しくないため表示しません）'
-  : s.input && typeof s.input === 'object' ? pairs(s.input, '／') : '';
+const shownInput = (s: OpResult) => {
+  if (!s.ok && s.error.code === 'bad_input') return '（入力が正しくないため表示しません）';
+  if (!s.input || typeof s.input !== 'object') return '';
+  // 範囲（画面や公園）で探したときは半径を使っていないので出さない
+  const input = s.ok && s.op === 'find_features' && (s.output as FindFeaturesOutput).area.radius_m == null
+    ? Object.fromEntries(Object.entries(s.input).filter(([k]) => k !== 'radius_m')) : s.input;
+  return pairs(input, '／');
+};
 
 // ===== 数の書き方 =====
 const min = (m: number) => `${Math.round(m * 10) / 10}分`;
@@ -100,12 +110,12 @@ function geocode(o: GeocodeOutput) {
 
 function features(o: FindFeaturesOutput) {
   return html`<div class="card">
-    <div class="od">範囲：${o.area.label}</div>
+    <div class="od">範囲：${o.area.label}${o.area.radius_m != null ? `（半径${o.area.radius_m}m）` : ''}</div>
     ${o.groups.map((g) => html`
-      <div class="sec"><span class="sw" style="background:${COLOR[g.word]}"></span>${g.label} ${g.count}件</div>
+      <div class="sec"><span class="sw" style="background:${COLOR[g.word]}"></span>${g.label} ${g.count}件${g.truncated ? '以上' : ''}</div>
       <div class="interp">${g.interpretation}</div>
       ${g.count === 0 ? html`<div class="zero">OSM上で0件（現地にないとは限らない）</div>` : html`
-        ${g.truncated ? html`<div class="note">多いので最初の${g.items.length}件だけ</div>` : ''}
+        ${g.truncated ? html`<div class="note">上限の${g.items.length}件で切りました（全部ではありません）</div>` : ''}
         <details ${g.count <= 8 ? 'open' : ''}><summary>名前の一覧</summary>
           <ol class="names">${g.items.map((p) => html`<li>${nm(p)}</li>`)}</ol></details>`}`)}
   </div>`;
@@ -113,9 +123,9 @@ function features(o: FindFeaturesOutput) {
 
 function search(o: SearchPlaceOutput) {
   return html`<div class="card">
-    <h3>「${o.query}」 ${o.items.length ? `${o.total}件` : ''}</h3>
+    <h3>「${o.query}」 ${o.items.length ? `${o.total}件${o.capped ? '以上' : ''}` : ''}</h3>
     ${o.items.length === 0 ? html`<div class="zero">OSM上で見つかりません（現地にないとは限らない）</div>` : html`
-      ${o.truncated ? html`<div class="note">多いので最初の${o.items.length}件だけ</div>` : ''}
+      ${o.truncated ? html`<div class="note">多いので近い${o.items.length}件だけ${o.capped ? '（上限で切ったので、近い順は一部の中で）' : ''}</div>` : ''}
       <ol class="names">${o.items.map((p) => html`<li>${nm(p)}</li>`)}</ol>`}
   </div>`;
 }
@@ -160,7 +170,8 @@ function setView(o: SetViewOutput) {
 export function shareCard(o: ShareOutput) {
   return html`<div class="card"><h3>共有リンク</h3>
     <div class="share"><input readonly value="${location.origin + o.url}" aria-label="共有リンク"><button class="btn" type="button" data-act="copy">コピー</button></div>
-    <div class="note">開いた人は、同じ地図を読み取りだけで見られます</div></div>`;
+    <div class="note">開いた人は、同じ地図を読み取りだけで見られます</div>
+    ${o.includes_here ? html`<div class="note warn">このリンクには、出発地としてあなたの現在地が入っています</div>` : ''}</div>`;
 }
 
 export function stepHtml(s: OpResult, hereAcc?: number): Raw {

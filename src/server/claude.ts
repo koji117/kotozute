@@ -11,7 +11,8 @@ import { REGION_LABEL } from '../services/region';
 if (existsSync('.env')) process.loadEnvFile('.env');
 
 const MODEL = 'claude-sonnet-5-5';
-const MAX_CALLS = 6;
+const MAX_CALLS = 8; // 1回の応答で使うツールは1つ（disable_parallel_tool_use）なので、ツールの数＋最後の1回
+const DEADLINE_MS = 150_000; // 依頼1件にかける時間の上限
 const MAX_RECENT = 30;
 
 // system と tools は毎回同じ中身にする（キャッシュのため）。依頼ごとの状態は user の文に入れる
@@ -42,12 +43,17 @@ const TOOLS = toolDefs();
 let client: Anthropic | undefined;
 
 export async function chat(session: Session, text: string): Promise<ChatResponse> {
+  // サーバを動かしたあとで .env が作られても使えるように、キーがなければ読み直す（中身は表示しない）
+  if (!process.env.ANTHROPIC_API_KEY && existsSync('.env')) process.loadEnvFile('.env');
   if (!process.env.ANTHROPIC_API_KEY) return { steps: [], stop: 'error', error: 'Claude API のキー（ANTHROPIC_API_KEY）がサーバにありません' };
-  client ??= new Anthropic();
+  client ??= new Anthropic({ timeout: 120_000, maxRetries: 1 });
+  const t0 = Date.now();
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: `${contextBlock(session)}\n\n【依頼】\n${text}` }];
   const steps: OpResult[] = [];
   for (let i = 0; i < MAX_CALLS; i++) {
     let res: Anthropic.Beta.BetaMessage;
+    const left = DEADLINE_MS - (Date.now() - t0);
+    if (left < 5_000) return { steps, stop: 'error', error: 'Claude の応答が時間内に終わりませんでした' };
     try {
       res = await client.beta.messages.create({
         model: MODEL,
@@ -56,10 +62,11 @@ export async function chat(session: Session, text: string): Promise<ChatResponse
         fallbacks: 'default',
         system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
         tools: TOOLS,
-        tool_choice: { type: 'auto' }, // このモデルでは any / tool は 400 になる
+        // このモデルでは any / tool は 400 になる。1回に1つだけ呼ばせ、結果を見てから次の参照を使わせる
+        tool_choice: { type: 'auto', disable_parallel_tool_use: true },
         output_config: { effort: 'medium' },
         messages,
-      });
+      }, { timeout: Math.min(120_000, left) });
     } catch (e) {
       return { steps, stop: 'error', error: apiError(e) };
     }

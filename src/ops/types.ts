@@ -89,9 +89,11 @@ export interface GeocodeOutput {
   /** 精度の日本語（言い換えない：住居番号の位置／街区の代表点／町字の代表点 など） */
   precision: string;
 }
-export interface SearchPlaceOutput { query: string; items: Place[]; total: number; truncated: boolean }
+/** capped：Overpass の件数の上限で切れた（total は本当の件数ではなく「以上」） */
+export interface SearchPlaceOutput { query: string; items: Place[]; total: number; truncated: boolean; capped: boolean }
 export interface FeatureGroup { word: DictKey; label: string; interpretation: string; count: number; items: Place[]; truncated: boolean }
-export interface FindFeaturesOutput { area: { ref: string; label: string; bbox: BBox }; groups: FeatureGroup[] }
+/** area.radius_m：場所の周りを探したときの半径。範囲（画面や公園）で探したときは null */
+export interface FindFeaturesOutput { area: { ref: string; label: string; bbox: BBox; radius_m: number | null }; groups: FeatureGroup[] }
 export interface Step { type: number; text: string; street: string | null; km: number }
 export interface Leg { from: string; to: string; minutes: number; km: number; shape: LngLat[]; steps: Step[] }
 export interface StopChoice { requested: string; chosen: Place; alternatives: { place: Place; extra_min: number }[] }
@@ -106,12 +108,15 @@ export interface RouteOutput {
   tried: number;
 }
 export interface SetViewOutput { target: Place | null; bbox: BBox; shown: DictKey[]; hidden: DictKey[] }
-export interface ShareOutput { id: string; url: string }
+/** includes_here：共有したルートに現在地が入っている（開いた人に見える） */
+export interface ShareOutput { id: string; url: string; includes_here: boolean }
 export interface UnknownWordsOutput { words: string[] }
 
 /** 共有リンクで保存する地図の状態（GET /api/share/:id） */
 export interface ShareState {
   id: string; created_at: string;
+  /** 共有したときの OSM のデータ時点（あとでデータを更新しても、この地図の時点を出す） */
+  osm_as_of: string;
   layers: { word: DictKey; items: Place[] }[];
   route?: RouteOutput;
   pins: Place[];

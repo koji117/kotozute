@@ -32,7 +32,7 @@ export function addAbr(s: Session, p: Omit<Place, 'ref'>): Place {
 
 /** 参照を場所にする。知らない参照は OpError('bad_ref')。LLM が書いた座標はここを通らないので使えない */
 export function resolveRef(s: Session, ref: string): Place {
-  if (!REF_PATTERN.test(ref)) throw new OpError('bad_ref', `場所の参照「${ref}」の形が正しくありません`);
+  if (!REF_PATTERN.test(ref)) throw new OpError('bad_ref', '場所の参照の形が正しくありません');
   if (ref === 'here:') {
     if (!s.here) throw new OpError('bad_ref', '現在地がまだありません。画面の現在地ボタンで位置情報を許可するか、地図をクリックしてください');
     return { ref, name: '現在地', coord: s.here.coord, kind: 'here' };
@@ -44,10 +44,10 @@ export function resolveRef(s: Session, ref: string): Place {
   const m = ref.match(/^click:(\d+)$/);
   if (m) {
     const c = s.clicks[Number(m[1]) - 1];
-    if (!c) throw new OpError('bad_ref', `クリックした点「${ref}」はありません`);
+    if (!c) throw new OpError('bad_ref', 'そのクリックした点はありません');
     return { ref, name: `クリックした点${m[1]}`, coord: c, kind: 'click' };
   }
   const p = s.places.get(ref);
-  if (!p) throw new OpError('bad_ref', `「${ref}」はこの画面の結果にありません。先に検索してください`);
+  if (!p) throw new OpError('bad_ref', '指定した場所はこの画面の結果にありません。先に検索してください');
   return p;
 }
