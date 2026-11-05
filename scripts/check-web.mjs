@@ -133,6 +133,7 @@ try {
   const pbox = await box(page, '#panel');
   check('結果パネル：検索の下、幅 440px', pbox && pbox.y > search.y + search.height && Math.abs(pbox.width - 440) < 2, JSON.stringify(pbox));
   check('結果パネル：画面の中に収まる', pbox && pbox.y + pbox.height <= 720 - 16 + 1);
+  check('ルートがないときは「GPX（社内用）」を出さない', await page.locator('#panel [data-act=gpx]').isHidden());
   await page.screenshot({ path: `${OUT}/desktop-panel.png` });
 
   // 資料用の画像：地図の下に白い帯と出典が入る
@@ -246,7 +247,30 @@ try {
     check('2回目：set_view の view: で地図が動かない', JSON.stringify(cam0) === JSON.stringify(cam1), `${JSON.stringify(cam0)} → ${JSON.stringify(cam1)}`);
     check('2回目：住所のピンとルートは残る', await page2.evaluate(async () => (await window.map.getSource('marks').getData()).features.some((f) => f.properties.n === '終')));
 
-    // 例2 試走コース：plan_course と check_route を直接呼んだ結果を /api/chat の応答にして、合否表と地図を確かめる
+    // 3回目：ピン（1回目の東京タワーの検索結果。ルートの上の場所は経路の印で出す）、GPX、画像。書き出しは画面が Blob と canvas で行う
+    chatRes = { stop: 'done', steps: await page2.evaluate(async () => {
+      const sessionId = window.sessionId;
+      const op = async (name, input) => (await fetch(`/api/op/${name}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId, input }) })).json();
+      return [await op('add_pin', { target: 'result:1' }), await op('export_route', { format: 'gpx' }), await op('export_png', {})];
+    }) };
+    check('3回目：ピン・GPX・画像の操作が成功', chatRes.steps.every((s) => s.ok) && chatRes.steps[2].output.mode === 'client', chatRes.steps.map((s) => s.ok ? s.op : s.error.message).join(','));
+    const files = [];
+    page2.on('download', (d) => files.push(d.suggestedFilename()));
+    await page2.fill('#q', '東京タワーにピン。GPXと画像もください');
+    await page2.press('#q', 'Enter');
+    await page2.waitForFunction(() => document.querySelector('#panel .req')?.textContent.includes('GPXと画像も'));
+    const t3 = await text(page2, '#panel');
+    check('3回目：ピン・GPX（ODbL の注意）・画像のカード', t3.includes('ピンを立てました（全部で1本）') && t3.includes('GPX（社内用）を書き出しました') && t3.includes('ODbL の条件') && t3.includes('出典（© OpenStreetMap contributors ほか）'), t3.slice(-300));
+    check('3回目：ピンは赤い印', await until(page2, async () => (await window.map.getSource('marks').getData()).features.some((f) => f.properties.color === '#B3261E')));
+    for (const t = Date.now(); files.length < 2 && Date.now() - t < 20000;) await page2.waitForTimeout(200);
+    check('3回目：GPX と画像をダウンロード', files.some((f) => /^kotozute-route-\d{12}\.gpx$/.test(f)) && files.some((f) => /^kotozute-\d{12}\.png$/.test(f)), files.join(','));
+    check('ルートがあると「GPX（社内用）」が出る', await page2.locator('#panel [data-act=gpx]').isVisible());
+    const [gpx] = await Promise.all([page2.waitForEvent('download'), page2.click('#panel [data-act=gpx]')]);
+    const g = fs.readFileSync(await gpx.path(), 'utf8');
+    check('GPX のボタン：ファイルに出典と ODbL', g.startsWith('<?xml') && g.includes('© OpenStreetMap contributors') && g.includes('odbl'), gpx.suggestedFilename());
+    await page2.screenshot({ path: `${OUT}/desktop-pins-export.png` });
+
+    // 4回目 例2 試走コース：plan_course と check_route を直接呼んだ結果を /api/chat の応答にして、合否表と地図を確かめる
     courseRes = { stop: 'done', steps: await page2.evaluate(async () => {
       const sessionId = window.sessionId;
       const op = async (name, input) => (await fetch(`/api/op/${name}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId, input }) })).json();
@@ -259,11 +283,11 @@ try {
     await page2.fill('#q', '来週の客先試走。品川駅を出て、トンネルを2本通り、高速は使わず60分以内。');
     await page2.press('#q', 'Enter');
     await page2.locator('#panel .vt').first().waitFor();
-    const t3 = await text(page2, '#panel');
-    check('試走：合否表に合格と4つの行', /合否表\s?合格/.test(t3) &&['トンネル 2本', '高速を使わない', '60分以内', '車線数（参考）'].every((s) => t3.includes(s)), t3.slice(0, 300));
+    const t4 = await text(page2, '#panel');
+    check('試走：合否表に合格と4つの行', /合否表\s?合格/.test(t4) &&['トンネル 2本', '高速を使わない', '60分以内', '車線数（参考）'].every((s) => t4.includes(s)), t4.slice(0, 300));
     check('試走：案ごとの札（1回目・2回目）', await page2.locator('#panel .chipline span').count() === courseRes.steps[1].output?.attempts.length);
-    check('試走：トンネルの数え方を出す', t3.includes('連続する tunnel=yes を1本、50m未満は数えない'));
-    check('試走：解釈に出発・トンネル・時間', t3.includes('出発・到着：') && t3.includes('トンネル（本）：2') && t3.includes('時間の上限（分）：60'), t3.match(/試走コース.{0,80}/)?.[0]);
+    check('試走：トンネルの数え方を出す', t4.includes('連続する tunnel=yes を1本、50m未満は数えない'));
+    check('試走：解釈に出発・トンネル・時間', t4.includes('出発・到着：') && t4.includes('トンネル（本）：2') && t4.includes('時間の上限（分）：60'), t4.match(/試走コース.{0,80}/)?.[0]);
     check('試走：地図にコース、トンネルの名前、発着の印', await until(page2, async () => {
       const tun = (await window.map.getSource('tun').getData()).features.filter((f) => f.geometry.type === 'Point').map((f) => f.properties.name);
       const ns = (await window.map.getSource('marks').getData()).features.map((f) => f.properties.n);

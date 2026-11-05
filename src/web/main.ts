@@ -17,14 +17,14 @@ import { layers, namedFlavor } from '@protomaps/basemaps';
 import { ATTRIBUTION, attributionParts, dataAsOfText } from '../attribution';
 import { CHIPS, DICT, type DictKey } from '../ops/dict';
 import type {
-  BBox, ChatResponse, CheckRouteOutput, ContextResponse, CourseOutput, FindFeaturesOutput, GeocodeOutput, LngLat, OpResult, Place,
-  RouteOutput, SearchPlaceOutput, Session, SetViewOutput, ShareState, TunnelRun,
+  AddPinOutput, BBox, ChatResponse, CheckRouteOutput, ContextResponse, CourseOutput, ExportRouteOutput, FindFeaturesOutput, GeocodeOutput,
+  LngLat, OpResult, Place, RouteOutput, SearchPlaceOutput, Session, SetViewOutput, ShareState, TunnelRun,
 } from '../ops/types';
 import { CHIP_ICON, COLOR, html, nm, type Raw, renderChat, renderDirect, renderError, renderWait, stepHtml } from './panel';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const r6 = (x: number) => Math.round(x * 1e6) / 1e6;
-const C = { teal: '#0B6E78', sumi: '#12343B', white: '#FFFFFF', gray: '#7D868C', text: '#161B1F' };
+const C = { teal: '#0B6E78', sumi: '#12343B', white: '#FFFFFF', gray: '#7D868C', text: '#161B1F', pin: '#B3261E' };
 
 // 地図の配色（docs/storyboard/scenes.js の FLAVOR）：青い水、緑の公園、白い道、暖色の幹線
 const FLAVOR = {
@@ -46,12 +46,15 @@ const st = {
   route: undefined as RouteOutput | undefined,
   tunnels: [] as TunnelRun[], // 合否表で数えたトンネル（地図に名前を出す）
   pins: [] as { place: Place; n: string }[], // 住所と場所の検索の結果
+  pinned: [] as Place[], // add_pin で立てたピン（サーバの session.pins と同じ並び）。新しい依頼でも消さない
   here: undefined as Session['here'],
   clicks: [] as { coord: LngLat; n: string }[],
 };
 /** 札で出した結果（言葉ごと）。パネルにまとめて出す */
 const chipSteps = new Map<DictKey, OpResult>();
 const shareId = new URLSearchParams(location.search).get('s');
+/** ?png=1：export_png（MCP）がサーバから headless で開き、出典を焼き込んだ画像を window.kotozutePng で受け取る */
+const pngMode = new URLSearchParams(location.search).get('png') === '1';
 /** 共有リンクを作ったときの OSM のデータ時点（共有の画面だけ） */
 let shareOsmAsOf: string | undefined;
 
@@ -130,20 +133,28 @@ map.on('load', () => {
   OVERLAY.forEach((l) => map.addLayer(l));
   loaded = true;
   draw();
-  if (shareId) loadShare(shareId);
+  if (shareId) {
+    const opened = loadShare(shareId);
+    if (pngMode) Object.assign(window, { kotozutePng: opened.then(async (ok) => {
+      if (!ok) throw new Error('共有された地図を開けません');
+      await idle();
+      return (await pngCanvas()).toDataURL('image/png');
+    }) });
+  }
   // 読み込み直した画面には現在地を出していないので、サーバに残った現在地も消す
   else api('/api/context', { sessionId, here: null, view: viewNow() }).catch(() => {});
 });
 
 const usedAttribution = () => {
   const r = st.route;
-  const places = [...st.pins.map((p) => p.place), ...(r ? [r.from, r.to, ...r.stops.map((s) => s.chosen)] : [])];
+  const places = [...st.pins.map((p) => p.place), ...st.pinned, ...(r ? [r.from, r.to, ...r.stops.map((s) => s.chosen)] : [])];
   return { route: !!r, address: places.some((p) => p.kind === 'address') };
 };
 
 /** 状態を地図のレイヤと出典に写す */
 function draw() {
   renderAttr();
+  document.body.classList.toggle('has-route', !!st.route); // パネルの「GPX（社内用）」はルートがあるときだけ
   for (const b of $('#chips').querySelectorAll<HTMLButtonElement>('.chip')) b.setAttribute('aria-pressed', String(st.visible.has(b.dataset.word as DictKey)));
   if (!loaded) return;
   const set = (id: string, features: F[]) => (map.getSource(id) as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features });
@@ -163,7 +174,9 @@ function draw() {
     marks.push(pt(r.to.coord, loop ? { n: '発', label: `${nm(r.to)}（出発・到着）`, color: C.sumi } : { n: '終', label: nm(r.to), color: C.sumi }));
   }
   const onRoute = new Set(r ? [r.from, r.to, ...r.stops.map((s) => s.chosen)].map((p) => p.ref) : []);
-  for (const { place, n } of st.pins) if (!onRoute.has(place.ref)) marks.push(pt(place.coord, { n, label: nm(place), color: place.kind === 'address' ? C.sumi : C.teal }));
+  const pinned = new Set(st.pinned.map((p) => p.ref));
+  for (const { place, n } of st.pins) if (!onRoute.has(place.ref) && !pinned.has(place.ref)) marks.push(pt(place.coord, { n, label: nm(place), color: place.kind === 'address' ? C.sumi : C.teal }));
+  for (const p of st.pinned) if (!onRoute.has(p.ref)) marks.push(pt(p.coord, { n: '', label: nm(p), color: C.pin })); // 自前のフォントに ★ などの記号がないので、赤い丸だけ
   for (const c of st.clicks) marks.push(pt(c.coord, { n: c.n, label: `クリック${c.n}`, color: C.gray }));
   set('marks', marks);
   set('here', st.here ? [pt(st.here.coord, { label: `現在地 半径${st.here.accuracy_m}m` })] : []);
@@ -219,6 +232,10 @@ function apply(steps: OpResult[]): LngLat[] {
     } else if (s.op === 'check_route') {
       st.tunnels = (s.output as CheckRouteOutput).tunnels.filter((t) => !t.skip);
       cam = st.route?.legs.flatMap((l) => l.shape) ?? [];
+    } else if (s.op === 'add_pin') {
+      const o = s.output as AddPinOutput;
+      if (!st.pinned.some((p) => p.ref === o.pin.ref)) st.pinned.push(o.pin);
+      cam = [o.pin.coord];
     } else if (s.op === 'set_view') {
       const o = s.output as SetViewOutput;
       o.shown.forEach((w) => st.visible.add(w));
@@ -282,6 +299,7 @@ panel.addEventListener('click', (e) => {
   if (b.dataset.act === 'close') panel.hidden = true;
   if (b.dataset.act === 'png') exportPng();
   if (b.dataset.act === 'share') shareLink(b);
+  if (b.dataset.act === 'gpx') gpxFile(b);
   if (b.dataset.act === 'copy') copy(b.parentElement!.querySelector('input')!);
 });
 
@@ -294,6 +312,26 @@ async function shareLink(b: HTMLButtonElement) {
   } catch (err) { toast((err as Error).message); }
   b.disabled = false;
 }
+
+async function gpxFile(b: HTMLButtonElement) {
+  b.disabled = true;
+  try {
+    const r = await api<OpResult>('/api/op/export_route', { sessionId, input: { format: 'gpx' } });
+    if (r.ok) saveRoute(r.output as ExportRouteOutput);
+    panel.querySelector('.foot')?.insertAdjacentHTML('beforebegin', stepHtml(r).s); // 注意（ODbL）のカード
+  } catch (err) { toast((err as Error).message); }
+  b.disabled = false;
+}
+const saveRoute = (o: ExportRouteOutput) => save(new Blob([o.content], { type: o.mime }), o.filename);
+function save(blob: Blob, filename: string) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+/** 地図の描画が落ち着くまで待つ（印の反映や、動いている途中の地図を画像に写さない） */
+const idle = () => new Promise((r) => { map.once('idle', r); map.triggerRepaint(); });
 
 async function copy(input: HTMLInputElement) {
   try {
@@ -327,6 +365,9 @@ form.addEventListener('submit', async (e) => {
     show(renderChat(text, res, st.here?.accuracy_m));
     fit(cam);
     q.value = '';
+    // 書き出しは画面で行う（ルートのファイルは Blob で保存、画像は地図が落ち着いてから作る）
+    for (const s of res.steps) if (s.ok && s.op === 'export_route') saveRoute(s.output as ExportRouteOutput);
+    if (res.steps.some((s) => s.ok && s.op === 'export_png')) { await idle(); await exportPng(); }
   } catch (err) { show(renderError((err as Error).message)); }
   send.disabled = false;
 });
@@ -391,6 +432,12 @@ map.on('click', async (e) => {
 
 // ===== 資料用の画像：地図に出典とデータ時点を描き込んで PNG にする =====
 async function exportPng() {
+  const out = await pngCanvas();
+  const blob = await new Promise<Blob | null>((r) => out.toBlob(r, 'image/png'));
+  if (!blob) return toast('画像を作れませんでした');
+  save(blob, `kotozute-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}.png`);
+}
+async function pngCanvas() {
   const src = map.getCanvas();
   const k = src.width / src.clientWidth;
   // 画像ではリンクを押せないので、OSM は著作権のページの URL も書く
@@ -423,17 +470,11 @@ async function exportPng() {
     if (w > max) g.font = font((size * max) / w); // 1つでも幅より長いときだけ縮める
     g.fillText(t, out.width - pad, src.height + pad + i * lh);
   });
-  const blob = await new Promise<Blob | null>((r) => out.toBlob(r, 'image/png'));
-  if (!blob) return toast('画像を作れませんでした');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `kotozute-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}.png`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  return out;
 }
 
 // ===== 共有リンクの画面（読み取りのみ） =====
-async function loadShare(id: string) {
+async function loadShare(id: string): Promise<boolean> {
   const banner = $('#banner');
   banner.hidden = false;
   try {
@@ -441,12 +482,16 @@ async function loadShare(id: string) {
     shareOsmAsOf = s.osm_as_of;
     for (const l of s.layers) { st.feat.set(l.word, l.items); st.visible.add(l.word); }
     st.route = s.route;
-    st.pins = s.pins.map((p, i) => ({ place: p, n: p.kind === 'address' ? '住' : String(i + 1) }));
+    // 住所は「住」、それ以外は add_pin のピン
+    st.pins = s.pins.filter((p) => p.kind === 'address').map((p) => ({ place: p, n: '住' }));
+    st.pinned = s.pins.filter((p) => p.kind !== 'address');
     draw();
     const cam = s.bbox ? boxPts(s.bbox) : [...s.pins.map((p) => p.coord), ...(s.route?.legs.flatMap((l) => l.shape) ?? [])];
     fit(cam);
+    return true;
   } catch (err) {
     banner.textContent = `共有された地図を開けません：${(err as Error).message}`;
+    return false;
   }
 }
 if (shareId) document.body.classList.add('share-view');

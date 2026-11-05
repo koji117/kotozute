@@ -10,7 +10,10 @@ export const ATTRIBUTION = {
   abr: { text: '出典：デジタル庁「アドレス・ベース・レジストリ」を加工して作成', url: 'https://www.digital.go.jp/policies/base_registry_address' },
 } as const;
 
-export type AttributionUse = { route?: boolean; address?: boolean };
+/** OSM のデータベースのライセンス（GPX・GeoJSON の書き出しに入れる） */
+export const ODBL = { id: 'ODbL-1.0', text: 'Open Database License (ODbL) 1.0', url: 'https://opendatacommons.org/licenses/odbl/1-0/' } as const;
+
+export type AttributionUse ={ route?: boolean; address?: boolean };
 
 export function attributionParts(use: AttributionUse = {}) {
   return [

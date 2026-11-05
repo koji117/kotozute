@@ -2,8 +2,8 @@
 import { ATTRIBUTION } from '../attribution';
 import { DICT, type DictKey } from '../ops/dict';
 import type {
-  ChatResponse, CheckOutput, CheckRouteOutput, CheckRow, CourseOutput, FindFeaturesOutput, GeocodeOutput, OpResult, Place, RouteOutput,
-  SearchPlaceOutput, SetViewOutput, ShareOutput, UnknownWordsOutput, Verdict,
+  AddPinOutput, ChatResponse, CheckOutput, CheckRouteOutput, CheckRow, CourseOutput, ExportPngOutput, ExportRouteOutput, FindFeaturesOutput,
+  GeocodeOutput, OpResult, Place, RouteOutput, SearchPlaceOutput, SetViewOutput, ShareOutput, UnknownWordsOutput, Verdict,
 } from '../ops/types';
 
 // ===== 差し込み。OSM の名前などはすべてエスケープする（Raw だけそのまま） =====
@@ -73,6 +73,7 @@ const KEY: Record<string, string> = {
   words: '探すもの', area: '範囲', radius_m: '半径（m）', name: '名前', address: '住所', from: '出発', to: '目的地',
   stops: '寄り先', ref: '場所', word: '種類', target: '場所', show: '残す', hide: '隠す', avoid_highways: '高速を使わない', keep_order: '頼んだ順に寄る',
   start: '出発・到着', tunnels: 'トンネル（本）', max_minutes: '時間の上限（分）',
+  format: '形式',
 };
 function inVal(k: string, v: unknown): string {
   if (Array.isArray(v)) return v.map((x) => inVal(k, x)).join('、');
@@ -240,7 +241,22 @@ export function shareCard(o: ShareOutput) {
   return html`<div class="card"><h3>共有リンク</h3>
     <div class="share"><input readonly value="${location.origin + o.url}" aria-label="共有リンク"><button class="btn" type="button" data-act="copy">コピー</button></div>
     <div class="note">開いた人は、同じ地図を読み取りだけで見られます</div>
-    ${o.includes_here ? html`<div class="note warn">このリンクには、出発地としてあなたの現在地が入っています</div>` : ''}</div>`;
+    ${o.includes_here ? html`<div class="note warn">このリンクには、あなたの現在地が入っています</div>` : ''}</div>`;
+}
+
+function pin(o: AddPinOutput) {
+  return html`<div class="card"><div class="t"><span class="dotn pin" aria-hidden="true"></span><h3>${nm(o.pin)}</h3></div>
+    <div class="note">ピンを立てました（全部で${o.count}本）。共有リンクと画像に入ります</div></div>`;
+}
+
+function png(o: ExportPngOutput) {
+  return html`<div class="card"><h3>資料用の画像</h3>
+    <div class="note">${o.mode === 'file' ? `保存しました：${o.path}` : '地図を画像にしました'}。出典（${ATTRIBUTION.osm.text} ほか）とデータ時点を画像の下に焼き込んであります</div></div>`;
+}
+
+function routeFile(o: ExportRouteOutput) {
+  return html`<div class="card"><h3>${o.filename.endsWith('.gpx') ? 'GPX' : 'GeoJSON'}（社内用）を書き出しました</h3>
+    <div class="note">${o.filename}</div><div class="note warn">${o.warning}</div></div>`;
 }
 
 export function stepHtml(s: OpResult, hereAcc?: number): Raw {
@@ -254,6 +270,9 @@ export function stepHtml(s: OpResult, hereAcc?: number): Raw {
     case 'make_share_link': return shareCard(s.output as ShareOutput);
     case 'plan_course': return course(s.output as CourseOutput);
     case 'check_route': return checkCard(s.output as CheckRouteOutput);
+    case 'add_pin': return pin(s.output as AddPinOutput);
+    case 'export_png': return png(s.output as ExportPngOutput);
+    case 'export_route': return routeFile(s.output as ExportRouteOutput);
     case 'unknown_words': return html`<div class="card"><div>辞書にない言葉：${(s.output as UnknownWordsOutput).words.join('、')}（地物の検索には使えません）</div></div>`;
     default: return html`<div class="card"><h3>${s.title}</h3></div>`;
   }
@@ -270,7 +289,8 @@ const STOP: Record<ChatResponse['stop'], string> = {
 const close = raw('<button class="x" type="button" data-act="close" aria-label="結果を閉じる">×</button>');
 const foot = raw(`<div class="foot">
   <button class="btn primary" type="button" data-act="share"><svg width="18" height="18" aria-hidden="true"><use href="#i-link"/></svg>共有リンク</button>
-  <button class="btn" type="button" data-act="png"><svg width="18" height="18" aria-hidden="true"><use href="#i-dl"/></svg>画像</button></div>`);
+  <button class="btn" type="button" data-act="png"><svg width="18" height="18" aria-hidden="true"><use href="#i-dl"/></svg>画像</button>
+  <button class="btn" type="button" data-act="gpx"><svg width="18" height="18" aria-hidden="true"><use href="#i-dl"/></svg>GPX（社内用）</button></div>`);
 
 /** 日本語の依頼の結果：依頼、解釈（操作と入力）、操作ごとのカード、止まった理由 */
 export function renderChat(text: string, res: ChatResponse, hereAcc?: number) {

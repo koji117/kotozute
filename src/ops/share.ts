@@ -1,8 +1,8 @@
-// 共有リンク：いま地図に出ているもの（表示中の印、ルート、住所のピン）を保存して、リンクの ID を返す。
+// 共有リンク：いま地図に出ているもの（表示中の印、ルート、住所とピン）を保存して、リンクの ID を返す。
 import { randomInt } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
-import { defineOp, type BBox, type Layer, type Place, type RouteOutput, type ShareOutput, type ShareState } from './types';
+import { defineOp, type BBox, type Layer, type Place, type RouteOutput, type Session, type ShareOutput, type ShareState } from './types';
 import { OSM_DATA_AS_OF } from '../attribution';
 import { resolveRef } from '../server/session';
 
@@ -26,13 +26,13 @@ export const makeShareLink = defineOp({
       layers: visible.map((l) => ({ word: l.word, items: l.refs.map((r) => resolveRef(session, r)) })),
       osm_as_of: OSM_DATA_AS_OF,
       ...(session.route ? { route: sharedRoute(session.route) } : {}),
-      pins: [...session.places].filter(([k]) => k.startsWith('abr:')).map(([, p]) => p),
+      pins: sharedPins(session),
       bbox: session.route ? routeBBox(session.route) : (session.view?.bbox ?? null),
     };
     mkdirSync(DIR, { recursive: true });
     writeFileSync(`${DIR}/${state.id}.json`, JSON.stringify(state));
     shares.set(state.id, state);
-    return { id: state.id, url: `/?s=${state.id}`, includes_here: !!session.route && hasHere(session.route) };
+    return { id: state.id, url: `/?s=${state.id}`, includes_here: (!!session.route && hasHere(session.route)) || session.pins.some((p) => p.kind === 'here') };
   },
   llm: (out) => out,
 });
@@ -54,7 +54,13 @@ export function loadShare(id: string): ShareState | null {
 // 開いた人には「現在地」ではなく、共有した人の現在地だと分かる名前で見せる（点は経路の端として残る）
 const HERE_SHARED = '出発地（共有した人の現在地）';
 const hasHere = (r: RouteOutput) => [r.from, r.to, ...r.stops.map((s) => s.chosen)].some((p) => p.kind === 'here');
-const relabel = (p: Place): Place => (p.kind === 'here' ? { ...p, name: HERE_SHARED, kind: 'place' } : p);
+const relabel = (p: Place, name = HERE_SHARED): Place => (p.kind === 'here' ? { ...p, name, kind: 'place' } : p);
+/** 住所の結果と add_pin のピン（同じ参照は1つ） */
+function sharedPins(session: Session): Place[] {
+  const pins = [...session.places].filter(([k]) => k.startsWith('abr:')).map(([, p]) => p);
+  for (const p of session.pins) if (!pins.some((q) => q.ref === p.ref)) pins.push(relabel(p, '共有した人の現在地'));
+  return pins;
+}
 function sharedRoute(r: RouteOutput): RouteOutput {
   return {
     ...r, from: relabel(r.from), to: relabel(r.to),

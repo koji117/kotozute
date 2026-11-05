@@ -47,6 +47,8 @@ export interface Session {
   /** 地図に出ている地物の印（find_features の結果）。set_view で表示を切り替える */
   layers: Partial<Record<DictKey, Layer>>;
   route?: RouteOutput;
+  /** add_pin で立てたピン（共有リンクに入る） */
+  pins: Place[];
 }
 
 // ===== 操作の定義 =====
@@ -111,6 +113,10 @@ export interface SetViewOutput { target: Place | null; bbox: BBox; shown: DictKe
 /** includes_here：共有したルートに現在地が入っている（開いた人に見える） */
 export interface ShareOutput { id: string; url: string; includes_here: boolean }
 export interface UnknownWordsOutput { words: string[] }
+export interface AddPinOutput { pin: Place; count: number }
+/** client：画面が自分の地図から画像を作る（ai・direct）。file：サーバが共有リンクの画面を headless で開いて作り、保存した（mcp） */
+export type ExportPngOutput = { mode: 'client' } | { mode: 'file'; path: string; share_url: string };
+export interface ExportRouteOutput { filename: string; mime: string; content: string; warning: string }
 
 // ===== 試走コースと合否表（plan_course、check_route） =====
 /** null は「その条件は見ない」 */

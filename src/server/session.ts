@@ -9,7 +9,7 @@ export function getSession(id: string): Session {
   if (!/^[\w-]{8,64}$/.test(id)) throw new OpError('bad_input', 'セッションIDが不正です');
   let s = sessions.get(id);
   if (!s) {
-    s = { id, clicks: [], places: new Map(), nextResult: 1, nextAbr: 1, layers: {} };
+    s = { id, clicks: [], places: new Map(), nextResult: 1, nextAbr: 1, layers: {}, pins: [] };
     sessions.set(id, s);
   }
   return s;

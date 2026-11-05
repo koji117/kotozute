@@ -10,9 +10,12 @@ import { makeShareLink } from './share';
 import { unknownWords } from './unknown_words';
 import { planCourse } from './plan_course';
 import { checkRoute } from './check_route';
+import { addPin } from './add_pin';
+import { exportPng } from './export_png';
+import { exportRoute } from './export_route';
 import { logOp } from '../server/oplog';
 
-export const OPS: OpDef[] = [geocodeAddress, searchPlace, findFeatures, route, setView, makeShareLink, unknownWords, planCourse, checkRoute];
+export const OPS: OpDef[] = [geocodeAddress, searchPlace, findFeatures, route, setView, makeShareLink, unknownWords, planCourse, checkRoute, addPin, exportPng, exportRoute];
 
 export const findOp = (name: string) => OPS.find((o) => o.name === name);
 
