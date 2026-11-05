@@ -1,5 +1,5 @@
 {
- "at": "2026-11-05T12:23:57.581Z",
+ "at": "2026-11-05T14:17:23.479Z",
  "osm_base": "2026-11-03T21:24:04Z",
  "bbox": {
   "tokyo": [
@@ -100,15 +100,23 @@
   {
    "word": "level_crossing",
    "label": "踏切",
-   "interpretation": "踏切＝railway=level_crossing（歩行者専用の railway=crossing は含まない）",
+   "interpretation": "踏切＝railway=level_crossing（歩行者用の踏切（railway=crossing）は含まない）",
    "tokyo": 2947,
    "kanto": 9239,
    "flag": null
   },
   {
+   "word": "foot_crossing",
+   "label": "歩行者用の踏切",
+   "interpretation": "歩行者用の踏切＝railway=crossing（車の通る踏切は含まない）",
+   "tokyo": 1441,
+   "kanto": 2655,
+   "flag": null
+  },
+  {
    "word": "tunnel",
    "label": "トンネル",
-   "interpretation": "トンネル＝道路の tunnel=yes（建物の通り抜けと暗渠は含まない）",
+   "interpretation": "トンネル＝道路の tunnel=yes（つながった区間は1本、50m未満は数えない。建物の通り抜けと暗渠は含まない）",
    "tokyo": 2435,
    "kanto": 8535,
    "flag": null
