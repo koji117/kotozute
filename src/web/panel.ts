@@ -6,6 +6,8 @@ import type {
   GeocodeOutput, NetLog, OpResult, Place, RecipeRunResponse, RecipeSaved, RouteOutput, SearchPlaceOutput, SetViewOutput, ShareOutput,
   UnknownWordsOutput, Verdict,
 } from '../ops/types';
+import type { NoteDraftOutput } from '../ops/draft_osm_note';
+import { ISSUES, type Issue } from '../ops/note_rules';
 
 // ===== 差し込み。OSM の名前などはすべてエスケープする（Raw だけそのまま） =====
 export class Raw { constructor(readonly s: string) {} }
@@ -75,10 +77,12 @@ const KEY: Record<string, string> = {
   stops: '寄り先', ref: '場所', word: '種類', target: '場所', show: '残す', hide: '隠す', avoid_highways: '高速を使わない', keep_order: '頼んだ順に寄る',
   start: '出発・到着', tunnels: 'トンネル（本）', max_minutes: '時間の上限（分）',
   format: '形式',
+  issue: '問題の種類',
 };
 function inVal(k: string, v: unknown): string {
   if (Array.isArray(v)) return v.map((x) => inVal(k, x)).join('、');
   if (typeof v === 'boolean') return v ? 'はい' : 'いいえ';
+  if (typeof v === 'string' && k === 'issue' && Object.hasOwn(ISSUES, v)) return ISSUES[v as Issue].label;
   if (typeof v === 'string') return isWord(v) ? (k === 'words' ? DICT[v].interpretation : DICT[v].label) : refName(v);
   if (v && typeof v === 'object') return pairs(v, '、');
   return String(v);
@@ -281,6 +285,29 @@ export function netCard(n?: NetLog) {
     <div class="note">このサーバが外へ出した要求の数です。画面（ブラウザ）はこのサーバとだけ通信します</div></div>`;
 }
 
+// 確認方法は本人が選ぶ（AI は選ばない）。コピーは、選んだうえで止める語がないときだけ（main.ts の noteCheck）
+let noteN = 0;
+function note(o: NoteDraftOutput) {
+  const id = `note${++noteN}`;
+  return html`<div class="card ncard">
+    <h3>OSMノートの下書き</h3>
+    <div class="od">アプリはOSMと通信しない。投稿は現地を見た本人</div>
+    <div class="kv">
+      <div><b>何が</b><span>${o.issue_label}：${o.what}</span></div>
+      <div><b>どこで</b><span>${nm(o.target)}${o.target.osm ? `（OSM要素 ${o.target.osm}）` : ''}</span></div>
+    </div>
+    <fieldset class="meth"><legend>確認方法（ご自身で選んでください）</legend>
+      ${o.methods.map((m) => html`<label${m.allowed ? '' : raw(' class="off"')}><input type="radio" name="${id}" value="${m.label}"${m.allowed ? '' : raw(' disabled')}>${m.label}${m.reason ? html`<small>選べません：${m.reason}</small>` : ''}</label>`)}
+    </fieldset>
+    <label class="sr" for="${id}-t">ノートの下書き</label>
+    <textarea id="${id}-t" rows="5" maxlength="2000">${o.draft}</textarea>
+    <div class="badges"><span class="badge b-unk">社名・「試走」など、会社や仕事が分かる語は入れない</span></div>
+    <div class="nwarn" role="alert" hidden></div>
+    <div class="nact"><button class="btn" type="button" data-act="note-copy" disabled>下書きをコピー</button>
+      <a class="btn primary" href="${o.note_url}" target="_blank" rel="noopener">OSMのノート画面へ</a></div>
+  </div>`;
+}
+
 export function stepHtml(s: OpResult, hereAcc?: number): Raw {
   if (!s.ok) return html`<div class="card err"><h3>${s.title}</h3><div>${s.error.message}</div></div>`;
   switch (s.op) {
@@ -295,6 +322,7 @@ export function stepHtml(s: OpResult, hereAcc?: number): Raw {
     case 'add_pin': return pin(s.output as AddPinOutput);
     case 'export_png': return png(s.output as ExportPngOutput);
     case 'export_route': return routeFile(s.output as ExportRouteOutput);
+    case 'draft_osm_note': return note(s.output as NoteDraftOutput);
     case 'unknown_words': return html`<div class="card"><div>辞書にない言葉：${(s.output as UnknownWordsOutput).words.join('、')}（地物の検索には使えません）</div></div>`;
     default: return html`<div class="card"><h3>${s.title}</h3></div>`;
   }

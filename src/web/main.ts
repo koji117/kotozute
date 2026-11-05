@@ -20,6 +20,7 @@ import type {
   AddPinOutput, BBox, ChatResponse, CheckRouteOutput, ContextResponse, CourseOutput, ExportRouteOutput, FindFeaturesOutput, GeocodeOutput,
   LngLat, OpResult, Place, RecipeRunResponse, RecipeSaved, RouteOutput, SearchPlaceOutput, Session, SetViewOutput, ShareState, TunnelRun,
 } from '../ops/types';
+import type { NoteDraftOutput } from '../ops/draft_osm_note';
 import {
   CHIP_ICON, COLOR, html, nm, type Raw, recipeCard, renderChat, renderDirect, renderError, renderRecipe, renderWait, stepHtml,
 } from './panel';
@@ -246,6 +247,8 @@ function apply(steps: OpResult[]): LngLat[] {
       o.shown.forEach((w) => st.visible.add(w));
       o.hidden.forEach((w) => st.visible.delete(w));
       if (o.target) cam = boxPts(o.bbox); // target が view:（null）なら地図は動かさない
+    } else if (s.op === 'draft_osm_note') {
+      cam = [(s.output as NoteDraftOutput).target.coord];
     }
   }
   draw();
@@ -285,6 +288,7 @@ function show(content: Raw, mode = '') {
   panel.dataset.mode = mode; // 'direct' は札の結果
   panel.hidden = false;
   panel.scrollTop = 0;
+  panel.querySelectorAll<HTMLElement>('.ncard').forEach((c) => noteCheck(c)); // 場所の名前に止める語があれば、すぐ出す
 }
 // スマホでは下部シートの高さだけ、右下の札とボタンを上げる
 new ResizeObserver(() => document.documentElement.style.setProperty('--sheet-h', `${panel.hidden ? 0 : panel.offsetHeight}px`)).observe(panel);
@@ -307,6 +311,7 @@ panel.addEventListener('click', (e) => {
   if (b.dataset.act === 'gpx') gpxFile(b);
   if (b.dataset.act === 'recipe') saveRecipe(b);
   if (b.dataset.act === 'copy') copy(b.parentElement!.querySelector('input')!);
+  if (b.dataset.act === 'note-copy') noteCopy(b.closest('.ncard')!);
 });
 
 async function shareLink(b: HTMLButtonElement) {
@@ -359,14 +364,51 @@ async function runRecipe(id: string) {
   } catch (err) { show(renderError(`レシピを再実行できません：${(err as Error).message}`)); }
 }
 
-async function copy(input: HTMLInputElement) {
+async function copy(input: HTMLInputElement | HTMLTextAreaElement, what = '共有リンク') {
   try {
     await navigator.clipboard.writeText(input.value);
   } catch {
     input.select();
-    if (!document.execCommand('copy')) return toast('コピーできませんでした。リンクを選んでコピーしてください');
+    if (!document.execCommand('copy')) return toast(`コピーできませんでした。${what}を選んでコピーしてください`);
   }
-  toast('共有リンクをコピーしました');
+  toast(`${what}をコピーしました`);
+}
+
+// ===== OSM ノートの下書き：確認方法は本人が選ぶ。止める語（社名・「試走」など）はサーバの一覧で確かめる =====
+panel.addEventListener('change', (e) => {
+  const r = e.target as HTMLInputElement;
+  const card = r.closest<HTMLElement>('.ncard');
+  if (r.type !== 'radio' || !card) return;
+  const ta = card.querySelector('textarea')!, line = `確認方法：${r.value}`, re = /^確認方法：.*$/m;
+  ta.value = re.test(ta.value) ? ta.value.replace(re, () => line) : `${ta.value.trimEnd()}\n${line}`;
+  noteCheck(card);
+});
+panel.addEventListener('input', (e) => {
+  const card = (e.target as Element).closest<HTMLElement>('.ncard');
+  if (card) noteCheck(card, 400);
+});
+const noteTimers = new WeakMap<Element, number>();
+/** 確かめ終わるまでコピーは押せない。通ったときの文を覚え、コピーの前に同じ文か確かめる */
+function noteCheck(card: HTMLElement, wait = 0) {
+  const ta = card.querySelector('textarea')!, btn = card.querySelector<HTMLButtonElement>('[data-act=note-copy]')!, warn = card.querySelector<HTMLElement>('.nwarn')!;
+  btn.disabled = true;
+  delete card.dataset.ok;
+  clearTimeout(noteTimers.get(card));
+  noteTimers.set(card, window.setTimeout(async () => {
+    const text = ta.value;
+    const blocked = await api<{ blocked: string[] }>('/api/note/check', { text }).then((r) => r.blocked, () => null);
+    if (ta.value !== text) return; // 待つ間に書き換わった（次の確認が動く）
+    warn.hidden = !!blocked && !blocked.length;
+    warn.textContent = blocked ? `入れてはいけない語があります：${blocked.join('、')}。消してからコピーしてください` : '語の確認ができません（サーバに接続できません）';
+    if (!blocked || blocked.length || !card.querySelector('input:checked')) return;
+    card.dataset.ok = text;
+    btn.disabled = false;
+  }, wait));
+}
+function noteCopy(card: HTMLElement) {
+  const ta = card.querySelector('textarea')!;
+  if (card.dataset.ok !== ta.value) return noteCheck(card);
+  copy(ta, '下書き');
 }
 
 // ===== 検索（日本語の依頼 → Claude） =====

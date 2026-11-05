@@ -101,11 +101,11 @@ const VIEW = { bbox: [139.742, 35.652, 139.752, 35.66], zoom: 16 };
   ok(`make_share_link → GET /api/share/${r.json.output.id}`);
 }
 
-// 7. ツール定義：12個、strict、すべての object が additionalProperties:false で全キー required、API が受けない制約は残さない
+// 7. ツール定義：13個、strict、すべての object が additionalProperties:false で全キー required、API が受けない制約は残さない
 {
   const defs = toolDefs();
-  assert.equal(defs.length, 12);
-  assert.equal(new Set(defs.map((d) => d.name)).size, 12);
+  assert.equal(defs.length, 13);
+  assert.equal(new Set(defs.map((d) => d.name)).size, 13);
   const walk = (s: any, where: string): void => {
     for (const k of ['$schema', 'pattern', 'maxItems', 'minimum', 'maximum', 'minLength', 'maxLength', 'default']) assert.ok(!(k in s), `${where} に ${k} が残っている`);
     if (s.type === 'object') {
@@ -125,7 +125,7 @@ const VIEW = { bbox: [139.742, 35.652, 139.752, 35.66], zoom: 16 };
     const js: any = z.toJSONSchema(op.input, { io: 'input' });
     assert.deepEqual(js.required ?? [], Object.keys(js.properties), `${op.name} に省略可能なキーがある（.nullable() で書く）`);
   }
-  ok('toolDefs: 12個の strict なツール');
+  ok('toolDefs: 13個の strict なツール');
 }
 
 // 8. Claude：入力の長さはサーバで止める。キーがなければ error、あれば住所の依頼で geocode_address を呼ぶ

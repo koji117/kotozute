@@ -12,6 +12,7 @@ import { loadRecipe, runRecipe, saveRecipe } from './recipe';
 import { getSession } from './session';
 import { findOp, runOp } from '../ops/registry';
 import { loadShare } from '../ops/share';
+import { blockedWords, envBlockWords } from '../ops/note_rules';
 import { OpError, type ChatResponse, type ContextResponse, type RecipeRunResponse, type Session } from '../ops/types';
 import { inTokyo } from '../services/region';
 
@@ -106,6 +107,12 @@ app.post('/api/recipe/:id/run', async (c) => {
   const req = await body(c, SessionReq);
   const [steps, net] = await withNetlog(() => runRecipe(req.sessionId, recipe));
   return c.json({ steps, recipe, net } satisfies RecipeRunResponse);
+});
+
+// OSM ノートの下書きに入れてはいけない語。.env の NOTE_BLOCK_WORDS（社名など）も使う。見つかった語だけ返す
+app.post('/api/note/check', async (c) => {
+  const { text } = await body(c, z.object({ text: z.string().max(2000, 'ノートは2000文字までにしてください') }));
+  return c.json({ blocked: blockedWords(text, envBlockWords()) });
 });
 
 app.get('/api/share/:id', (c) => {

@@ -201,6 +201,7 @@ try {
       && await page2.evaluate(async () => (await window.map.getSource('here').getData()).features.length === 0));
   }
 
+  let noteStep = null; // OSM ノートの下書きの結果（スマホでも使う）
   // 日本語の依頼の結果パネル：Claude の代わりに、自社の ABR・Overpass・Valhalla で実際に操作した結果を /api/chat の応答として返す
   if (apiUp) {
     const steps = await page2.evaluate(async () => {
@@ -291,7 +292,37 @@ try {
     check('GPX のボタン：ファイルに出典と ODbL', g.startsWith('<?xml') && g.includes('© OpenStreetMap contributors') && g.includes('odbl'), gpx.suggestedFilename());
     await page2.screenshot({ path: `${OUT}/desktop-pins-export.png` });
 
-    // 4回目 例2 試走コース：plan_course と check_route を直接呼んだ結果を /api/chat の応答にして、合否表と地図を確かめる
+    // 4回目：OSM ノートの下書き。確認方法を選ぶまでと、止める語があるあいだはコピーできない
+    noteStep = await page2.evaluate(async () => (await fetch('/api/op/draft_osm_note', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId: window.sessionId, input: { target: 'result:1', issue: 'turn_restriction' } }) })).json());
+    check('ノート：下書きの操作が成功', noteStep.ok, JSON.stringify(noteStep.error));
+    chatRes = { stop: 'done', steps: [noteStep] };
+    await page2.fill('#q', 'ここ右折禁止なのに地図にない。ノートを書きたい');
+    await page2.press('#q', 'Enter');
+    await page2.locator('#panel .ncard').waitFor();
+    const nt = await text(page2, '#panel .ncard');
+    check('ノート：通信しない旨、何が・どこで', nt.includes('アプリはOSMと通信しない。投稿は現地を見た本人') && nt.includes('何が右左折の規制：') && nt.includes('どこで'), nt.slice(0, 160));
+    const ta = page2.locator('#panel .ncard textarea');
+    const copyBtn = page2.locator('#panel [data-act=note-copy]');
+    check('ノート：下書きに OSM の要素の URL', /どこで：.*https:\/\/www\.openstreetmap\.org\/(node|way|relation)\/\d+/.test(await ta.inputValue()), await ta.inputValue());
+    check('ノート：Googleマップは選べない（理由つき）', await page2.locator('#panel .meth label.off input').isDisabled() && (await text(page2, '#panel .meth label.off')).includes('他社の地図からの書き写しは OSM のルールでできない'));
+    check('ノート：方法を選ぶまでコピーできない', await copyBtn.isDisabled());
+    const link = page2.locator('#panel .ncard a.btn');
+    check('ノート：OSMのノート画面へ（新しいタブ）', /^https:\/\/www\.openstreetmap\.org\/note\/new#map=19\/[\d.]+\/[\d.]+$/.test(await link.getAttribute('href'))
+      && await link.getAttribute('target') === '_blank' && await link.getAttribute('rel') === 'noopener', await link.getAttribute('href'));
+    await page2.locator('#panel .meth input').first().check();
+    check('ノート：選んだ方法が下書きに入る', (await ta.inputValue()).endsWith('確認方法：現地で見た'), await ta.inputValue());
+    check('ノート：選ぶとコピーできる', await until(page2, () => !document.querySelector('#panel [data-act=note-copy]').disabled));
+    const clean = await ta.inputValue();
+    await ta.fill(`${clean}（試走のとき）`);
+    check('ノート：止める語で警告し、コピーできない', await until(page2, () => document.querySelector('#panel .nwarn:not([hidden])')?.textContent.includes('試走')) && await copyBtn.isDisabled());
+    await page2.screenshot({ path: `${OUT}/desktop-note-blocked.png` });
+    await ta.fill(clean);
+    check('ノート：語を消すとコピーできる', await until(page2, () => document.querySelector('#panel .nwarn').hidden && !document.querySelector('#panel [data-act=note-copy]').disabled));
+    await copyBtn.click();
+    check('ノート：コピーした', await until(page2, () => document.querySelector('#toast')?.textContent === '下書きをコピーしました'), await text(page2, '#toast'));
+
+    // 5回目 例2 試走コース：plan_course と check_route を直接呼んだ結果を /api/chat の応答にして、合否表と地図を確かめる
     courseRes = { stop: 'done', steps: await page2.evaluate(async () => {
       const sessionId = window.sessionId;
       const op = async (name, input) => (await fetch(`/api/op/${name}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId, input }) })).json();
@@ -344,6 +375,16 @@ try {
   const mattr = await box(m, '#attr');
   check('スマホ：出典はシートの上に見える', mattr && mattr.y + mattr.height <= sheet.y + 1, JSON.stringify(mattr));
   await m.screenshot({ path: `${OUT}/mobile-sheet.png` });
+  if (noteStep?.ok) {
+    await m.route('**/api/chat', (r) => r.fulfill({ json: { stop: 'done', steps: [noteStep] } }));
+    await m.fill('#q', 'ノートを書きたい');
+    await m.press('#q', 'Enter');
+    await m.locator('#panel .ncard').waitFor();
+    const tb = await box(m, '#panel .ncard textarea');
+    check('スマホ：ノートの下書きが幅に収まる', tb && tb.x >= 0 && tb.x + tb.width <= 390 && await m.evaluate(() => document.documentElement.scrollWidth <= innerWidth), JSON.stringify(tb));
+    check('スマホ：下書きの文字は 16px（入力で拡大しない）', await m.evaluate(() => getComputedStyle(document.querySelector('#panel .ncard textarea')).fontSize === '16px'));
+    await m.screenshot({ path: `${OUT}/mobile-note.png` });
+  }
 
   // スマホ：合否表が下部シートの幅に収まる
   if (courseRes) {

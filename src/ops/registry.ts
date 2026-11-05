@@ -13,9 +13,10 @@ import { checkRoute } from './check_route';
 import { addPin } from './add_pin';
 import { exportPng } from './export_png';
 import { exportRoute } from './export_route';
+import { draftOsmNote } from './draft_osm_note';
 import { logOp } from '../server/oplog';
 
-export const OPS: OpDef[] = [geocodeAddress, searchPlace, findFeatures, route, setView, makeShareLink, unknownWords, planCourse, checkRoute, addPin, exportPng, exportRoute];
+export const OPS: OpDef[] = [geocodeAddress, searchPlace, findFeatures, route, setView, makeShareLink, unknownWords, planCourse, checkRoute, addPin, exportPng, exportRoute, draftOsmNote];
 
 export const findOp = (name: string) => OPS.find((o) => o.name === name);
 
