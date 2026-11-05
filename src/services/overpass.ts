@@ -8,6 +8,8 @@ const URL_ = process.env.OVERPASS_URL ?? 'http://localhost:12345/api/interpreter
 
 /** 1回の問い合わせの上限 */
 export const LIMITS = { timeout_s: 25, max_items: 200, max_bbox_km2: 400, max_radius_m: 3000 } as const;
+/** 試走コースの経由地の候補を探す半径（m）。max_radius_m の例外で、面積（約113km²）は max_bbox_km2 より狭い */
+export const COURSE_RADIUS_M = 6000;
 
 export type Area =
   | { bbox: BBox }

@@ -1,7 +1,8 @@
-// OSM ノートの下書きの決まり：問題の種類と、入れてはいけない語（社内の言葉、会社を表す語、試走など）。
+// OSM ノートの下書きの決まり：問題の種類と、入れてはいけない語（社内の言葉、会社を表す語、試走、他社の地図など）。
 // 画面からも読む（問題の種類の名前）。
 // 本物の社名はリポジトリに入れず、.env（.gitignore 済み）の NOTE_BLOCK_WORDS にカンマ区切りで書く。
-export const BLOCK_WORDS = ['試走', '社内', '客先', '顧客', '弊社', '当社', '株式会社', '有限会社', '（株）', '(株)', '㈱'];
+// 他社の地図（Googleマップ）は確認方法で選べないだけでなく、下書きに手で書いても止める（OSM のルールで書き写せない）
+export const BLOCK_WORDS = ['試走', '社内', '客先', '顧客', '弊社', '当社', '株式会社', '有限会社', '（株）', '(株)', '㈱', 'google', 'グーグル'];
 
 /** 問題の種類（draft_osm_note の issue）。label は画面、what は下書きの「何が」 */
 export const ISSUES = {
@@ -31,5 +32,5 @@ export function blockedWords(text: string, extra: string[] = []): string[] {
   });
 }
 
-/** .env の NOTE_BLOCK_WORDS（カンマ区切り）。呼ぶたびに読む */
+/** process.env の NOTE_BLOCK_WORDS（カンマ区切り）。.env はサーバの起動時に1回だけ読むので、.env を書き換えたらサーバを再起動する */
 export const envBlockWords = () => (process.env.NOTE_BLOCK_WORDS ?? '').split(/[,、]/).map((w) => w.trim()).filter(Boolean);

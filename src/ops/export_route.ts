@@ -1,6 +1,7 @@
 // ルートの書き出し：いま地図にあるルートを GPX 1.1 か GeoJSON にする。社内確認用で、出典・ライセンス・データ時点を中に入れる。
 import { z } from 'zod';
 import { defineOp, OpError, type ExportRouteOutput, type Place, type RouteOutput } from './types';
+import { hasHere } from './share';
 import { ATTRIBUTION, attributionParts, ODBL, OSM_DATA_AS_OF } from '../attribution';
 
 export const ROUTE_EXPORT_WARNING = '社内確認用。社外に渡すときは ODbL の条件（出典の表示、改変したデータベースの共有）に注意してください';
@@ -27,6 +28,7 @@ export const exportRoute = defineOp({
       mime: format === 'gpx' ? 'application/gpx+xml' : 'application/geo+json',
       content,
       warning: ROUTE_EXPORT_WARNING,
+      includes_here: hasHere(r), // 現在地の点がそのまま入る（共有リンクと同じく、画面で知らせる）
     };
   },
   llm: (o) => ({ filename: o.filename, size: Buffer.byteLength(o.content) }),

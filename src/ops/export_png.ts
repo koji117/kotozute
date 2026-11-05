@@ -10,6 +10,13 @@ import { z } from 'zod';
 import { defineOp, OpError, type ExportPngOutput } from './types';
 import { makeShareLink } from './share';
 
+/** MCP で書き出したファイルを置くフォルダ（画面がないので、ファイルにしてパスを返す） */
+export function exportDir(): string {
+  const dir = process.env.EXPORT_DIR ?? join(homedir(), 'kotozute-exports');
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
 export const exportPng = defineOp({
   name: 'export_png',
   title: '資料用の画像',
@@ -35,11 +42,10 @@ export const exportPng = defineOp({
         (window as any).kotozutePng,
         new Promise((_, reject) => setTimeout(() => reject(new Error('画像の作成が時間内に終わりませんでした')), 60_000)),
       ]));
-      const dir = process.env.EXPORT_DIR ?? join(homedir(), 'kotozute-exports');
-      mkdirSync(dir, { recursive: true });
-      const path = join(dir, `kotozute-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}-${share.id}.png`);
+      const path = join(exportDir(), `kotozute-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}-${share.id}.png`);
       writeFileSync(path, Buffer.from(url.slice(url.indexOf(',') + 1), 'base64'));
-      return { mode: 'file', path, share_url: `${base}${share.url}` };
+      // 返すリンクは make_share_link（MCP）の open と同じ頭（KOTOZUTE_URL）。base は画像を作るために開く手元の画面
+      return { mode: 'file', path, share_url: `${process.env.KOTOZUTE_URL ?? base}${share.url}` };
     } catch (e) {
       throw e instanceof OpError ? e : new OpError('service', `画像を作れませんでした（${(e as Error).message.split('\n')[0]}）`);
     } finally {

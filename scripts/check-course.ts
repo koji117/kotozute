@@ -5,10 +5,11 @@ import assert from 'node:assert/strict';
 import { checkRoute } from '../src/ops/check_route';
 import { findFeatures, mergeTunnels } from '../src/ops/find_features';
 import { planCourse } from '../src/ops/plan_course';
+import { route } from '../src/ops/route';
 import { searchPlace } from '../src/ops/search_place';
 import { OpError, type OpErrorCode } from '../src/ops/types';
 import { getSession } from '../src/server/session';
-import { distM } from '../src/services/region';
+import { distM, inTokyo } from '../src/services/region';
 
 const session = getSession('check-course-0001');
 session.view = { bbox: [139.7, 35.61, 139.775, 35.65], zoom: 13.5 }; // 品川のあたり（評価 c07 と同じ）
@@ -39,6 +40,12 @@ await step('トンネルのまとめ方（点を共有する way は1本、50m �
   assert.equal(items[0].osm, 'way/2'); // いちばん長い way
   assert.deepEqual(items[0].bbox, [139.74, 35.62, 139.743, 35.62]);
   assert.equal(items[1].name, null);
+  // 点を共有しない上下線（昭和通りの way/4848926 と 92223208。真ん中が約7m）は1本
+  const tubes = mergeTunnels([
+    way(4848926, [40, 41], [[139.7657251, 35.6685028], [139.7691237, 35.6719435]], { name: '昭和通り' }),
+    way(92223208, [50, 51], [[139.7691925, 35.6719], [139.7657766, 35.6684588]], { name: '昭和通り' }),
+  ]);
+  assert.equal(tubes.length, 1, JSON.stringify(tubes));
 });
 
 await step('find_features：トンネルを実データでまとめる（北品川のあたり）', async () => {
@@ -69,7 +76,7 @@ await step('plan_course：品川駅を出て、トンネル2本、高速なし�
   const row = (k: string) => a.check.rows.find((r) => r.kind === k)!;
   assert.equal(row('tunnels').got, counted.length);
   assert.ok(counted.length >= 2);
-  assert.equal(new Set(counted.map((t) => t.name)).size, counted.length, '同じトンネルを2本と数えている');
+  assert.ok(counted.every((t, i) => counted.slice(0, i).every((u) => distM(t.mid, u.mid) >= 100)), '同じトンネルを2本と数えている');
   assert.ok(counted.every((t) => t.m >= 50 && t.ways.every((w) => /^way\/\d+$/.test(w))));
   assert.ok(a.check.tunnels.filter((t) => t.skip === 'short').every((t) => t.m < 50));
   assert.deepEqual([row('no_highways').result, row('no_highways').got], ['pass', 0]);
@@ -89,6 +96,7 @@ await step('plan_course：品川駅を出て、トンネル2本、高速なし�
   assert.ok(distM(c.legs[0].shape[0], c.legs.at(-1)!.shape.at(-1)!) < 50, '出発と到着が離れている');
   assert.deepEqual(c.stops.map((s) => s.chosen.ref), a.via.map((v) => v.ref));
   for (const v of a.via) assert.equal(session.places.get(v.ref)?.name, v.name);
+  assert.ok(c.stops.every((s) => inTokyo(s.chosen.coord)), '経由地が東京都の外');
   const llm = JSON.stringify(planCourse.llm(o));
   assert.ok(!/1[34]\d\.\d{3}/.test(llm) && !llm.includes('line') && !llm.includes('shape'), 'LLM に座標を渡している');
   console.log('  ', o.attempts.map((x, i) => `${i + 1}回目 ${x.via.map((v) => v.name).join('+')} ${x.minutes}分 ${x.check.tunnels.filter((t) => !t.skip).length}本 ${x.check.verdict}`).join(' / '));
@@ -117,6 +125,17 @@ await step('plan_course：誤った入力', async () => {
   await fails(() => plan({ start: 'result:999', tunnels: 2, max_minutes: 60, avoid_highways: true }), ['bad_ref']);
   assert.throws(() => planCourse.input.parse({ start: '35.62,139.73', tunnels: 2, max_minutes: 60, avoid_highways: true }));
   assert.throws(() => planCourse.input.parse({ start: startRef, tunnels: 5, max_minutes: 60, avoid_highways: true }));
+});
+
+await step('check_route：道路の名前が同じ別のトンネル（昭和通りの2つの地下道、約660m 離れている）は2本', async () => {
+  const s = getSession('check-course-0004');
+  s.clicks = [[139.765, 35.6677], [139.7735, 35.6779]];
+  const c = { session: s, source: 'direct' as const };
+  await route.run(c, route.input.parse({ from: 'click:1', to: 'click:2', stops: [], keep_order: true, avoid_highways: true }));
+  const o = await checkRoute.run(c, { tunnels: 2, max_minutes: null, avoid_highways: false });
+  const counted = o.tunnels.filter((t) => !t.skip).flatMap((t) => t.ways);
+  assert.ok(counted.includes('way/4848926') && counted.includes('way/92223189'), JSON.stringify(o.tunnels.map((t) => [t.name, t.ways, t.skip])));
+  assert.equal(o.verdict, 'pass');
 });
 
 console.log('all ok');

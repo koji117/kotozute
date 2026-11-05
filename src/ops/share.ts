@@ -54,7 +54,7 @@ export function loadShare(id: string): ShareState | null {
 
 // 開いた人には「現在地」ではなく、共有した人の現在地だと分かる名前で見せる（点は経路の端として残る）
 const HERE_SHARED = '出発地（共有した人の現在地）';
-const hasHere = (r: RouteOutput) => [r.from, r.to, ...r.stops.map((s) => s.chosen)].some((p) => p.kind === 'here');
+export const hasHere = (r: RouteOutput) => [r.from, r.to, ...r.stops.map((s) => s.chosen)].some((p) => p.kind === 'here');
 const relabel = (p: Place, name = HERE_SHARED): Place => (p.kind === 'here' ? { ...p, name, kind: 'place' } : p);
 /** 住所の結果と add_pin のピン（同じ参照は1つ） */
 function sharedPins(session: Session): Place[] {

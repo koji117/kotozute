@@ -2,7 +2,7 @@
 // Claude API のキーを環境から外し、リポジトリの外のフォルダから起動する。23区の区役所の住所（docs/demo/ward-offices.csv）を MCP 経由で一括で住所にする。
 // 実行：npx tsx scripts/check-mcp.ts（自社の Overpass :12345、ABR :3002 が動いていること）
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,7 +37,7 @@ const transport = new StdioClientTransport({
   command: process.execPath,
   args: [join(ROOT, 'node_modules/tsx/dist/cli.mjs'), SERVER],
   cwd: tmpdir(),
-  env: { ...(env as Record<string, string>), OPLOG_FILE: join(tmpdir(), `kotozute-check-mcp-${process.pid}.jsonl`) },
+  env: { ...(env as Record<string, string>), OPLOG_FILE: join(tmpdir(), `kotozute-check-mcp-${process.pid}.jsonl`), EXPORT_DIR: join(tmpdir(), 'kotozute-check-exports') },
 });
 const client = new Client({ name: 'check-mcp', version: '0.0.0' });
 const errors: Error[] = [];
@@ -53,10 +53,12 @@ const call = async (name: string, args: Record<string, unknown>) => {
 const noCoord = (text: string) => assert.ok(!/1[34]\d\.\d{3}|35\.\d{3}/.test(text), `座標が返っている：${text}`);
 
 try {
-  // 3. ツールの一覧：OPS と同じ名前・説明。入力は JSON Schema
+  // 3. ツールの一覧：OPS と同じ名前・説明（OSM ノートの下書きは画面だけ）。入力は JSON Schema
   {
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map((t) => t.name), OPS.map((o) => o.name));
+    assert.deepEqual(tools.map((t) => t.name), OPS.map((o) => o.name).filter((n) => n !== 'draft_osm_note'));
+    const note = await call('draft_osm_note', { target: 'abr:1', issue: 'oneway' });
+    assert.ok(note.isError && note.text.includes('画面で作ってください'), note.text);
     for (const t of tools) {
       const op = OPS.find((o) => o.name === t.name)!;
       assert.equal(t.description, op.description);
@@ -130,6 +132,20 @@ try {
     const state = JSON.parse(readFileSync(join(ROOT, `data/shares/${r.json.id}.json`), 'utf8'));
     assert.equal(state.pins.length, 24); // 芝公園4-2-8 と23区の区役所
     ok(`make_share_link：${r.json.open}（ピン ${state.pins.length}個）`);
+  }
+
+  // 9. ルートの書き出し：ファイルを EXPORT_DIR に置き、パスと ODbL の注意を返す。中身と座標は返さない
+  {
+    const r = await call('route', { from: 'abr:1', to: 'abr:2', stops: [], keep_order: true, avoid_highways: false });
+    assert.equal(r.isError, false, r.text);
+    const g = await call('export_route', { format: 'gpx' });
+    assert.equal(g.isError, false, g.text);
+    assert.ok(g.json.path.startsWith(join(tmpdir(), 'kotozute-check-exports')) && existsSync(g.json.path), g.text);
+    assert.ok(readFileSync(g.json.path, 'utf8').includes('<gpx '), 'GPX のファイルではない');
+    assert.match(g.json.warning, /ODbL/);
+    assert.ok(!('content' in g.json), 'ファイルの中身を返している');
+    noCoord(g.text);
+    ok(`export_route：${g.json.path}`);
   }
 
   assert.deepEqual(errors, [], `stdout に JSON-RPC 以外が出た：${errors.join(' / ')}`);

@@ -62,6 +62,8 @@ const pngMode = new URLSearchParams(location.search).get('png') === '1';
 const recipeId = new URLSearchParams(location.search).get('r');
 /** 共有リンクを作ったときの OSM のデータ時点（共有の画面だけ） */
 let shareOsmAsOf: string | undefined;
+/** レシピの再実行の途中。結果の番号（result:N）がずれないよう、そのあいだは札・検索・クリック・現在地を受けない */
+let replaying = false;
 
 // 読み込むたびに新しいセッションにする。前の画面の結果が共有リンクに混ざらないように
 const sessionId = crypto.randomUUID?.() ?? Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -360,14 +362,18 @@ async function saveRecipe(b: HTMLButtonElement) {
 }
 async function runRecipe(id: string) {
   show(renderWait());
+  replaying = true;
   try {
     const res = await api<RecipeRunResponse>(`/api/recipe/${encodeURIComponent(id)}/run`, { sessionId });
     st.clicks = res.recipe.context.clicks.map((coord, i) => ({ coord, n: String(i + 1) })); // click:N の番号どおり
-    const cam = apply(res.steps);
-    show(renderRecipe(res, res.recipe.context.here?.accuracy_m));
+    let cam = apply(res.steps);
+    // 地図を動かす手順がなければ（画面の範囲で探しただけなど）、最後の手順のときの画面へ
+    if (!cam.length) { const v = res.recipe.steps.findLast((s) => s.view)?.view; if (v) cam = boxPts(v.bbox); }
+    show(renderRecipe(res));
     fit(cam);
     await saveExports(res.steps); // 書き出しの手順も同じようにやり直す（カードの「画像にしました」と合わせる）
   } catch (err) { show(renderError(`レシピを再実行できません：${(err as Error).message}`)); }
+  replaying = false;
 }
 
 async function copy(input: HTMLInputElement | HTMLTextAreaElement, what = '共有リンク') {
@@ -428,7 +434,7 @@ form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const text = q.value.trim();
   const send = form.querySelector('button')!;
-  if (!text || send.disabled) return;
+  if (!text || send.disabled || replaying) return;
   send.disabled = true;
   show(renderWait());
   try {
@@ -456,7 +462,7 @@ for (const w of CHIPS) {
   $('#chips').append(b);
 }
 async function chip(w: DictKey, b: HTMLButtonElement) {
-  if (b.getAttribute('aria-busy') === 'true') return;
+  if (b.getAttribute('aria-busy') === 'true' || replaying) return;
   if (st.visible.has(w)) { // もう一度押したら、その印を隠すだけ（Overpass には聞き直さない）
     st.visible.delete(w);
     const wasChip = chipSteps.delete(w);
@@ -482,6 +488,7 @@ $('#zin').addEventListener('click', () => map.zoomIn());
 $('#zout').addEventListener('click', () => map.zoomOut());
 const NO_GEO = '位置情報が使えません。地図をクリックして場所を指定できます';
 $('#locate').addEventListener('click', () => {
+  if (replaying) return;
   if (!navigator.geolocation) return toast(NO_GEO);
   navigator.geolocation.getCurrentPosition(async (pos) => {
     const here: Session['here'] = { coord: [r6(pos.coords.longitude), r6(pos.coords.latitude)], accuracy_m: Math.max(1, Math.round(pos.coords.accuracy)) };
@@ -493,7 +500,7 @@ $('#locate').addEventListener('click', () => {
   }, () => toast(NO_GEO), { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
 });
 map.on('click', async (e) => {
-  if (shareId) return;
+  if (shareId || replaying) return;
   const click: LngLat = [r6(e.lngLat.lng), r6(e.lngLat.lat)];
   try {
     const r = await api<ContextResponse>('/api/context', { sessionId, click });
@@ -558,7 +565,7 @@ async function loadShare(id: string): Promise<boolean> {
     st.pins = s.pins.filter((p) => p.kind === 'address').map((p) => ({ place: p, n: '住' }));
     st.pinned = s.pins.filter((p) => p.kind !== 'address');
     draw();
-    const cam = s.bbox ? boxPts(s.bbox) : [...s.pins.map((p) => p.coord), ...(s.route?.legs.flatMap((l) => l.shape) ?? [])];
+    const cam = s.bbox ? boxPts(s.bbox) : [...s.layers.flatMap((l) => l.items.map((p) => p.coord)), ...s.pins.map((p) => p.coord), ...(s.route?.legs.flatMap((l) => l.shape) ?? [])];
     fit(cam);
     return true;
   } catch (err) {

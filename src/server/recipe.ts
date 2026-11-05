@@ -37,16 +37,23 @@ export function loadRecipe(id: string): Recipe | null {
   }
 }
 
-/** セッションを作り直して、保存した順に操作を呼ぶ。同じ順なので result:N と abr:N の番号も同じになる */
+/**
+ * セッションを作り直して、保存した順に操作を呼ぶ。同じ順なので result:N と abr:N の番号も同じになる。
+ * 保存した人の現在地は再実行の間だけ使い、「現在地」とは呼ばない。終わったら消す（見ている人の here: にしない）
+ */
 export async function runRecipe(sessionId: string, r: Recipe): Promise<OpResult[]> {
   const s = getSession(sessionId, true);
-  if (r.context.here) s.here = r.context.here;
+  if (r.context.here) { s.here = r.context.here; s.hereLabel = 'レシピを保存した人の現在地'; }
   s.clicks = [...r.context.clicks];
   const steps: OpResult[] = [];
-  for (const step of r.steps) {
-    if (step.view) s.view = step.view;
-    else delete s.view;
-    steps.push(await runOp(step.op, { session: s, source: 'recipe' }, step.input));
+  try {
+    for (const step of r.steps) {
+      if (step.view) s.view = step.view;
+      else delete s.view;
+      steps.push(await runOp(step.op, { session: s, source: 'recipe' }, step.input));
+    }
+  } finally {
+    if (s.hereLabel) { delete s.here; delete s.hereLabel; } // 途中で見ている人が現在地を送っていたら（/api/context）、それは残す
   }
   return steps;
 }

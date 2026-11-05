@@ -1,7 +1,7 @@
 // 地物の絞り込み：業務の言葉（辞書）と範囲から、自社の Overpass で地物を探して地図に印を出す。
 import { z } from 'zod';
-import { DICT } from './dict';
-import { MIN_TUNNEL_M } from './check_route';
+import { DICT, type DictKey } from './dict';
+import { MIN_TUNNEL_M, SAME_TUNNEL_M } from './check_route';
 import { defineOp, Ref, Word, type BBox, type FeatureGroup, type FindFeaturesOutput, type LngLat, type Place } from './types';
 import { addResult, resolveRef } from '../server/session';
 import { featureQuery, LIMITS, overpass, toPlace, type Area, type OsmElement } from '../services/overpass';
@@ -29,10 +29,12 @@ export const findFeatures = defineOp({
     const bbox = place.bbox && (input.area === 'view:' || bboxKm2(place.bbox) > bboxKm2(circle)) ? place.bbox : undefined;
     const area: Area = bbox ? { bbox } : { around: { points: [place.coord], radius_m: input.radius_m } };
     const groups: FeatureGroup[] = [];
+    // 先に全部の言葉を問い合わせ、全部成功してからセッションを変える（途中で失敗しても result:N の番号と印の表示がずれない）
     // ponytail: 言葉ごとに順に問い合わせる（最大5回）。遅ければ並列にする
-    for (const word of [...new Set(input.words)]) {
+    const fetched: { word: DictKey; elements: OsmElement[] }[] = [];
+    for (const word of [...new Set(input.words)]) fetched.push({ word, elements: (await overpass(featureQuery(word, area, word === 'tunnel'))).elements });
+    for (const { word, elements } of fetched) {
       const tunnel = word === 'tunnel';
-      const { elements } = await overpass(featureQuery(word, area, tunnel));
       const items = (tunnel ? mergeTunnels(elements) : elements.map((e) => toPlace(e, word)))
         .filter((p) => inTokyo(p.coord))
         .sort((a, b) => distM(a.coord, place.coord) - distM(b.coord, place.coord))
@@ -55,6 +57,7 @@ export const findFeatures = defineOp({
 
 /**
  * トンネルの way を、点を共有するものどうし（続きの way、合流する way）で1本にまとめる。50m 未満は数えない。
+ * 点を共有しない上下線は、真ん中どうしが 100m 未満で、名前が同じか片方が名前なしなら1本にする（合否表の数え方と同じ近さ）。
  * 名前は tunnel:name か name（いちばん長い way から）、位置はいちばん長い way の真ん中
  */
 export function mergeTunnels(ways: OsmElement[]): Omit<Place, 'ref'>[] {
@@ -67,17 +70,26 @@ export function mergeTunnels(ways: OsmElement[]): Omit<Place, 'ref'>[] {
     groups.add(g);
     for (const x of g) for (const n of x.nodes ?? []) byNode.set(n, g);
   }
-  return [...groups].flatMap((g) => {
+  const tunnel = (g: OsmElement[]) => {
     const lines = g.map((w) => ({ w, line: (w.geometry ?? []).map((p): LngLat => [p.lon, p.lat]) })).map((x) => ({ ...x, m: lineM(x.line) }));
-    if (lines.reduce((s, x) => s + x.m, 0) < MIN_TUNNEL_M) return [];
     lines.sort((a, b) => b.m - a.m);
     const t = lines.map(({ w }) => w.tags ?? {});
+    const name = t.map((x) => x['tunnel:name']).find(Boolean) ?? t.map((x) => x['name:ja'] ?? x.name).find(Boolean) ?? null;
+    return { g, lines, name, mid: midOf(lines[0].line).coord, m: lines.reduce((s, x) => s + x.m, 0) };
+  };
+  const merged: ReturnType<typeof tunnel>[] = [];
+  for (const x of [...groups].map(tunnel)) {
+    if (x.m < MIN_TUNNEL_M) continue;
+    const i = merged.findIndex((y) => distM(y.mid, x.mid) < SAME_TUNNEL_M && (!x.name || !y.name || x.name === y.name));
+    if (i < 0) merged.push(x);
+    else merged[i] = tunnel([...merged[i].g, ...x.g]);
+  }
+  return merged.map(({ lines, name, mid }) => {
     const b = lines.flatMap(({ line }) => line);
-    return [{
-      name: t.map((x) => x['tunnel:name']).find(Boolean) ?? t.map((x) => x['name:ja'] ?? x.name).find(Boolean) ?? null,
-      coord: midOf(lines[0].line).coord, kind: 'tunnel' as const, osm: `way/${lines[0].w.id}`,
+    return {
+      name, coord: mid, kind: 'tunnel' as const, osm: `way/${lines[0].w.id}`,
       bbox: [r6(Math.min(...b.map((c) => c[0]))), r6(Math.min(...b.map((c) => c[1]))), r6(Math.max(...b.map((c) => c[0]))), r6(Math.max(...b.map((c) => c[1])))] as BBox,
-    }];
+    };
   });
 }
 

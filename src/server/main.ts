@@ -65,6 +65,7 @@ app.use('/api/*', bodyLimit({ maxSize: 16 * 1024, onError: (c) => c.json({ error
 app.post('/api/context', async (c) => {
   const req = await body(c, ContextReq);
   const s = withView(req.sessionId, req.view);
+  if (req.here !== undefined) delete s.hereLabel; // 見ている人の現在地（または無し）が、レシピを保存した人の現在地に代わる
   if (req.here === null) delete s.here;
   else if (req.here) s.here = req.here;
   const res: ContextResponse = {};
@@ -137,4 +138,5 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const port = Number(process.env.PORT ?? 8787);
   serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }); // 手元だけ。外から使うときは tailscale serve を前に置く
   console.log(`kotozute server http://localhost:${port}`);
+  if (!envBlockWords().length) console.warn('NOTE_BLOCK_WORDS が .env にありません。社名はOSMノートの確認で止まりません');
 }

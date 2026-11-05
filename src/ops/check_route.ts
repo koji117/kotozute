@@ -8,7 +8,9 @@ import { distM, midOf } from '../services/region';
 import { valhallaTrace } from '../services/valhalla';
 
 export const MIN_TUNNEL_M = 50; // これより短い tunnel=yes の区間は1本と数えない
-const SAME_TUNNEL_M = 100; // 真ん中どうしがこれより近いトンネルは同じトンネル（上下線）とみなす
+export const SAME_TUNNEL_M = 100; // 真ん中どうしがこれより近いトンネルは同じトンネル（上下線）とみなす
+/** name がトンネルの名前か。道路の名前（昭和通りなど）は別々のトンネルにも付くので、同じトンネルかの判定に使わない */
+export const TUNNEL_NAME = /トンネル|隧道|地下道/;
 const MERGE_GAP_M = 50; // lanes タグのない区間どうしの間がこれより短ければ1つにまとめる
 const MAX_WAYS = 3000; // 生のタグを取り直す way の上限
 
@@ -47,18 +49,21 @@ export async function judge(legs: LngLat[][], total: { minutes: number; km: numb
   const missing = ids.filter((id) => !tags.has(id)).length;
 
   // 3. トンネル：連続する tunnel=yes を1本、50m 未満は数えない（建物の通り抜け building_passage と暗渠 culvert は tunnel=yes ではない）。
-  //    同じトンネルを2回通ったら（行きと帰りで上下線を通るなど）、2回目は数えない。同じトンネル＝同じ名前か、真ん中どうしが 100m 以内
+  //    同じトンネルを2回通ったら（行きと帰りで上下線を通るなど）、2回目は数えない。
+  //    同じトンネル＝同じトンネルの名前（tunnel:name か、name に「トンネル」など。道路の名前は使わない）か、真ん中どうしが 100m 以内
   // ponytail: 上下線を真ん中の近さで見分ける。名前のない別のトンネルが 100m 以内に並ぶと1本に数える
-  const counted: TunnelRun[] = [];
+  const counted: { key: string | null; mid: LngLat }[] = [];
   const tunnels: TunnelRun[] = runsOf(edges, (e) => tag(e)?.tunnel === 'yes').map(([a, b]) => {
     const es = edges.slice(a, b + 1);
     const line = es.flatMap((e, i) => (i ? e.line.slice(1) : e.line));
     const ways = [...new Set(es.map((e) => e.way_id))];
-    const name = ways.map((id) => tags.get(id)!).map((t) => t['tunnel:name'] ?? t.name).find(Boolean) ?? null;
+    const ts = ways.map((id) => tags.get(id)!);
+    const name = ts.map((t) => t['tunnel:name'] ?? t.name).find(Boolean) ?? null;
+    const key = ts.map((t) => t['tunnel:name'] ?? (TUNNEL_NAME.test(t.name ?? '') ? t.name : undefined)).find(Boolean) ?? null;
     const m = sumM(es), mid = midOf(line).coord;
-    const again = counted.some((t) => (name && t.name === name) || distM(t.mid, mid) < SAME_TUNNEL_M);
+    const again = counted.some((t) => (key && t.key === key) || distM(t.mid, mid) < SAME_TUNNEL_M);
     const run: TunnelRun = { name, ways: ways.map((id) => `way/${id}`), m: Math.round(m), skip: m < MIN_TUNNEL_M ? 'short' : again ? 'repeat' : null, mid, line };
-    if (!run.skip) counted.push(run);
+    if (!run.skip) counted.push({ key, mid });
     return run;
   });
   const count = counted.length;

@@ -8,12 +8,14 @@
 - 場所は参照（`abr:N`、`result:N`、`osm:node/123` など）で渡す。緯度経度は受け付けない。
 - セッションはサーバのプロセスに1つ。つなぎ直すと、それまでの `abr:N` や `result:N` は使えなくなる。
 - 画面がないので `here:`（現在地）と `click:N` は使えない。`view:` は、`set_view` で地図を動かすまでは東京都全体。
+- `draft_osm_note`（OSM ノートの下書き）は画面だけで使える。確認方法を本人が選び、止める語を画面で確かめるため。MCP のツールの一覧には出さない。
 
 ## 返すもの
 
 | 場合 | 返すもの |
 |---|---|
 | 成功 | 操作の要約（画面の Claude に返すものと同じ。名前・件数・参照だけで、座標は入れない）の JSON。`geocode_address` には ABR の `coordinates_level` そのままの `level` を、`make_share_link` には画面で開ける `open`（URL）を足す |
+| 書き出し | `export_route`（GPX・GeoJSON）と `export_png`（画像）は、ファイルを環境変数 `EXPORT_DIR`（既定 `~/kotozute-exports`）に保存して、その `path` を返す。ファイルの中身は返さない。`export_route` には ODbL の注意（`warning`）も足す |
 | 失敗 | `isError: true` と、画面に出すのと同じ日本語の文 |
 
 `open` の URL の頭は環境変数 `KOTOZUTE_URL`（既定 `http://localhost:8787`）。共有リンクの中身は `data/shares/` に保存されるので、同じリポジトリで `npm run server` を動かしていれば開ける。

@@ -1,15 +1,14 @@
 // 試走コース：出発地を出て出発地に戻る周回コースを探す。経由地（道路トンネル）の候補は AI ではなくプログラムが作る。
 // 1案目はいちばんよい候補1本を経由して引き、合否表で判定する。合格しなければ次の候補を足して引き直す（最大5案、ルート計算は最大10回）。
 import { z } from 'zod';
-import { judge, llmCheck, MIN_TUNNEL_M } from './check_route';
+import { judge, llmCheck, MIN_TUNNEL_M, TUNNEL_NAME } from './check_route';
 import { toSteps } from './steps';
 import { defineOp, OpError, Ref, type CourseAttempt, type CourseOutput, type LngLat, type Place, type RouteOutput } from './types';
 import { resolveRef } from '../server/session';
-import { LIMITS, overpass } from '../services/overpass';
-import { inTokyo, lineM, midOf, REGION_LABEL } from '../services/region';
+import { COURSE_RADIUS_M, LIMITS, overpass } from '../services/overpass';
+import { distM, inTokyo, lineM, midOf, REGION_LABEL } from '../services/region';
 import { valhallaRoute, type VRoute } from '../services/valhalla';
 
-const RADIUS_M = 6000; // 出発地からこの距離までのトンネルを候補にする
 const MAX_ATTEMPTS = 5;
 const MAX_ROUTES = 10;
 const ROADS = 'trunk|primary|secondary|tertiary|unclassified|residential'; // motorway と *_link は検索の段階で外す
@@ -27,12 +26,14 @@ function excluded(t: Record<string, string>): boolean {
   return parseFloat(t.maxheight) < 2.1;
 }
 
-/** 出発地から 6km 以内の、名前があり 50m 以上の道路トンネル。順番はトンネルの名前がある → 長い。同じ名前（反対車線や続きの way）は1つだけ */
+/** 出発地から 6km 以内の、東京都の中の、名前があり 50m 以上の道路トンネル。順番はトンネルの名前がある → 出発地に近い（真ん中まで）。同じ名前（反対車線や続きの way）は1つだけ */
 async function candidates(start: LngLat): Promise<{ cands: Cand[]; excluded: number }> {
   const [lng, lat] = start;
   const { elements } = await overpass(
-    `[out:json][timeout:${LIMITS.timeout_s}];way(around:${RADIUS_M},${lat.toFixed(6)},${lng.toFixed(6)})[tunnel=yes][highway~"^(${ROADS})$"];out tags geom;`,
+    `[out:json][timeout:${LIMITS.timeout_s}];way(around:${COURSE_RADIUS_M},${lat.toFixed(6)},${lng.toFixed(6)})[tunnel=yes][highway~"^(${ROADS})$"];out tags geom ${LIMITS.max_items + 1};`,
   );
+  // 切った残りで選ぶと、候補が id の順で抜け落ちる。上限を超えたら止める
+  if (elements.length > LIMITS.max_items) throw new OpError('limit', '出発地のまわりのトンネルが多すぎて、候補を選べません');
   let ex = 0;
   const all = elements.flatMap((w): Cand[] => {
     const t = w.tags ?? {};
@@ -40,16 +41,16 @@ async function candidates(start: LngLat): Promise<{ cands: Cand[]; excluded: num
     const line = (w.geometry ?? []).map((g): LngLat => [g.lon, g.lat]);
     const name = t['tunnel:name'] ?? t.name;
     const m = lineM(line);
-    if (!name || m < MIN_TUNNEL_M) return [];
     const { coord, heading } = midOf(line);
+    if (!name || m < MIN_TUNNEL_M || !inTokyo(coord)) return [];
     const layer = parseInt(t.layer ?? '', 10);
     return [{
-      id: w.id, name, named: !!t['tunnel:name'] || /トンネル|隧道|地下道/.test(t.name ?? ''), m, mid: coord, layer: Number.isNaN(layer) ? -1 : layer,
+      id: w.id, name, named: !!t['tunnel:name'] || TUNNEL_NAME.test(t.name ?? ''), m, mid: coord, layer: Number.isNaN(layer) ? -1 : layer,
       // 一方通行は通れる向きで寄せる。両方向なら向きは Valhalla に任せる
       heading: t.oneway === 'yes' ? heading : t.oneway === '-1' ? (heading + 180) % 360 : undefined,
     }];
   });
-  all.sort((a, b) => Number(b.named) - Number(a.named) || b.m - a.m);
+  all.sort((a, b) => Number(b.named) - Number(a.named) || distM(a.mid, start) - distM(b.mid, start));
   const seen = new Set<string>();
   return { cands: all.filter((c) => !seen.has(c.name) && !!seen.add(c.name)), excluded: ex };
 }
@@ -78,7 +79,7 @@ export const planCourse = defineOp({
     if (!input.tunnels) throw new OpError('bad_input', '通るトンネルの本数（1〜4本）を指定してください。試走コースはトンネルを経由地にして作ります');
     const { tunnels, max_minutes, avoid_highways } = input;
     const { cands, excluded: ex } = await candidates(start.coord);
-    if (!cands.length) throw new OpError('not_found', `出発地から${RADIUS_M / 1000}km以内に、経由地にできる名前のある道路トンネルがOSM上で見つかりません（現地にないとは限らない）`);
+    if (!cands.length) throw new OpError('not_found', `出発地から${COURSE_RADIUS_M / 1000}km以内の東京都の中に、経由地にできる名前のある道路トンネルがOSM上で見つかりません（現地にないとは限らない）`);
 
     // 経由地は出発地から見た向きの順に回る（行ったり来たりしない）
     // ponytail: 回る向きは1通りだけ試す。一方通行のトンネルで遠回りになるなら、逆回りも試す
@@ -107,7 +108,7 @@ export const planCourse = defineOp({
       // 時間で落ちたら、足した候補を外して次を試す。トンネルが足りなければ、足した候補を通れていれば残して次を足す
       if (row('minutes') === 'fail') continue;
       if (row('tunnels') !== 'fail') { stopped = 'other'; break; } // 足しても直らない（高速を通る、判定不能など）
-      if (check.tunnels.some((t) => t.ways.includes(`way/${add.id}`))) kept.push(add);
+      if (check.tunnels.some((t) => !t.skip && t.ways.includes(`way/${add.id}`))) kept.push(add); // 2回目と数えた候補は残さない
     }
     const last = tried[chosen ?? tried.length - 1];
     if (!last) throw new OpError('not_found', 'コースを引けませんでした（経由地のトンネルまで道がつながりません）');
@@ -128,7 +129,7 @@ export const planCourse = defineOp({
     };
     session.route = course;
     return {
-      start, conditions: { tunnels, max_minutes, avoid_highways }, radius_m: RADIUS_M, candidates: cands.length, excluded: ex,
+      start, conditions: { tunnels, max_minutes, avoid_highways }, radius_m: COURSE_RADIUS_M, candidates: cands.length, excluded: ex,
       attempts: tried.map((t) => t.a), chosen, stopped_by: chosen == null ? stopped : null, routes, course,
     };
   },

@@ -100,6 +100,7 @@ const park = addResult(session, { name: '芝公園', coord: [139.74937, 35.65476
   assert.deepEqual(blockedWords('試走のあと客先へ。顧客の倉庫'), ['試走', '客先', '顧客']);
   assert.deepEqual(blockedWords('㈱ことづて'), ['（株）']);
   assert.deepEqual(blockedWords('右折禁止の標識を現地で見た'), []);
+  assert.deepEqual(blockedWords('確認方法：Ｇｏｏｇｌｅマップで見た'), ['google'], '他社の地図を手で書いても止める');
   assert.deepEqual(envBlockWords(), ['サンプル物産', 'ACME']);
   assert.deepEqual(blockedWords('ａｃｍｅの倉庫の前', envBlockWords()), ['ACME']);
   assert.deepEqual(blockedWords('ｻﾝﾌﾟﾙ物産 試走', envBlockWords()), ['試走', 'サンプル物産']);

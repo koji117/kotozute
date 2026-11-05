@@ -229,7 +229,7 @@ function course(o: CourseOutput) {
     <div class="od" style="margin-top:6px">${start} 発着（周回）・${min(a.minutes)}・${km(a.km)}・経由：${a.via.map((x) => x.name ?? '名前なし').join('、')}</div>
     <div class="kv"><div><b>解釈</b><span>トンネル＝道路の tunnel=yes（連続する区間は1本）${o.conditions.avoid_highways ? '／高速＝高速道路と有料道路を除外して計算' : ''}／${start}から${start}へ（周回）</span></div></div>
     ${checkTable(a.check)}
-    <div class="note">経由地の候補はプログラムが作りました：出発地から${o.radius_m / 1000}km以内の名前のある道路トンネル ${o.candidates}本（有料・自動車専用・車両通行不可・高さ2.1m未満の ${o.excluded}本は除外）。ルート計算 ${o.routes}回</div>
+    <div class="note">経由地の候補はプログラムが作りました：出発地から${o.radius_m / 1000}km以内の、東京都の中の名前のある道路トンネル ${o.candidates}本（有料・自動車専用・車両通行不可・高さ2.1m未満の ${o.excluded}本は除外）。ルート計算 ${o.routes}回</div>
     ${o.chosen == null ? html`<div class="zero">条件を満たすコースは見つかりませんでした（${STOPPED[o.stopped_by ?? 'other']}）。地図には最後の案を出しています</div>` : ''}
   </div>`;
 }
@@ -261,7 +261,8 @@ function png(o: ExportPngOutput) {
 
 function routeFile(o: ExportRouteOutput) {
   return html`<div class="card"><h3>${o.filename.endsWith('.gpx') ? 'GPX' : 'GeoJSON'}（社内用）を書き出しました</h3>
-    <div class="note">${o.filename}</div><div class="note warn">${o.warning}</div></div>`;
+    <div class="note">${o.filename}</div><div class="note warn">${o.warning}</div>
+    ${o.includes_here ? html`<div class="note warn">このファイルには、あなたの現在地が入っています</div>` : ''}</div>`;
 }
 
 export function recipeCard(o: RecipeSaved) {
@@ -359,14 +360,15 @@ export function renderChat(text: string, res: ChatResponse, hereAcc?: number) {
     ${foot}${netCard(res.net)}`;
 }
 
-/** レシピの再実行（/?r=<id>）の結果。日本語の依頼の結果と同じ形で、Claude を使っていないことを見出しに出す */
-export function renderRecipe(res: RecipeRunResponse, hereAcc?: number) {
+/** レシピの再実行（/?r=<id>）の結果。日本語の依頼の結果と同じ形で、Claude を使っていないことを見出しに出す。
+ *  保存した人の現在地は「レシピを保存した人の現在地」という場所で返る（見ている人の現在地ではないので、精度も出さない） */
+export function renderRecipe(res: RecipeRunResponse) {
   res.steps.forEach((s) => s.ok && remember(s.output));
   const r = res.recipe;
   return html`${close}<div class="ph-h"><h2>レシピ</h2><span class="badge b-ok">Claude を使わずに再実行</span></div>
     <div class="od">ID <span class="mono">${r.id}</span>・保存 ${r.created_at.slice(0, 10)}・保存したときの OSM ${r.osm_as_of.slice(0, 10)}${
       r.osm_as_of !== OSM_DATA_AS_OF ? '（いまのデータで実行したので、結果が違うことがあります）' : ''}</div>
-    ${opsHtml(res.steps, hereAcc, '手順', '保存した操作を同じ順にやり直しました')}
+    ${opsHtml(res.steps, undefined, '手順', '保存した操作を同じ順にやり直しました')}
     ${foot}${netCard(res.net)}`;
 }
 

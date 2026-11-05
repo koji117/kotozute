@@ -262,6 +262,7 @@ try {
       await rp.locator('#panel .net').waitFor({ timeout: 60000 });
       const rt = await text(rp, '#panel');
       check(`レシピ（${name}）：Claude を使わずに再実行`, rt.includes('Claude を使わずに再実行') && rt.includes('手順') && !rt.includes('エラー'), rt.slice(0, 160));
+      check(`レシピ（${name}）：保存した人の現在地を「現在地」と呼ばない`, rt.includes('レシピを保存した人の現在地') && !/現在地 半径|出発：現在地/.test(rt), rt.slice(0, 300));
       check(`レシピ（${name}）：同じルートが出る`, await until(rp, async () => (await window.map.getSource('marks').getData()).features.some((f) => f.properties.n === '終')));
       check(`レシピ（${name}）：外部通信は Claude 0件・その他 0件`, /api\.anthropic\.com\s?0件/.test(rt) && /その他の外部\s?0件/.test(rt), rt.match(/外部通信の記録.*/)?.[0]);
       check(`レシピ（${name}）：パネルに横スクロールなし`, await rp.evaluate(() => { const p = document.querySelector('#panel'); return p.scrollWidth <= p.clientWidth; }));

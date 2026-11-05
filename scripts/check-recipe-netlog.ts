@@ -100,7 +100,9 @@ let id = '';
     assert.equal(s.source, 'recipe');
     assert.equal(s.op, orig[i].op);
     assert.deepEqual(s.input, orig[i].input);
-    assert.deepEqual(s.output, orig[i].output, `${i + 1}番目（${s.op}）の出力が違う`);
+    // here: は B の現在地ではないので、「現在地」ではなく保存した人の現在地と書く（4番目は here: のまわり）
+    const want = i === 3 ? { ...orig[i].output, area: { ...orig[i].output.area, label: 'レシピを保存した人の現在地' } } : orig[i].output;
+    assert.deepEqual(s.output, want, `${i + 1}番目（${s.op}）の出力が違う`);
   });
   const net = r.json.net;
   assert.ok(net.self >= 1 && net.anthropic === 0 && net.other === 0, JSON.stringify(net));
@@ -111,6 +113,9 @@ let id = '';
   assert.ok(sB.history.every((h) => h.source === 'recipe'));
   assert.deepEqual(sB.layers.post_office?.visible, true);
   assert.deepEqual(sB.layers.convenience?.visible, false);
+  // 再実行が終わったら、保存した人の現在地は B の here: に残さない
+  assert.equal(sB.here, undefined);
+  assert.equal((await op(B, 'add_pin', { target: 'here:' })).json.error?.code, 'bad_ref');
   ok(`再実行：${STEPS.length} 操作の出力と参照が同じ、Claude 0件・自社 ${net.self}件`);
 }
 

@@ -107,6 +107,10 @@ await check('export_route：GPX 1.1（区間ごとの trkseg、出発と目的�
   assert.ok(c.includes('OSMデータ時点：2026-'), 'データ時点がない');
   assert.ok(c.includes('Valhalla'), '経路の出典がない');
   assert.ok(c.includes('A&#38;B &#60;&#34;テスト&#34;&#62; &#39;x&#39;') && !c.includes('<"テスト">'), '名前がエスケープされていない');
+  assert.equal(g.includes_here, false);
+  session.route = { ...r, from: { ...r.from, kind: 'here' } }; // 現在地から引いたルートなら、画面で知らせる
+  assert.equal((await out('gpx')).includes_here, true);
+  session.route = r;
   const llm = exportRoute.llm(g) as { size: number };
   assert.deepEqual(Object.keys(llm), ['filename', 'size']);
   assert.equal(llm.size, Buffer.byteLength(c));
@@ -144,11 +148,13 @@ if (!serverUp || !hasPw) {
   if (!serverUp) await fails(() => exportPng.run({ session, source: 'mcp' }, {}), 'service');
 } else {
   await check('export_png（mcp）：出典を焼き込んだ PNG を EXPORT_DIR に保存', async () => {
+    process.env.KOTOZUTE_URL = 'https://kotozute.test:8443'; // 返すリンクは make_share_link（MCP）と同じ頭。画像は base の画面で作る
     const o = await exportPng.run({ session, source: 'mcp' }, {});
+    delete process.env.KOTOZUTE_URL;
     assert.equal(o.mode, 'file');
     if (o.mode !== 'file') return;
     assert.ok(o.path.startsWith(process.env.EXPORT_DIR!), o.path);
-    assert.match(o.share_url, new RegExp(`^${base}/\\?s=[0-9A-Za-z]{10}$`));
+    assert.match(o.share_url, /^https:\/\/kotozute\.test:8443\/\?s=[0-9A-Za-z]{10}$/);
     const png = readFileSync(o.path);
     assert.equal(png.subarray(1, 4).toString(), 'PNG');
     const [w, h] = [png.readUInt32BE(16), png.readUInt32BE(20)];

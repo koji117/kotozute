@@ -38,6 +38,8 @@ export interface Layer { word: DictKey; refs: string[]; visible: boolean }
 export interface Session {
   id: string;
   here?: { coord: LngLat; accuracy_m: number };
+  /** レシピの再実行の間だけ：here: は見ている人の現在地ではないので、この名前の場所（kind: 'place'）にする */
+  hereLabel?: string;
   view?: { bbox: BBox; zoom: number };
   clicks: LngLat[];
   /** ref → 場所（result:N、abr:N、osm:… を入れる。here: と click: は都度作る） */
@@ -119,7 +121,8 @@ export interface UnknownWordsOutput { words: string[] }
 export interface AddPinOutput { pin: Place; count: number }
 /** client：画面が自分の地図から画像を作る（ai・direct）。file：サーバが共有リンクの画面を headless で開いて作り、保存した（mcp） */
 export type ExportPngOutput = { mode: 'client' } | { mode: 'file'; path: string; share_url: string };
-export interface ExportRouteOutput { filename: string; mime: string; content: string; warning: string }
+/** includes_here：ファイルに現在地が入っている */
+export interface ExportRouteOutput { filename: string; mime: string; content: string; warning: string; includes_here: boolean }
 
 // ===== 試走コースと合否表（plan_course、check_route） =====
 /** null は「その条件は見ない」 */
@@ -130,7 +133,7 @@ export type Verdict = 'pass' | 'fail' | 'unknown';
 export interface CheckRow { kind: 'tunnels' | 'no_highways' | 'minutes'; want: number | null; got: number; result: Verdict }
 /**
  * 連続する tunnel=yes の区間。name は tunnel:name か name（なければ null）。
- * skip：数えなかった理由（short：50m 未満、repeat：同じトンネル（同じ名前か、真ん中が 100m 以内）の2回目）。null なら1本と数えた
+ * skip：数えなかった理由（short：50m 未満、repeat：同じトンネル（同じトンネルの名前か、真ん中が 100m 以内）の2回目）。null なら1本と数えた
  */
 export interface TunnelRun { name: string | null; ways: string[]; m: number; skip: 'short' | 'repeat' | null; mid: LngLat; line: LngLat[] }
 export interface CheckOutput {

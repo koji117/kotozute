@@ -12,12 +12,12 @@ const MAX_M = 200;
 // 23区がすべて入る範囲（区役所の検索だけに使う）
 const BBOX = '(35.52,139.56,35.82,139.92)';
 
-// OSM に住所のタグがない（または崩れている）区は、区の公式サイトのトップページにある本庁舎の所在地を使う（2026-11-05 に確認。書いてあるとおり）
+// OSM に住所のタグがない（または崩れている）区は、区の公式サイトのトップページにある本庁舎の所在地を使う（2026-11-05 に確認。書いてあるとおり。品川と豊島だけ「東京都」を足した）
 const OFFICIAL: Record<string, { address: string; url: string }> = {
   千代田: { address: '東京都千代田区九段南1-2-1', url: 'https://www.city.chiyoda.lg.jp/' },
   文京: { address: '東京都文京区春日1-16-21', url: 'https://www.city.bunkyo.lg.jp/' },
   墨田: { address: '東京都墨田区吾妻橋一丁目23番20号', url: 'https://www.city.sumida.lg.jp/' },
-  品川: { address: '東京都品川区広町2-1-36', url: 'https://www.city.shinagawa.tokyo.jp/' },
+  品川: { address: '東京都品川区広町2-1-36', url: 'https://www.city.shinagawa.tokyo.jp/' }, // 公式サイトの表記に「東京都」を足した
   大田: { address: '東京都大田区蒲田五丁目13番14号', url: 'https://www.city.ota.tokyo.jp/' },
   渋谷: { address: '東京都渋谷区宇田川町1-1', url: 'https://www.city.shibuya.tokyo.jp/' }, // OSM は addr:neighbourhood=１丁目（宇田川町に丁目はない）で ABR が区までしか一致しない
   中野: { address: '東京都中野区中野四丁目11番19号', url: 'https://www.city.tokyo-nakano.lg.jp/' },
