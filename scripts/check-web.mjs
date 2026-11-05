@@ -41,6 +41,7 @@ async function waitHttp(url, ms = 30000) {
 
 const { chromium } = playwright();
 let browser;
+let courseRes; // 試走コースの応答（デスクトップで作り、スマホでも使う）
 try {
   await waitHttp(`${BASE}/`);
   const api = await fetch(`${BASE}/api/context`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: 'check-web-00000001', view: { bbox: [139.74, 35.65, 139.76, 35.67], zoom: 15 } }) });
@@ -244,6 +245,33 @@ try {
     const cam1 = await page2.evaluate(() => [window.map.getCenter().toArray(), window.map.getZoom()]);
     check('2回目：set_view の view: で地図が動かない', JSON.stringify(cam0) === JSON.stringify(cam1), `${JSON.stringify(cam0)} → ${JSON.stringify(cam1)}`);
     check('2回目：住所のピンとルートは残る', await page2.evaluate(async () => (await window.map.getSource('marks').getData()).features.some((f) => f.properties.n === '終')));
+
+    // 例2 試走コース：plan_course と check_route を直接呼んだ結果を /api/chat の応答にして、合否表と地図を確かめる
+    courseRes = { stop: 'done', steps: await page2.evaluate(async () => {
+      const sessionId = window.sessionId;
+      const op = async (name, input) => (await fetch(`/api/op/${name}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId, input }) })).json();
+      const sp = await op('search_place', { name: '品川駅', area: 'here:' });
+      const pc = await op('plan_course', { start: sp.output?.items[0]?.ref ?? 'here:', tunnels: 2, max_minutes: 60, avoid_highways: true });
+      return [sp, pc, await op('check_route', { tunnels: 2, max_minutes: 60, avoid_highways: true })];
+    }) };
+    check('試走：場所・コース・判定の操作が成功', courseRes.steps.every((s) => s.ok), courseRes.steps.map((s) => s.ok ? s.op : s.error.message).join(','));
+    chatRes = courseRes;
+    await page2.fill('#q', '来週の客先試走。品川駅を出て、トンネルを2本通り、高速は使わず60分以内。');
+    await page2.press('#q', 'Enter');
+    await page2.locator('#panel .vt').first().waitFor();
+    const t3 = await text(page2, '#panel');
+    check('試走：合否表に合格と4つの行', /合否表\s?合格/.test(t3) &&['トンネル 2本', '高速を使わない', '60分以内', '車線数（参考）'].every((s) => t3.includes(s)), t3.slice(0, 300));
+    check('試走：案ごとの札（1回目・2回目）', await page2.locator('#panel .chipline span').count() === courseRes.steps[1].output?.attempts.length);
+    check('試走：トンネルの数え方を出す', t3.includes('連続する tunnel=yes を1本、50m未満は数えない'));
+    check('試走：解釈に出発・トンネル・時間', t3.includes('出発・到着：') && t3.includes('トンネル（本）：2') && t3.includes('時間の上限（分）：60'), t3.match(/試走コース.{0,80}/)?.[0]);
+    check('試走：地図にコース、トンネルの名前、発着の印', await until(page2, async () => {
+      const tun = (await window.map.getSource('tun').getData()).features.filter((f) => f.geometry.type === 'Point').map((f) => f.properties.name);
+      const ns = (await window.map.getSource('marks').getData()).features.map((f) => f.properties.n);
+      return tun.length >= 2 && ns.includes('発') && !ns.includes('終') && (await window.map.getSource('route').getData()).features.length >= 2;
+    }));
+    check('試走：出典に経路', (await text(page2, '#attr')).includes('Valhalla'));
+    await until(page2, () => !window.map.isMoving() && window.map.areTilesLoaded());
+    await page2.screenshot({ path: `${OUT}/desktop-course.png` });
   }
 
   // 共有リンクの画面（読み取りのみ）
@@ -271,6 +299,21 @@ try {
   const mattr = await box(m, '#attr');
   check('スマホ：出典はシートの上に見える', mattr && mattr.y + mattr.height <= sheet.y + 1, JSON.stringify(mattr));
   await m.screenshot({ path: `${OUT}/mobile-sheet.png` });
+
+  // スマホ：合否表が下部シートの幅に収まる
+  if (courseRes) {
+    const mc = await open({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    await mc.route('**/api/chat', (r) => r.fulfill({ json: courseRes }));
+    await mc.fill('#q', '品川駅を出て、トンネルを2本通り、高速は使わず60分以内');
+    await mc.locator('#search button[type=submit]').tap();
+    await mc.locator('#panel .vt').first().waitFor();
+    const fits = await mc.evaluate(() => {
+      const p = document.querySelector('#panel'), vt = document.querySelector('#panel .vt');
+      return p.scrollWidth <= p.clientWidth && vt.scrollWidth <= vt.clientWidth && vt.getBoundingClientRect().right <= innerWidth;
+    });
+    check('スマホ：合否表がシートの幅に収まる', fits);
+    await mc.screenshot({ path: `${OUT}/mobile-course.png` });
+  }
 
   // 実行時に外へ出ていないこと（localhost だけ）
   check('通信先は localhost だけ', [...hosts].every((h) => h === 'localhost'), [...hosts].join(','));

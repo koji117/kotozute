@@ -1,10 +1,11 @@
 // 地物の絞り込み：業務の言葉（辞書）と範囲から、自社の Overpass で地物を探して地図に印を出す。
 import { z } from 'zod';
 import { DICT } from './dict';
-import { defineOp, Ref, Word, type BBox, type FeatureGroup, type FindFeaturesOutput } from './types';
+import { MIN_TUNNEL_M } from './check_route';
+import { defineOp, Ref, Word, type BBox, type FeatureGroup, type FindFeaturesOutput, type LngLat, type Place } from './types';
 import { addResult, resolveRef } from '../server/session';
-import { featureQuery, LIMITS, overpass, toPlace, type Area } from '../services/overpass';
-import { bboxKm2, distM, inTokyo } from '../services/region';
+import { featureQuery, LIMITS, overpass, toPlace, type Area, type OsmElement } from '../services/overpass';
+import { bboxKm2, distM, inTokyo, lineM, midOf } from '../services/region';
 
 const r6 = (x: number) => Math.round(x * 1e6) / 1e6;
 
@@ -30,9 +31,9 @@ export const findFeatures = defineOp({
     const groups: FeatureGroup[] = [];
     // ponytail: 言葉ごとに順に問い合わせる（最大5回）。遅ければ並列にする
     for (const word of [...new Set(input.words)]) {
-      const { elements } = await overpass(featureQuery(word, area));
-      const items = elements
-        .map((e) => toPlace(e, word))
+      const tunnel = word === 'tunnel';
+      const { elements } = await overpass(featureQuery(word, area, tunnel));
+      const items = (tunnel ? mergeTunnels(elements) : elements.map((e) => toPlace(e, word)))
         .filter((p) => inTokyo(p.coord))
         .sort((a, b) => distM(a.coord, place.coord) - distM(b.coord, place.coord))
         .slice(0, LIMITS.max_items)
@@ -51,6 +52,34 @@ export const findFeatures = defineOp({
     })),
   }),
 });
+
+/**
+ * トンネルの way を、点を共有するものどうし（続きの way、合流する way）で1本にまとめる。50m 未満は数えない。
+ * 名前は tunnel:name か name（いちばん長い way から）、位置はいちばん長い way の真ん中
+ */
+export function mergeTunnels(ways: OsmElement[]): Omit<Place, 'ref'>[] {
+  const byNode = new Map<number, OsmElement[]>();
+  const groups = new Set<OsmElement[]>();
+  for (const w of ways) {
+    const hit = new Set((w.nodes ?? []).map((n) => byNode.get(n)).filter((g) => !!g));
+    const g = [w, ...[...hit].flat()];
+    hit.forEach((h) => groups.delete(h));
+    groups.add(g);
+    for (const x of g) for (const n of x.nodes ?? []) byNode.set(n, g);
+  }
+  return [...groups].flatMap((g) => {
+    const lines = g.map((w) => ({ w, line: (w.geometry ?? []).map((p): LngLat => [p.lon, p.lat]) })).map((x) => ({ ...x, m: lineM(x.line) }));
+    if (lines.reduce((s, x) => s + x.m, 0) < MIN_TUNNEL_M) return [];
+    lines.sort((a, b) => b.m - a.m);
+    const t = lines.map(({ w }) => w.tags ?? {});
+    const b = lines.flatMap(({ line }) => line);
+    return [{
+      name: t.map((x) => x['tunnel:name']).find(Boolean) ?? t.map((x) => x['name:ja'] ?? x.name).find(Boolean) ?? null,
+      coord: midOf(lines[0].line).coord, kind: 'tunnel' as const, osm: `way/${lines[0].w.id}`,
+      bbox: [r6(Math.min(...b.map((c) => c[0]))), r6(Math.min(...b.map((c) => c[1]))), r6(Math.max(...b.map((c) => c[0]))), r6(Math.max(...b.map((c) => c[1])))] as BBox,
+    }];
+  });
+}
 
 /** 点と半径を囲む bbox（平面近似） */
 function circleBBox([lng, lat]: [number, number], r: number): BBox {

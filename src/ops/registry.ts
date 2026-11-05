@@ -8,9 +8,11 @@ import { route } from './route';
 import { setView } from './set_view';
 import { makeShareLink } from './share';
 import { unknownWords } from './unknown_words';
+import { planCourse } from './plan_course';
+import { checkRoute } from './check_route';
 import { logOp } from '../server/oplog';
 
-export const OPS: OpDef[] = [geocodeAddress, searchPlace, findFeatures, route, setView, makeShareLink, unknownWords];
+export const OPS: OpDef[] = [geocodeAddress, searchPlace, findFeatures, route, setView, makeShareLink, unknownWords, planCourse, checkRoute];
 
 export const findOp = (name: string) => OPS.find((o) => o.name === name);
 

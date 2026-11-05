@@ -2,8 +2,8 @@
 import { ATTRIBUTION } from '../attribution';
 import { DICT, type DictKey } from '../ops/dict';
 import type {
-  ChatResponse, FindFeaturesOutput, GeocodeOutput, OpResult, Place, RouteOutput,
-  SearchPlaceOutput, SetViewOutput, ShareOutput, UnknownWordsOutput,
+  ChatResponse, CheckOutput, CheckRouteOutput, CheckRow, CourseOutput, FindFeaturesOutput, GeocodeOutput, OpResult, Place, RouteOutput,
+  SearchPlaceOutput, SetViewOutput, ShareOutput, UnknownWordsOutput, Verdict,
 } from '../ops/types';
 
 // ===== 差し込み。OSM の名前などはすべてエスケープする（Raw だけそのまま） =====
@@ -18,7 +18,7 @@ const raw = (s: string) => new Raw(s);
 /** 言葉ごとの印の色（案E の色） */
 export const COLOR: Record<DictKey, string> = {
   post_office: '#0B6E78', souvenir: '#8A5A00', convenience: '#18703E', cafe: '#734700', parking: '#085862', fuel: '#B3261E',
-  toilets: '#5A646B', park: '#18703E', station: '#12343B', hospital: '#B3261E', level_crossing: '#B3261E', tunnel: '#12343B',
+  toilets: '#5A646B', park: '#18703E', station: '#12343B', hospital: '#B3261E', level_crossing: '#B3261E', foot_crossing: '#734700', tunnel: '#12343B',
 };
 
 const svg16 = (d: string) => `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -72,6 +72,7 @@ const label = (s: string) => (isWord(s) ? DICT[s].label : s);
 const KEY: Record<string, string> = {
   words: '探すもの', area: '範囲', radius_m: '半径（m）', name: '名前', address: '住所', from: '出発', to: '目的地',
   stops: '寄り先', ref: '場所', word: '種類', target: '場所', show: '残す', hide: '隠す', avoid_highways: '高速を使わない', keep_order: '頼んだ順に寄る',
+  start: '出発・到着', tunnels: 'トンネル（本）', max_minutes: '時間の上限（分）',
 };
 function inVal(k: string, v: unknown): string {
   if (Array.isArray(v)) return v.map((x) => inVal(k, x)).join('、');
@@ -112,7 +113,7 @@ function features(o: FindFeaturesOutput) {
   return html`<div class="card">
     <div class="od">範囲：${o.area.label}${o.area.radius_m != null ? `（半径${o.area.radius_m}m）` : ''}</div>
     ${o.groups.map((g) => html`
-      <div class="sec"><span class="sw" style="background:${COLOR[g.word]}"></span>${g.label} ${g.count}件${g.truncated ? '以上' : ''}</div>
+      <div class="sec"><span class="sw" style="background:${COLOR[g.word]}"></span>${g.label} ${g.count}${g.word === 'tunnel' ? '本' : '件'}${g.truncated ? '以上' : ''}</div>
       <div class="interp">${g.interpretation}</div>
       ${g.count === 0 ? html`<div class="zero">OSM上で0件（現地にないとは限らない）</div>` : html`
         ${g.truncated ? html`<div class="note">上限の${g.items.length}件で切りました（全部ではありません）</div>` : ''}
@@ -168,6 +169,73 @@ function setView(o: SetViewOutput) {
   </div></div>`;
 }
 
+// ===== 合否表（plan_course、check_route） =====
+// 印の中の線（✓・×）は --ic-mark の色。塗りの札（.verdict）では札の色にして抜く
+const icon = (d: string) => raw(`<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">${d}</svg>`);
+const V_ICON: Record<Verdict, Raw> = {
+  pass: icon('<circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M5.6 10.2l3 3 5.8-6.2" fill="none" style="stroke:var(--ic-mark)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'),
+  fail: icon('<rect x="1.5" y="1.5" width="17" height="17" rx="3" fill="currentColor"/><path d="M6.5 6.5l7 7M13.5 6.5l-7 7" style="stroke:var(--ic-mark)" stroke-width="2.2" stroke-linecap="round"/>'),
+  unknown: icon('<circle cx="10" cy="10" r="8.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 2"/><path d="M7.6 7.7a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1.1" fill="currentColor"/>'),
+};
+const CLOCK = icon('<circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 6v4.3l2.8 1.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>');
+const V_TEXT: Record<Verdict, string> = { pass: '合格', fail: '不合格', unknown: '判定不能' };
+const V_BADGE: Record<Verdict, string> = { pass: 'b-ok', fail: 'b-ng', unknown: 'b-unk' };
+const judged = (v: Verdict) => html`<span class="badge ${V_BADGE[v]}">${V_ICON[v]}${V_TEXT[v]}</span>`;
+const verdictTag = (v: Verdict) => html`<span class="verdict v-${v}">${V_ICON[v]}${V_TEXT[v]}</span>`;
+
+function checkRow(r: CheckRow) {
+  const [c, v] =
+    r.kind === 'tunnels' ? [html`<i class="sw-tun"></i>${r.want ? `トンネル ${r.want}本` : 'トンネルを通らない'}`, html`${r.got}${r.want ? `/${r.want}` : ''}<small>本</small>`]
+    : r.kind === 'minutes' ? [html`${CLOCK}${r.want}分以内`, html`${r.got}<small>分</small>`]
+    : [html`<i class="sw-route"></i>高速を使わない`, r.got ? html`${r.got}<small>km 通る</small>` : html`<span class="muted">通らない</span>`];
+  return html`<div class="c">${c}</div><div class="v">${v}</div><div class="j">${judged(r.result)}</div>`;
+}
+
+/** 合否表。車線数は参考の行（合否に使わない） */
+function checkTable(c: CheckOutput) {
+  const n = c.lanes.untagged_runs, u = n ? 'u' : '';
+  const counted = c.tunnels.filter((t) => !t.skip), skipped = c.tunnels.filter((t) => t.skip);
+  const tname = (t: CheckOutput['tunnels'][number]) => t.name ?? '名前なし';
+  return html`<div class="vt">
+      ${c.rows.map(checkRow)}
+      <div class="c ${u}"><i class="sw-unk"></i>車線数（参考）</div>
+      <div class="v ${u}">${n ? html`${n}<small>区間</small>` : html`<span class="muted">すべてタグあり</span>`}</div>
+      <div class="j ${u}">${n ? judged('unknown') : ''}</div>
+    </div>
+    <div class="od" style="margin-top:6px">車線数のタグ（lanes）があるのはコースの ${Math.round(c.lanes.tagged_share * 100)}%${n ? `。タグのない ${n}区間は判定不能` : ''}（車線数は合否に使いません）</div>
+    <div class="note">トンネルの数え方：連続する tunnel=yes を1本、50m未満は数えない。同じトンネルを2回通ったら（上下線など）1本</div>
+    ${counted.length ? html`<div class="note">数えたトンネル：${counted.map((t) => `${tname(t)}（${dist(t.m / 1000)}）`).join('、')}</div>` : ''}
+    ${skipped.length ? html`<div class="note">数えなかったもの：${skipped.map((t) => `${tname(t)}（${t.skip === 'short' ? `${t.m} m・50m未満` : '2回目'}）`).join('、')}</div>` : ''}
+    ${c.missing ? html`<div class="note">OSM のタグを取り直せなかった道が ${c.missing}本あります</div>` : ''}`;
+}
+
+const STOPPED: Record<NonNullable<CourseOutput['stopped_by']>, string> = {
+  attempts: '案の上限（5案）まで試しました', routes: 'ルート計算の上限（10回）まで試しました',
+  candidates: '経由地にできるトンネルの候補を使い切りました', other: 'トンネルを足しても直らない条件があります',
+};
+
+function course(o: CourseOutput) {
+  const i = o.chosen ?? o.attempts.length - 1, a = o.attempts[i], v = a.check.verdict;
+  const start = nm(o.start);
+  return html`<div class="card">
+    <div class="ph-h"><h2>合否表</h2>${verdictTag(v)}
+      <span class="chipline">${o.attempts.map((x, k) => html`<span class="${k === i ? 'on' : ''}">${k + 1}回目${k === i ? '' : ` ${V_TEXT[x.check.verdict]}`}</span>`)}</span></div>
+    <div class="od" style="margin-top:6px">${start} 発着（周回）・${min(a.minutes)}・${km(a.km)}・経由：${a.via.map((x) => x.name ?? '名前なし').join('、')}</div>
+    <div class="kv"><div><b>解釈</b><span>トンネル＝道路の tunnel=yes（連続する区間は1本）${o.conditions.avoid_highways ? '／高速＝高速道路と有料道路を除外して計算' : ''}／${start}から${start}へ（周回）</span></div></div>
+    ${checkTable(a.check)}
+    <div class="note">経由地の候補はプログラムが作りました：出発地から${o.radius_m / 1000}km以内の名前のある道路トンネル ${o.candidates}本（有料・自動車専用・車両通行不可・高さ2.1m未満の ${o.excluded}本は除外）。ルート計算 ${o.routes}回</div>
+    ${o.chosen == null ? html`<div class="zero">条件を満たすコースは見つかりませんでした（${STOPPED[o.stopped_by ?? 'other']}）。地図には最後の案を出しています</div>` : ''}
+  </div>`;
+}
+
+function checkCard(o: CheckRouteOutput) {
+  return html`<div class="card">
+    <div class="ph-h"><h2>合否表</h2>${verdictTag(o.verdict)}</div>
+    <div class="od" style="margin-top:6px">いま地図にあるルート：${o.from} → ${o.to}・${min(o.minutes)}・${km(o.km)}</div>
+    ${checkTable(o)}
+  </div>`;
+}
+
 export function shareCard(o: ShareOutput) {
   return html`<div class="card"><h3>共有リンク</h3>
     <div class="share"><input readonly value="${location.origin + o.url}" aria-label="共有リンク"><button class="btn" type="button" data-act="copy">コピー</button></div>
@@ -184,6 +252,8 @@ export function stepHtml(s: OpResult, hereAcc?: number): Raw {
     case 'route': return route(s.output as RouteOutput, hereAcc);
     case 'set_view': return setView(s.output as SetViewOutput);
     case 'make_share_link': return shareCard(s.output as ShareOutput);
+    case 'plan_course': return course(s.output as CourseOutput);
+    case 'check_route': return checkCard(s.output as CheckRouteOutput);
     case 'unknown_words': return html`<div class="card"><div>辞書にない言葉：${(s.output as UnknownWordsOutput).words.join('、')}（地物の検索には使えません）</div></div>`;
     default: return html`<div class="card"><h3>${s.title}</h3></div>`;
   }

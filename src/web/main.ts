@@ -17,8 +17,8 @@ import { layers, namedFlavor } from '@protomaps/basemaps';
 import { ATTRIBUTION, attributionParts, dataAsOfText } from '../attribution';
 import { CHIPS, DICT, type DictKey } from '../ops/dict';
 import type {
-  BBox, ChatResponse, ContextResponse, FindFeaturesOutput, GeocodeOutput, LngLat, OpResult, Place,
-  RouteOutput, SearchPlaceOutput, Session, SetViewOutput, ShareState,
+  BBox, ChatResponse, CheckRouteOutput, ContextResponse, CourseOutput, FindFeaturesOutput, GeocodeOutput, LngLat, OpResult, Place,
+  RouteOutput, SearchPlaceOutput, Session, SetViewOutput, ShareState, TunnelRun,
 } from '../ops/types';
 import { CHIP_ICON, COLOR, html, nm, type Raw, renderChat, renderDirect, renderError, renderWait, stepHtml } from './panel';
 
@@ -44,6 +44,7 @@ const st = {
   feat: new Map<DictKey, Place[]>(),
   visible: new Set<DictKey>(),
   route: undefined as RouteOutput | undefined,
+  tunnels: [] as TunnelRun[], // 合否表で数えたトンネル（地図に名前を出す）
   pins: [] as { place: Place; n: string }[], // 住所と場所の検索の結果
   here: undefined as Session['here'],
   clicks: [] as { coord: LngLat; n: string }[],
@@ -90,12 +91,30 @@ function circle([lng, lat]: LngLat, r: number): F {
   return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } };
 }
 
+/** 名前の札の背景（角の丸い四角。icon-text-fit で文字に合わせて伸ばす） */
+function pill(color: string): ImageData {
+  const g = document.createElement('canvas').getContext('2d')!;
+  g.canvas.width = g.canvas.height = 32;
+  g.fillStyle = color;
+  g.beginPath();
+  g.roundRect(0, 0, 32, 32, 12);
+  g.fill();
+  return g.getImageData(0, 0, 32, 32);
+}
+
 const halo = { 'text-color': C.text, 'text-halo-color': C.white, 'text-halo-width': 1.6 };
 const OVERLAY: maplibregl.LayerSpecification[] = [
   { id: 'acc-fill', type: 'fill', source: 'acc', paint: { 'fill-color': C.teal, 'fill-opacity': 0.14 } },
   { id: 'acc-line', type: 'line', source: 'acc', paint: { 'line-color': C.teal, 'line-width': 1.5, 'line-opacity': 0.6 } },
   { id: 'route-casing', type: 'line', source: 'route', paint: { 'line-color': C.white, 'line-width': 10 }, layout: { 'line-join': 'round', 'line-cap': 'round' } },
   { id: 'route-line', type: 'line', source: 'route', paint: { 'line-color': C.teal, 'line-width': 6 }, layout: { 'line-join': 'round', 'line-cap': 'round' } },
+  // 数えたトンネル：ルートの上に縞の線と名前
+  { id: 'tun-line', type: 'line', source: 'tun', filter: ['==', ['geometry-type'], 'LineString'], paint: { 'line-color': C.sumi, 'line-width': 10 }, layout: { 'line-join': 'round' } },
+  { id: 'tun-dash', type: 'line', source: 'tun', filter: ['==', ['geometry-type'], 'LineString'], paint: { 'line-color': C.white, 'line-width': 3, 'line-dasharray': [1.5, 1.5] } },
+  { id: 'tun-t', type: 'symbol', source: 'tun', filter: ['==', ['geometry-type'], 'Point'], layout: {
+    'text-field': ['get', 'name'], 'text-font': ['Noto Sans Medium'], 'text-size': 12, 'text-anchor': 'left', 'text-offset': [1.4, 0], 'text-allow-overlap': true,
+    'icon-image': 'pill', 'icon-text-fit': 'both', 'icon-text-fit-padding': [3, 8, 3, 8], 'icon-allow-overlap': true,
+  }, paint: { 'text-color': '#F2F5F6' } },
   { id: 'feat-c', type: 'circle', source: 'feat', paint: { 'circle-radius': 6, 'circle-color': ['get', 'color'], 'circle-stroke-color': C.white, 'circle-stroke-width': 2 } },
   { id: 'feat-t', type: 'symbol', source: 'feat', minzoom: 14, layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 12, 'text-anchor': 'top', 'text-offset': [0, 0.8], 'text-optional': true }, paint: halo },
   { id: 'marks-c', type: 'circle', source: 'marks', paint: { 'circle-radius': 12, 'circle-color': ['get', 'color'], 'circle-stroke-color': C.white, 'circle-stroke-width': 2.5 } },
@@ -106,7 +125,8 @@ const OVERLAY: maplibregl.LayerSpecification[] = [
 ];
 let loaded = false;
 map.on('load', () => {
-  for (const id of ['acc', 'route', 'feat', 'marks', 'here']) map.addSource(id, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  for (const id of ['acc', 'route', 'tun', 'feat', 'marks', 'here']) map.addSource(id, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addImage('pill', pill(C.sumi), { pixelRatio: 2, stretchX: [[12, 20]], stretchY: [[12, 20]], content: [8, 8, 24, 24] });
   OVERLAY.forEach((l) => map.addLayer(l));
   loaded = true;
   draw();
@@ -130,11 +150,17 @@ function draw() {
   set('feat', [...st.visible].flatMap((w) => (st.feat.get(w) ?? []).map((p) => pt(p.coord, { color: COLOR[w], name: p.name ?? '' }))));
   const r = st.route;
   set('route', r ? r.legs.map((l): F => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: l.shape } })) : []);
+  set('tun', st.tunnels.flatMap((t): F[] => [
+    { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: t.line } },
+    pt(t.mid, { name: t.name ?? 'トンネル' }),
+  ]));
   const marks: F[] = [];
   if (r) {
-    if (r.from.kind !== 'here' || !st.here) marks.push(pt(r.from.coord, { n: '出', label: nm(r.from), color: C.sumi }));
-    r.stops.forEach((s, i) => marks.push(pt(s.chosen.coord, { n: String(i + 1), label: nm(s.chosen), color: C.sumi })));
-    marks.push(pt(r.to.coord, { n: '終', label: nm(r.to), color: C.sumi }));
+    const loop = r.from.ref === r.to.ref; // 試走コース（出発地に戻る）は印を1つにする
+    if (!loop && (r.from.kind !== 'here' || !st.here)) marks.push(pt(r.from.coord, { n: '出', label: nm(r.from), color: C.sumi }));
+    // 経由地のトンネルの名前は、トンネルの札（tun-t）に出すので重ねない
+    r.stops.forEach((s, i) => marks.push(pt(s.chosen.coord, { n: String(i + 1), label: s.chosen.kind === 'tunnel' && st.tunnels.length ? '' : nm(s.chosen), color: C.sumi })));
+    marks.push(pt(r.to.coord, loop ? { n: '発', label: `${nm(r.to)}（出発・到着）`, color: C.sumi } : { n: '終', label: nm(r.to), color: C.sumi }));
   }
   const onRoute = new Set(r ? [r.from, r.to, ...r.stops.map((s) => s.chosen)].map((p) => p.ref) : []);
   for (const { place, n } of st.pins) if (!onRoute.has(place.ref)) marks.push(pt(place.coord, { n, label: nm(place), color: place.kind === 'address' ? C.sumi : C.teal }));
@@ -183,7 +209,16 @@ function apply(steps: OpResult[]): LngLat[] {
       if (o.items.length) cam = o.items.map((p) => p.coord);
     } else if (s.op === 'route') {
       st.route = s.output as RouteOutput;
+      st.tunnels = [];
       cam = st.route.legs.flatMap((l) => l.shape);
+    } else if (s.op === 'plan_course') {
+      const o = s.output as CourseOutput;
+      st.route = o.course;
+      st.tunnels = o.attempts[o.chosen ?? o.attempts.length - 1].check.tunnels.filter((t) => !t.skip);
+      cam = o.course.legs.flatMap((l) => l.shape);
+    } else if (s.op === 'check_route') {
+      st.tunnels = (s.output as CheckRouteOutput).tunnels.filter((t) => !t.skip);
+      cam = st.route?.legs.flatMap((l) => l.shape) ?? [];
     } else if (s.op === 'set_view') {
       const o = s.output as SetViewOutput;
       o.shown.forEach((w) => st.visible.add(w));

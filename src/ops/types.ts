@@ -112,6 +112,42 @@ export interface SetViewOutput { target: Place | null; bbox: BBox; shown: DictKe
 export interface ShareOutput { id: string; url: string; includes_here: boolean }
 export interface UnknownWordsOutput { words: string[] }
 
+// ===== 試走コースと合否表（plan_course、check_route） =====
+/** null は「その条件は見ない」 */
+export interface CourseConditions { tunnels: number | null; max_minutes: number | null; avoid_highways: boolean }
+/** pass 合格／fail 不合格／unknown 判定不能 */
+export type Verdict = 'pass' | 'fail' | 'unknown';
+/** 頼まれた条件の行。got：トンネルは数えた本数、高速は高速・有料の道を通った距離（km）、時間は分 */
+export interface CheckRow { kind: 'tunnels' | 'no_highways' | 'minutes'; want: number | null; got: number; result: Verdict }
+/**
+ * 連続する tunnel=yes の区間。name は tunnel:name か name（なければ null）。
+ * skip：数えなかった理由（short：50m 未満、repeat：同じトンネル（同じ名前か、真ん中が 100m 以内）の2回目）。null なら1本と数えた
+ */
+export interface TunnelRun { name: string | null; ways: string[]; m: number; skip: 'short' | 'repeat' | null; mid: LngLat; line: LngLat[] }
+export interface CheckOutput {
+  verdict: Verdict; rows: CheckRow[]; tunnels: TunnelRun[];
+  /** 車線数（参考。合否には使わない）：lanes タグがある距離の割合と、タグのない区間の数（間が 50m 未満ならまとめる） */
+  lanes: { tagged_share: number; untagged_runs: number };
+  minutes: number; km: number;
+  /** 生のタグを取り直した way の数と、見つからなかった way の数 */
+  ways: number; missing: number;
+  snapped: boolean;
+}
+export interface CheckRouteOutput extends CheckOutput { from: string; to: string }
+export interface CourseAttempt { via: { ref: string; name: string | null; osm: string }[]; minutes: number; km: number; check: CheckOutput }
+export interface CourseOutput {
+  start: Place; conditions: CourseConditions;
+  /** 候補を探した半径（m）、経由地の候補にしたトンネルの数、除いた way の数（有料・自動車専用・車両通行不可・高さ 2.1m 未満） */
+  radius_m: number; candidates: number; excluded: number;
+  attempts: CourseAttempt[];
+  /** 合格した案の番号（attempts の添字）。なければ null で、地図には最後の案を出す */
+  chosen: number | null;
+  /** 見つからずに止まった理由：案の上限、ルート計算の上限、候補の尽き、足しても直らない条件 */
+  stopped_by: 'attempts' | 'routes' | 'candidates' | 'other' | null;
+  routes: number;
+  course: RouteOutput;
+}
+
 /** 共有リンクで保存する地図の状態（GET /api/share/:id） */
 export interface ShareState {
   id: string; created_at: string;

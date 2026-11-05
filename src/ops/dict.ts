@@ -70,13 +70,19 @@ export const DICT = {
   level_crossing: {
     label: '踏切', aliases: ['踏切', '踏み切り'],
     queries: [{ elements: 'node', filter: '["railway"="level_crossing"]' }],
-    interpretation: '踏切＝railway=level_crossing（歩行者専用の railway=crossing は含まない）',
+    interpretation: '踏切＝railway=level_crossing（歩行者用の踏切（railway=crossing）は含まない）',
+  },
+  foot_crossing: {
+    label: '歩行者用の踏切', aliases: ['歩行者用の踏切', '歩行者踏切', '人道踏切'],
+    queries: [{ elements: 'node', filter: '["railway"="crossing"]' }],
+    interpretation: '歩行者用の踏切＝railway=crossing（車の通る踏切は含まない）',
   },
   tunnel: {
     label: 'トンネル', aliases: ['トンネル'],
-    // 車の通る道路だけ。歩道や建物の通り抜け（tunnel=building_passage）、暗渠（culvert）は含まない
+    // 車の通る道路だけ。歩道や建物の通り抜け（tunnel=building_passage）、暗渠（culvert）は含まない。
+    // つながった way は find_features で1本にまとめ、50m 未満は数えない
     queries: [{ elements: 'way', filter: '["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link)$"]["tunnel"="yes"]' }],
-    interpretation: 'トンネル＝道路の tunnel=yes（建物の通り抜けと暗渠は含まない）',
+    interpretation: 'トンネル＝道路の tunnel=yes（つながった区間は1本、50m未満は数えない。建物の通り抜けと暗渠は含まない）',
   },
 } as const satisfies Record<string, DictEntry>;
 

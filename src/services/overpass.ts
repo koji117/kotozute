@@ -18,6 +18,8 @@ export interface OsmElement {
   lat?: number; lon?: number; center?: { lat: number; lon: number };
   bounds?: { minlat: number; minlon: number; maxlat: number; maxlon: number };
   tags?: Record<string, string>;
+  /** way の点（out body geom のときだけ） */
+  nodes?: number[]; geometry?: { lat: number; lon: number }[];
 }
 
 /** 範囲の書き方。上限を超えたら OpError('limit') */
@@ -36,9 +38,18 @@ export function areaClause(area: Area): string {
 /**
  * 辞書の言葉と範囲から検索文を作る。件数は上限 +1 まで取り、超えたら truncated にする。
  * `out bb`：点は lat/lon、線と面は範囲（bounds）が付く。Overpass の center は範囲の中心と同じなので、toPlace で範囲から作る
+ * geom：way の点と形も取る（つながった way をまとめるとき）
  */
-export function featureQuery(word: DictKey, area: Area): string {
-  return `[out:json][timeout:${LIMITS.timeout_s}];(${featureParts(word, areaClause(area))});out bb tags ${LIMITS.max_items + 1};`;
+export function featureQuery(word: DictKey, area: Area, geom = false): string {
+  return `[out:json][timeout:${LIMITS.timeout_s}];(${featureParts(word, areaClause(area))});out ${geom ? 'body geom' : 'bb tags'} ${LIMITS.max_items + 1};`;
+}
+
+/** way の生のタグを取り直す（ルートの判定用）。同じ道の組なら同じ検索文になるよう番号を並べる */
+export async function wayTags(ids: number[]): Promise<Map<number, Record<string, string>>> {
+  const sorted = [...new Set(ids)].sort((a, b) => a - b);
+  if (!sorted.length) return new Map();
+  const { elements } = await overpass(`[out:json][timeout:${LIMITS.timeout_s}];way(id:${sorted.join(',')});out tags;`);
+  return new Map(elements.map((e) => [e.id, e.tags ?? {}]));
 }
 
 /** 言葉の検索部分（範囲の書き方 a つき）。scripts/tag-audit.ts も同じものを数える */

@@ -34,3 +34,20 @@ export const distM = ([x1, y1]: LngLat, [x2, y2]: LngLat) => {
   const kx = 111320 * Math.cos((((y1 + y2) / 2) * Math.PI) / 180);
   return Math.hypot((x2 - x1) * kx, (y2 - y1) * 110570);
 };
+
+/** 折れ線の長さ（m） */
+export const lineM = (cs: LngLat[]) => cs.slice(1).reduce((s, c, i) => s + distM(cs[i], c), 0);
+
+/** 折れ線の長さの真ん中の点と、そこでの向き（度。北が0で時計回り、平面近似） */
+export function midOf(cs: LngLat[]): { coord: LngLat; heading: number } {
+  let half = lineM(cs) / 2;
+  for (let i = 1; i < cs.length; i++) {
+    const [a, b] = [cs[i - 1], cs[i]], d = distM(a, b);
+    if (d < half) { half -= d; continue; }
+    const t = d ? half / d : 0;
+    const kx = Math.cos((a[1] * Math.PI) / 180);
+    const heading = Math.round(((Math.atan2((b[0] - a[0]) * kx, b[1] - a[1]) * 180) / Math.PI + 360) % 360);
+    return { coord: [Math.round((a[0] + (b[0] - a[0]) * t) * 1e6) / 1e6, Math.round((a[1] + (b[1] - a[1]) * t) * 1e6) / 1e6], heading };
+  }
+  return { coord: cs[0], heading: 0 };
+}

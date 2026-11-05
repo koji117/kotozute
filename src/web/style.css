@@ -7,7 +7,7 @@
   --surface: #FFFFFF; --surface-2: #F3F5F6; --line: #E2E6E9; --line-2: #C7CED3;
   --map-bg: #F2F1EE; --glass: rgba(255,255,255,.93); --glass-line: rgba(17,21,24,.08);
   --ok-700: #18703E; --ok-50: #E5F3EA; --ng-700: #B3261E; --ng-50: #FBE7E5;
-  --unk-700: #734700; --unk-50: #FFF4DA; --unk-line: #B98012;
+  --unk-700: #734700; --unk-50: #FFF4DA; --unk-line: #B98012; --unk-25: #FFFCF3; --unk-hatch: rgba(185,128,18,.10);
   --white: #FFFFFF; --ink-sep: #6A747B; --grab: #C9D0D5;
   --r-xs: 5px; --r-sm: 8px; --r-md: 10px; --r-lg: 14px; --r-xl: 22px; --r-pill: 999px;
   --sh-pill: 0 1px 2px rgba(10,20,25,.10), 0 4px 14px rgba(10,20,25,.10);
@@ -99,6 +99,30 @@ ol.names li { padding: 1px 0; }
 .stp.stop .dotn { width: 20px; height: 20px; }
 .share { display: flex; gap: 8px; margin-top: 8px; }
 .share input { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: var(--r-md); font: 500 var(--fs-small) var(--f-mono); color: var(--text); background: var(--surface-2); }
+/* 合否表（試走コースとルートの判定）。印の中の線は --ic-mark の色 */
+.b-ng { background: var(--ng-50); color: var(--ng-700); }
+.badge { --ic-mark: var(--white); }
+.verdict { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 8px; border-radius: var(--r-pill); background: var(--ok-700); color: var(--white); font-size: var(--fs-ui); font-weight: 800; --ic-mark: var(--ok-700); }
+.verdict.v-fail { background: var(--ng-700); --ic-mark: var(--ng-700); }
+.verdict.v-unknown { background: var(--unk-700); }
+.chipline { display: flex; flex-wrap: wrap; gap: 6px; font-size: var(--fs-small); }
+.chipline span { display: flex; align-items: center; height: 28px; padding: 0 10px; border-radius: var(--r-pill); border: 1px solid var(--line-2); color: var(--text-3); }
+.chipline .on { border-color: var(--sumi-800); background: var(--sumi-800); color: var(--on-sumi); font-weight: 700; }
+.vt { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; margin-top: 10px; border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
+.vt > div { min-height: 42px; display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-top: 1px solid var(--line); }
+.vt > div:nth-child(-n+3) { border-top: 0; }
+.vt .c { font-weight: 700; overflow-wrap: normal; }
+.vt .c svg { color: var(--text-2); }
+.vt .v { gap: 0; font-size: var(--fs-value); font-weight: 800; white-space: nowrap; overflow-wrap: normal; }
+.vt .badge { white-space: nowrap; }
+.vt .v small { font-size: var(--fs-body); font-weight: 500; color: var(--text-2); margin-left: 2px; }
+.vt .muted { font-size: var(--fs-body); font-weight: 500; color: var(--text-3); }
+.vt .j { justify-content: flex-end; padding: 4px 8px; }
+.vt .u { background: repeating-linear-gradient(135deg, transparent 0 7px, var(--unk-hatch) 7px 9px) var(--unk-25); }
+.sw-tun, .sw-route, .sw-unk { width: 26px; border-radius: 3px; flex: none; }
+.sw-tun { height: 10px; border: 2.5px solid var(--sumi-700); background: repeating-linear-gradient(90deg, var(--white) 0 4px, var(--sumi-700) 4px 7px); }
+.sw-route { height: 6px; background: var(--teal-600); }
+.sw-unk { height: 12px; background: rgba(226,165,46,.55); border: 1.5px dashed var(--unk-line); }
 .foot { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .btn { display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 14px 0 12px; border-radius: var(--r-md); border: 1px solid var(--line-2); background: var(--surface); font-size: var(--fs-ui); font-weight: 700; white-space: nowrap; }
 .btn.primary { background: var(--teal-600); border-color: var(--teal-600); color: var(--white); }
@@ -140,4 +164,6 @@ ol.names li { padding: 1px 0; }
   .br { bottom: calc(var(--edge) + var(--sheet-h, 0px)); max-width: calc(100vw - var(--edge) * 2); }
   .attr { white-space: normal; }
   .kv > div { grid-template-columns: 96px 1fr; }
+  .vt .c > :is(i, svg) { display: none; } /* 合否表：狭いので条件の見本の線は出さない */
+  .vt > div { padding: 4px 8px; }
 }
