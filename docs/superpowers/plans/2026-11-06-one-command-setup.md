@@ -199,3 +199,53 @@
 
 - [ ] 11/7 16:00 の確認（設計書 §10）。通れば Q2 (a)：元に戻す手順を先に試してから、この Mac を新しい作りにする。
 - [ ] README（入れ方、確かめた環境、Linux は試していない、Docker Desktop の契約の注意、使ったOSSの表）、①の言い方（ノートPCで確かめたら）、HANDOFF の作り直しの手順、CLAUDE.md（決定事項 Q1〜Q9、構成、取得先の一覧）、Skill kotozute-dictionary（辞書を変えたら `--redo=index`、pbf が要る）。
+
+---
+
+## 追加（2026-11-06。設計書 §16 Mac のアプリ。機能の凍結は 11/8 19:00）
+
+Task 4 のうち、Valhalla と ABR を Docker で動かす部分は Task 4b に置き換える。ABR のデータを作るとき（PostgreSQL）だけ Docker を使う。
+
+### Task 4b: ルートを valhallajs に、住所を Mac 用の abrg に
+
+**Files:**
+- Modify: `src/services/valhalla.ts`、`package.json`（`"@valhallajs/valhallajs": "3.7.0"` を dependencies に。版は固定）
+- Create: `scripts/setup/valhalla.ts`、`scripts/setup/abr.ts`、`scripts/check-setup-services.ts`
+
+**Interfaces:**
+- Produces:
+  - `src/services/valhalla.ts`：環境変数 `VALHALLA_MODE=embedded` と `VALHALLA_CONFIG=<valhalla.json のパス>` のとき、HTTP の代わりに `Actor.fromConfigFile` の Actor を使う（最初に使うときに作る）。今の関数の名前・引数・戻り値・エラーの文は変えない。既定は HTTP（今の Docker）。
+  - `buildValhalla(o: { pbf: string; dir: string; jobs: number; log: Log }): Promise<void>`：valhallajs の道具（`build_config`、`build_tiles`、tar にする手順）で `<dir>/valhalla_tiles.tar` と `<dir>/valhalla.json` だけを残す。設定は設計書 §8.2 と同じ（`allow_hard_exclusions=true`、admins と timezones なし、`elevation=""`、速度表は OpenStreetMapSpeeds c9c6872、作ったあとタイルのフォルダと速度表を消す）。Docker なし。
+  - `buildAbrData(o: { pref: string; dir: string; log: Log }): Promise<void>` → `<dir>/abrg.duckdb`（作るときだけ Docker の PostgreSQL。Task 4 Step 2 のとおり、作業の残りを消す）
+  - `buildAbrg(o: { dir: string; log: Log }): Promise<string>` → 手元の Go で `ABR_COMMIT` の `abrg` を Mac（arm64）用に作り、`<dir>/abrg` のパスを返す。上流の作り方の指定（CGO、タグ）を写す。
+  - `abrgServe(o: { bin: string; cache: string; port: number }): { cmd: string; args: string[]; env: Record<string,string> }`
+- [ ] **Step 1:** 関東の pbf で valhallajs の tar を作る（`~/kotozute-parity/valhalla-js/`）。かかった時間と最大メモリを記録。
+- [ ] **Step 2: テスト**：組み込みで `~/kotozute-setup-lab/valhalla/scripts/compare.sh` と同じ26本を引き、`results/cmp-tokyo-prod.txt`（今の Docker 3.9.1）と比べる。違いがあれば一覧にする（時間、距離、通る道）。デモのルート（例1：品川駅 高輪口 → 泉岳寺駅前郵便局 → 文銭堂 → 芝公園4丁目2、例2：品川駅の周回コース）も比べる。`drive_on_right=false`、ハード除外。
+- [ ] **Step 3: テスト**：Mac 用の `abrg` で東京の `abrg.duckdb`（`~/kotozute-setup-lab/abr/tokyo-cache/abrg.duckdb` の写し）を 127.0.0.1:18032 で動かし、`~/kotozute-setup-lab/abr/cmp.sh` の18の住所が :3002 と同じ。
+- [ ] **Step 4:** `OSM_BACKEND=overpass VALHALLA_MODE=embedded VALHALLA_CONFIG=… npx tsx scripts/check-course.ts` と `check-route.ts`（ABR_URL は Step 3 の abrg）が通るか。数字が今と違えば、その違いを記録する（直さない。ユーザーに伝える）。
+- [ ] **Step 5:** コミット
+
+### Task 11: Mac のアプリ（Electron）
+
+**Files:**
+- Create: `desktop/main.mjs`、`desktop/preload.mjs`、`desktop/key.html`、`electron-builder.yml`、`scripts/check-desktop.mjs`
+- Modify: `package.json`（devDependencies に `"electron": "44.9.3"`、`"electron-builder": "26.18.0"`。scripts に `"app": "electron desktop/main.mjs"`、`"app:dist": "electron-builder --mac dmg --arm64"`）、サーバが書き込む場所（共有リンク、レシピ、操作の記録、書き出し）を環境変数 `KOTOZUTE_DATA_DIR` で変えられるようにする（既定は今の場所）
+
+**Interfaces:**
+- Consumes: Task 3 の `OSM_BACKEND`／`OSM_INDEX`、Task 5 の `REGION`（`data/region.json`）、Task 4b の `VALHALLA_MODE`／`VALHALLA_CONFIG` と `abrgServe`。まだ取り込まれていなければ環境変数で渡し、統合のときにつなぐ。
+- Produces:
+  - main：空いたポートを2つ選ぶ → `abrg serve`（子のプロセス）→ サーバ（`ELECTRON_RUN_AS_NODE=1` の Electron で `src/server/main.ts` を動かす。TypeScript をどう動かすか（tsx を入れる、先に JS にする）は作る人が決める。起動は5秒以内）→ `/` が 200 になるまで待つ → 窓を出す。窓を閉じたら子のプロセスを全部止めて終わる。
+  - キー：初めて開いたとき `desktop/key.html`（日本語）でキーを入れてもらう。`safeStorage` で暗号化して userData に保存。「キーなしで使う」も選べる。メニューに「API キーを変える」「終了」。キーは画面・ログに出さない。サーバには環境変数で渡す。
+  - アプリの中のデータの置き場所：リポジトリと同じ並び（`tokyo.pmtiles`、`data/region.json`、`data/setup/…`、`data/basemaps-assets-src/…`）を Resources に入れ、サーバの相対パスがそのまま効くようにする（asar は使わない）。書き込む場所は `~/Library/Application Support/kotozute/`。
+  - `electron-builder.yml`：appId `jp.kotozute.app`（仮）、productName `ことづて`、mac target dmg arm64、署名なし（`identity: null`）、入れるファイルの一覧（開発用のファイルとテストは入れない、`.env` を絶対に入れない）。
+- [ ] **Step 1: テスト（`scripts/check-desktop.mjs`）**：Playwright の `_electron.launch` でアプリを開く（キーなしを選ぶ）→ 地図が出る → 郵便局の札で印が出る → 窓を閉じると子のプロセスが残らない（`ps` で確かめる）。キーの画面の文にキーの値が出ない。
+- [ ] **Step 2:** 失敗を確かめる → 作る → 通るのを確かめる（開発中は今の Overpass、Docker の Valhalla と ABR に向けてよい）。
+- [ ] **Step 3:** `npm run app:dist` で `.dmg` ができる（データはまだ小さい仮のものでよい）。大きさを記録。`.env` が中にないことを確かめる（`find` で）。
+- [ ] **Step 4:** コミット
+
+### Task 12: アプリのデータと通しの確認（私がする）
+
+- [ ] 東京のデータ（SQLite の検索データ、valhallajs の tar、`abrg.duckdb`、`abrg`、`tokyo.pmtiles`、フォントとアイコン、`data/region.json`）を作り、アプリに入れて `.dmg` を作る。
+- [ ] 比べる確認（golden）をアプリと同じ組み合わせ（SQLite、組み込みの Valhalla、Mac の abrg）で回す。
+- [ ] `.dmg` を入れるところから試す（この Mac の別の場所、MacBook Air）。
+- [ ] README（Mac のアプリの入れ方と開き方、確かめた環境、Apple Silicon だけ、署名なし、使ったOSS）。
