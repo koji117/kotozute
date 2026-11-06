@@ -8,7 +8,7 @@ import type {
 } from '../ops/types';
 import type { NoteDraftOutput } from '../ops/draft_osm_note';
 import { ISSUES, type Issue } from '../ops/note_rules';
-import { courseCandidates, WIDENED_NOTE } from '../region-text';
+import { CHIP_SOURCE, courseCandidates, WIDENED_NOTE } from '../region-text';
 
 // ===== 差し込み。OSM の名前などはすべてエスケープする（Raw だけそのまま） =====
 export class Raw { constructor(readonly s: string) {} }
@@ -401,7 +401,7 @@ export function renderDirect(steps: OpResult[]) {
   const cards = steps.map((s) => stepHtml(s));
   return html`${close}<div class="ph-h"><h2>この画面の範囲</h2><span class="badge b-ok">AIを通さない</span></div>
     ${cards.map((c) => c.main)}
-    ${foot}${advSection([html`<div class="note">札は AI を通さずに、自社の Overpass へ直接たずねます</div>`, ...cards.map((c) => c.adv)], (steps.at(-1) as { net?: NetLog } | undefined)?.net)}`;
+    ${foot}${advSection([html`<div class="note">${CHIP_SOURCE}</div>`, ...cards.map((c) => c.adv)], (steps.at(-1) as { net?: NetLog } | undefined)?.net)}`;
 }
 
 export const renderError = (msg: string) => html`${close}<div class="card err" style="margin-top:0"><div>${msg}</div></div>${foot}${advSection([])}`;

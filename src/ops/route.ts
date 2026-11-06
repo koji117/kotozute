@@ -9,7 +9,7 @@ import { features } from '../services/osm';
 import { toPlace } from '../services/overpass';
 import { distM, inTokyo } from '../services/region';
 import { valhallaRoute, type VRoute } from '../services/valhalla';
-import { OUT_OF_AREA } from '../region-text';
+import { OUT_OF_AREA, STOP_SEARCH_ERROR } from '../region-text';
 
 const CORRIDOR_M = 300; // ルートからこの距離までを候補にする
 const THIN_M = 100; // 検索文を短くするため、ルートの形をこの間隔に間引く
@@ -96,7 +96,7 @@ export const route = defineOp({
       if (!word || found.has(word)) continue;
       // Overpass は同じ検索文が短い間に続くと JSON でない応答（duplicate_query）を返すので、OpError にする
       const { elements } = await features(word, { around: { points: thin(line), radius_m: CORRIDOR_M } }).catch((e) => {
-        throw e instanceof OpError ? e : new OpError('service', '地物の検索（自社の Overpass）がエラーを返しました。少し待ってから試してください');
+        throw e instanceof OpError ? e : new OpError('service', STOP_SEARCH_ERROR);
       });
       // ponytail: Overpass は上限 +1 件で切るので、長いルートで件数が多いと近い順が崩れる。道路につながらない候補は組み合わせで落ちるだけで、次の候補で埋めない
       const near = elements

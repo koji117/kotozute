@@ -36,3 +36,11 @@ export const WIDENED_NOTE = `画面の中になかったので、${name}全体�
 export const courseCandidates = (km: number) => `出発地から${km}km以内の、${name}の中の名前のある道路トンネル`;
 /** サーバが地域の外の座標（現在地、クリック）を断るとき */
 export const OUTSIDE_POINT = `対応する地域（${name}）の外です`;
+
+// 地物の検索の出どころ（2026-11-06 にユーザーが決定：手元の検索データのときは「手元の検索データ（OSM）」と言う）。
+// osm_backend がない今のデモ（Overpass）では、前と同じ文のまま
+const LOCAL = REGION.osm_backend === 'sqlite';
+/** 結果パネルの「詳細」の札の説明 */
+export const CHIP_SOURCE = LOCAL ? '札は AI を通さずに、手元の検索データ（OSM）から直接さがします' : '札は AI を通さずに、自社の Overpass へ直接たずねます';
+/** 寄り先の検索が失敗したときの文 */
+export const STOP_SEARCH_ERROR = LOCAL ? '地物の検索（手元の検索データ）がエラーを返しました。少し待ってから試してください' : '地物の検索（自社の Overpass）がエラーを返しました。少し待ってから試してください';
