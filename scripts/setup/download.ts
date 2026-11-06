@@ -55,7 +55,12 @@ export async function download(o: { url: string; dest: string; md5?: string; md5
   }
   if (Number.isFinite(h.bytes) && got !== h.bytes) throw new Error(`ダウンロードの大きさが合いません（${got} / ${h.bytes} バイト）。もう一度回すと続きから取ります`);
 
-  const want = o.md5 ?? (o.md5Url ? (await (await fetch(o.md5Url === true ? `${h.url}.md5` : o.md5Url)).text()).split(/\s+/)[0] : null);
+  let want = o.md5 ?? null;
+  if (!want && o.md5Url) {
+    const r = await fetch(o.md5Url === true ? `${h.url}.md5` : o.md5Url);
+    if (!r.ok) throw new Error(`md5 のファイルを取れません（HTTP ${r.status}）。もう一度回してください：${r.url}`);
+    want = (await r.text()).split(/\s+/)[0];
+  }
   if (want && (await md5Of(part)) !== want) {
     rmSync(part); // 壊れたものを続きに使わない
     throw new Error(`ダウンロードしたファイルの md5 が合いません。消したので、もう一度回すと最初から取ります：${h.url}`);

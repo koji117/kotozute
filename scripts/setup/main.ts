@@ -1,7 +1,7 @@
 // npm run setup -- --region=<地域>（入口は scripts/setup.mjs）。設計書 §6・§7・§16。
 // 手順を1つずつ順に回す。手順ごとに印（data/setup/state/）を残し、止まっても同じコマンドで続きから回る。
 // 再利用のオプション（--pbf、--tiles-file、--abr-cache、--abrg-bin、--valhalla-dir）で渡したファイルは、その場で使い、消さない・上書きしない。
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { freemem, totalmem } from 'node:os';
@@ -18,7 +18,7 @@ import { DEFAULT, fmtBytes, parseSetupArgs, regionConfig, resolveRegion, SetupEr
 import { prereq } from './prereq';
 import { ensureEnv, lock, Marks, openLog, sameFile, writeAtomic } from './steps';
 import { extract, latestBuild, pmtilesBin, poly2geojson, tilesInfo } from './tiles';
-import { osmiumFor, type Log } from './tools';
+import { OSMIUM_IMAGE, osmiumFor, type Log } from './tools';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DATA = join(ROOT, 'data/setup');
@@ -175,6 +175,7 @@ async function main(argv: string[]): Promise<void> {
           shape = { region: geo };
         }
         await extract({ bin, src, out: tilesDest, ...shape, maxzoom: args.maxzoom, log });
+        if (found.pmtiles === 'download') rmSync(join(DATA, 'bin'), { recursive: true, force: true }); // 取ってきた道具は消す
         return { file: rel(tilesDest) };
       },
     },
@@ -232,7 +233,7 @@ async function main(argv: string[]): Promise<void> {
   const todoSizes = [...todo].map((s) => size.steps[s]);
   const downloads = (pbfDownload ? size.pbf : 0) + todoSizes.reduce((a, x) => a + x.download, 0);
   const disk = (pbfDownload ? size.pbf : 0) + todoSizes.reduce((a, x) => a + x.final, 0) + Math.max(0, ...todoSizes.map((x) => x.temp)) + 2 ** 29;
-  log(`地域：${region.id}（${region.label}${region.kind === 'tokyo' ? '。今のデモと同じ設定' : ''}）。住所：${region.abrPref === 'all' ? '全国の住居表示' : `都道府県 ${region.abrPref} の住居表示`}`);
+  log(`地域：${region.id}（${region.label}${region.kind === 'tokyo' ? '。今のデモと同じ設定' : ''}）。住所：${region.abrPref === 'all' ? '全国の住居表示' : `${region.prefs[0].name}の住居表示`}`);
   for (const p of plan) log(`  [${p.s.name}] ${p.s.title}：${p.note}`);
   log(`OSM データ：${args.pbf ? `--pbf（${args.pbf}）を使います` : !pbfUse ? '使いません' : pbfDownload ? `${basename(want)} を取ってきます（約 ${fmtBytes(size.pbf)}）` : '取ってあります'}${!args.pbf && pbfUse && !args.keepPbf ? '。使い終わったら消します（残すなら --keep-pbf）' : ''}`);
   log(`ダウンロード：${downloads ? `約 ${fmtBytes(downloads)}` : 'なし'}。ディスク：約 ${fmtBytes(disk)}。作るときのメモリ：約 ${todo.has('valhalla') ? size.ramGiB : 1} GiB（この機械 ${fmtBytes(totalmem())}、空き ${fmtBytes(freemem())}）。どれも見積もり`);
@@ -254,6 +255,8 @@ async function main(argv: string[]): Promise<void> {
   if (args.dryRun) { log('--dry-run なので、ここで止めます'); return; }
   found = pre.found;
   if (found.osmium) osmium = osmiumFor(found.osmium, DATA);
+  // コンテナの osmium のイメージは、セットアップが取ってきたときだけ最後に消す（前からあるものは消さない）
+  const pulledOsmium = found.osmium === 'container' && spawnSync('docker', ['image', 'inspect', OSMIUM_IMAGE], { stdio: 'ignore' }).status !== 0;
   const osmiumOut = (a: string[]) => new Promise<string>((res, rej) => {
     const p = osmium!(a);
     let out = '';
@@ -282,6 +285,7 @@ async function main(argv: string[]): Promise<void> {
     // OSM データを使う手順が全部済んだら、取ってきた pbf を消す（--pbf で渡したものと --keep-pbf は残す）
     if (['boundary', 'index', 'valhalla'].includes(p.s.name)) dropPbf();
   }
+  if (pulledOsmium && spawnSync('docker', ['rmi', OSMIUM_IMAGE], { stdio: 'ignore' }).status === 0) log('取ってきた osmium のイメージを消しました');
   function dropPbf() {
     const m = pbfMark();
     if (args.pbf || args.keepPbf || !m || !existsSync(abs(m.file))) return;
