@@ -183,19 +183,22 @@ function setView(o: SetViewOutput) {
   </div></div>`);
 }
 
-// ===== 合否表（plan_course、check_route） =====
-// 印の中の線（✓・×）は --ic-mark の色。塗りの札（.verdict）では札の色にして抜く
+// ===== 条件の確認（plan_course、check_route） =====
+// 印の中の線（◯・×）は --ic-mark の色。塗りの札（.verdict）では札の色にして抜く
 const icon = (d: string) => raw(`<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">${d}</svg>`);
 const V_ICON: Record<Verdict, Raw> = {
-  pass: icon('<circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M5.6 10.2l3 3 5.8-6.2" fill="none" style="stroke:var(--ic-mark)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'),
+  pass: icon('<circle cx="10" cy="10" r="9" fill="currentColor"/><circle cx="10" cy="10" r="4.4" fill="none" style="stroke:var(--ic-mark)" stroke-width="2.2"/>'),
   fail: icon('<rect x="1.5" y="1.5" width="17" height="17" rx="3" fill="currentColor"/><path d="M6.5 6.5l7 7M13.5 6.5l-7 7" style="stroke:var(--ic-mark)" stroke-width="2.2" stroke-linecap="round"/>'),
   unknown: icon('<circle cx="10" cy="10" r="8.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 2"/><path d="M7.6 7.7a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1.1" fill="currentColor"/>'),
 };
 const CLOCK = icon('<circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 6v4.3l2.8 1.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>');
-const V_TEXT: Record<Verdict, string> = { pass: '合格', fail: '不合格', unknown: '判定不能' };
+/** 条件の行と案ごとの言葉 */
+const V_TEXT: Record<Verdict, string> = { pass: '合う', fail: '合わない', unknown: '分からない（データなし）' };
+/** 表全体の言葉（右上の札） */
+const V_ALL: Record<Verdict, string> = { pass: 'すべて合う', fail: '合わない条件あり', unknown: '分からない条件あり' };
 const V_BADGE: Record<Verdict, string> = { pass: 'b-ok', fail: 'b-ng', unknown: 'b-unk' };
 const judged = (v: Verdict) => html`<span class="badge ${V_BADGE[v]}">${V_ICON[v]}${V_TEXT[v]}</span>`;
-const verdictTag = (v: Verdict) => html`<span class="verdict v-${v}">${V_ICON[v]}${V_TEXT[v]}</span>`;
+const verdictTag = (v: Verdict) => html`<span class="verdict v-${v}">${V_ICON[v]}${V_ALL[v]}</span>`;
 
 function checkRow(r: CheckRow) {
   const [c, v] =
@@ -205,13 +208,13 @@ function checkRow(r: CheckRow) {
   return html`<div class="c">${c}</div><div class="v">${v}</div><div class="j">${judged(r.result)}</div>`;
 }
 
-/** 合否表。車線数（参考、合否に使わない）と数え方の内訳は「詳細」へ */
+/** 条件の確認。車線数（参考、確認に使わない）と数え方の内訳は「詳細」へ */
 function checkTable(c: CheckOutput): Card {
   const n = c.lanes.untagged_runs;
   const counted = c.tunnels.filter((t) => !t.skip), skipped = c.tunnels.filter((t) => t.skip);
   const tname = (t: CheckOutput['tunnels'][number]) => t.name ?? '名前なし';
   return card(html`<div class="vt">${c.rows.map(checkRow)}</div>`,
-    html`<div class="note">車線数（参考）：${n ? html`タグのない ${n}区間は ${judged('unknown')}` : 'すべてタグあり'}。車線数のタグ（lanes）があるのはコースの ${Math.round(c.lanes.tagged_share * 100)}%（車線数は合否に使いません）</div>
+    html`<div class="note">車線数（参考）：${n ? html`タグのない ${n}区間は ${judged('unknown')}` : 'すべてタグあり'}。車線数のタグ（lanes）があるのはコースの ${Math.round(c.lanes.tagged_share * 100)}%（車線数は条件の確認に使いません）</div>
     <div class="note">トンネルの数え方：連続する tunnel=yes を1本、50m未満は数えない。同じトンネルを2回通ったら（上下線など）1本</div>
     ${counted.length ? html`<div class="note">数えたトンネル：${counted.map((t) => `${tname(t)}（${dist(t.m / 1000)}）`).join('、')}</div>` : ''}
     ${skipped.length ? html`<div class="note">数えなかったもの：${skipped.map((t) => `${tname(t)}（${t.skip === 'short' ? `${t.m} m・50m未満` : '2回目'}）`).join('、')}</div>` : ''}
@@ -228,7 +231,7 @@ function course(o: CourseOutput) {
   const start = nm(o.start);
   const t = checkTable(a.check);
   return card(html`<div class="card">
-    <div class="ph-h"><h2>合否表</h2>${verdictTag(v)}
+    <div class="ph-h"><h2>条件の確認</h2>${verdictTag(v)}
       <span class="chipline">${o.attempts.map((x, k) => html`<span class="${k === i ? 'on' : ''}">${k + 1}回目${k === i ? '' : ` ${V_TEXT[x.check.verdict]}`}</span>`)}</span></div>
     <div class="od" style="margin-top:6px">${start} 発着（周回）・${min(a.minutes)}・${km(a.km)}・経由：${a.via.map((x) => x.name ?? '名前なし').join('、')}</div>
     ${t.main}
@@ -242,7 +245,7 @@ function course(o: CourseOutput) {
 function checkCard(o: CheckRouteOutput) {
   const t = checkTable(o);
   return card(html`<div class="card">
-    <div class="ph-h"><h2>合否表</h2>${verdictTag(o.verdict)}</div>
+    <div class="ph-h"><h2>条件の確認</h2>${verdictTag(o.verdict)}</div>
     <div class="od" style="margin-top:6px">いま地図にあるルート：${o.from} → ${o.to}・${min(o.minutes)}・${km(o.km)}</div>
     ${t.main}
   </div>`, t.adv);

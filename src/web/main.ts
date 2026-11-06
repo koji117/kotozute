@@ -47,7 +47,7 @@ const st = {
   feat: new Map<DictKey, Place[]>(),
   visible: new Set<DictKey>(),
   route: undefined as RouteOutput | undefined,
-  tunnels: [] as TunnelRun[], // 合否表で数えたトンネル（地図に名前を出す）
+  tunnels: [] as TunnelRun[], // 条件の確認で数えたトンネル（地図に名前を出す）
   pins: [] as { place: Place; n: string }[], // 住所と場所の検索の結果
   pinned: [] as Place[], // add_pin で立てたピン（サーバの session.pins と同じ並び）。新しい依頼でも消さない
   here: undefined as Session['here'],

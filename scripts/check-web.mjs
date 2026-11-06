@@ -347,7 +347,7 @@ try {
     await copyBtn.click();
     check('ノート：コピーした', await until(page2, () => document.querySelector('#toast')?.textContent === '下書きをコピーしました'), await text(page2, '#toast'));
 
-    // 5回目 例2 試走コース：plan_course と check_route を直接呼んだ結果を /api/chat の応答にして、合否表と地図を確かめる
+    // 5回目 例2 試走コース：plan_course と check_route を直接呼んだ結果を /api/chat の応答にして、条件の確認と地図を確かめる
     courseRes = { stop: 'done', steps: await page2.evaluate(async () => {
       const sessionId = window.sessionId;
       const op = async (name, input) => (await fetch(`/api/op/${name}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId, input }) })).json();
@@ -362,7 +362,7 @@ try {
     await page2.locator('#panel .vt').first().waitFor();
     const t4 = await text(page2, '#panel');
     const vt = await text(page2, '#panel .vt');
-    check('試走：合否表に合格と3つの行、車線数（参考）は「詳細」', /合否表\s?合格/.test(t4) && ['トンネル 2本', '高速を使わない', '60分以内'].every((s) => vt.includes(s)) && !vt.includes('車線数')
+    check('試走：条件の確認に「すべて合う」と3つの行、車線数（参考）は「詳細」', /条件の確認\s?すべて合う/.test(t4) && ['トンネル 2本', '高速を使わない', '60分以内'].every((s) => vt.includes(s)) && !vt.includes('車線数')
       && (await text(page2, '#panel details.adv')).includes('車線数（参考）'), vt.slice(0, 300));
     check('試走：案ごとの札（1回目・2回目）', await page2.locator('#panel .chipline span').count() === courseRes.steps[1].output?.attempts.length);
     check('試走：トンネルの数え方を出す', t4.includes('連続する tunnel=yes を1本、50m未満は数えない'));
@@ -413,7 +413,7 @@ try {
     await m.screenshot({ path: `${OUT}/mobile-note.png` });
   }
 
-  // スマホ：合否表が下部シートの幅に収まる
+  // スマホ：条件の確認が下部シートの幅に収まる
   if (courseRes) {
     const mc = await open({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     await mc.route('**/api/chat', (r) => r.fulfill({ json: courseRes }));
@@ -424,7 +424,7 @@ try {
       const p = document.querySelector('#panel'), vt = document.querySelector('#panel .vt');
       return p.scrollWidth <= p.clientWidth && vt.scrollWidth <= vt.clientWidth && vt.getBoundingClientRect().right <= innerWidth;
     });
-    check('スマホ：合否表がシートの幅に収まる', fits);
+    check('スマホ：条件の確認がシートの幅に収まる', fits);
     await mc.screenshot({ path: `${OUT}/mobile-course.png` });
   }
 

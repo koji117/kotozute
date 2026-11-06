@@ -128,7 +128,7 @@ export interface ExportRouteOutput { filename: string; mime: string; content: st
 // ===== 試走コースと合否表（plan_course、check_route） =====
 /** null は「その条件は見ない」 */
 export interface CourseConditions { tunnels: number | null; max_minutes: number | null; avoid_highways: boolean }
-/** pass 合格／fail 不合格／unknown 判定不能 */
+/** pass 合う／fail 合わない／unknown 分からない（データなし）。画面の言葉は src/web/panel.ts の V_TEXT・V_ALL */
 export type Verdict = 'pass' | 'fail' | 'unknown';
 /** 頼まれた条件の行。got：トンネルは数えた本数、高速は高速・有料の道を通った距離（km）、時間は分 */
 export interface CheckRow { kind: 'tunnels' | 'no_highways' | 'minutes'; want: number | null; got: number; result: Verdict }

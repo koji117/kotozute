@@ -109,7 +109,7 @@ export const llmCheck = (o: CheckOutput) => ({
 
 export const checkRoute = defineOp({
   name: 'check_route',
-  title: '合否表',
+  title: '条件の確認',
   description:
     'いま地図にあるルート（route か plan_course で引いたもの）が条件に合うかを判定し、合否表を返す。新しいルートは引かない。' +
     '通った道の生の OSM タグで判定する：トンネルは連続する tunnel=yes を1本（50m 未満と、同じトンネルの2回目は数えない。0本は「通らない」）、' +
