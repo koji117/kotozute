@@ -2,9 +2,9 @@
 //   1. 引数の解釈（知らない地域・知らないオプションは日本語のエラーと地域の一覧）
 //   2. 地域の解決（tokyo・osaka・kanto・japan・hokkaido）と、data/region.json の中身（東京は既定と同じ＋作ったもの）
 //   3. 手順の印（入力が同じなら飛ばし、違えばやり直す）、記録で値を伏せる、.env を作るのは無いときだけ、同じファイルの判定
-//   4. ダウンロード：途中で切れたら .part から続ける、md5 が違えば捨てる（手元の HTTP サーバ）
-//   5. 確認の手順：Docker なし、docker.sock の権限なし、Docker が止まっている、osmium なし、ポートが使用中、ディスク不足（偽の docker を PATH に置く）
-//   6. Geofabrik の .poly、地図の範囲（境界＋2km）、Task 4b の部品がないときの文
+//   4. ダウンロード：途中で切れたら .part から続ける、md5 が違えば捨てる、取り終えた .part は取り直さずに確かめる（手元の HTTP サーバ）
+//   5. 確認の手順：Docker なし、docker.sock の権限なし、Docker が止まっている、Docker の置き場の空き、osmium なし、Go と C のコンパイラ、ポートが使用中、ディスク不足（偽の docker を PATH に置く）
+//   6. Geofabrik の .poly、地図の範囲（境界＋2km）
 //   SETUP_PBF=<関東の pbf> があれば、東京の境界を作り直して、今の tokyo-boundary.json と 2000点で比べる（手元の osmium が要る。数秒）
 // 実行：npx tsx scripts/check-setup.ts
 import assert from 'node:assert/strict';
@@ -16,7 +16,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { mapBBox, buildBoundary, inRings } from './setup/boundary';
 import { download } from './setup/download';
-import * as external from './setup/external';
 import { DEFAULT, parseSetupArgs, regionConfig, resolveRegion, SetupError } from './setup/plan';
 import { prereq, type Needs } from './setup/prereq';
 import { ensureEnv, Marks, mask, sameFile } from './setup/steps';
@@ -116,48 +115,69 @@ await t('同じファイル（シンボリックリンク）', () => {
 });
 
 // ===== 4. ダウンロード =====
+const body = Buffer.from(Array.from({ length: 300_000 }, (_, i) => i % 251));
+const md5 = createHash('md5').update(body).digest('hex');
+let cut = true, ranges: string[] = [], gets = 0, md5Fail = 0;
+const srv = httpServer((req, res) => {
+  if (req.url === '/missing') { res.writeHead(404).end(); return; }
+  if (req.url!.endsWith('.md5')) { if (md5Fail-- > 0) res.writeHead(404).end(); else res.end(`${md5}  x.osm.pbf\n`); return; }
+  const range = /bytes=(\d+)-/.exec(req.headers.range ?? '');
+  const from = range ? Number(range[1]) : 0;
+  const head = { 'content-length': String(body.length - from), etag: '"v1"', 'accept-ranges': 'bytes' };
+  // /nosize：HEAD が大きさを返さない（続きがなければ 416 で分かる）
+  if (req.method === 'HEAD') { res.writeHead(200, req.url === '/nosize' ? { etag: '"v1"' } : { ...head, 'content-length': String(body.length) }).end(); return; }
+  gets++;
+  if (from >= body.length) { res.writeHead(416, { 'content-range': `bytes */${body.length}` }).end(); return; }
+  if (range) ranges.push(req.headers.range!);
+  res.writeHead(range ? 206 : 200, head);
+  if (cut) { cut = false; res.write(body.subarray(from, from + 100_000), () => res.destroy()); return; } // 途中で切る
+  res.end(body.subarray(from));
+});
+await new Promise<void>((r) => srv.listen(0, '127.0.0.1', () => r()));
+const base = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
+const log = () => {};
 await t('ダウンロード：途中から続ける、md5、取ってあれば飛ばす', async () => {
-  const body = Buffer.from(Array.from({ length: 300_000 }, (_, i) => i % 251));
-  const md5 = createHash('md5').update(body).digest('hex');
-  let cut = true, ranges: string[] = [];
-  const srv = httpServer((req, res) => {
-    if (req.url === '/missing') { res.writeHead(404).end(); return; }
-    const range = /bytes=(\d+)-/.exec(req.headers.range ?? '');
-    const from = range ? Number(range[1]) : 0;
-    const head = { 'content-length': String(body.length - from), etag: '"v1"', 'accept-ranges': 'bytes' };
-    if (req.method === 'HEAD') { res.writeHead(200, { ...head, 'content-length': String(body.length) }).end(); return; }
-    if (range) ranges.push(req.headers.range!);
-    res.writeHead(range ? 206 : 200, head);
-    if (cut) { cut = false; res.write(body.subarray(from, from + 100_000), () => res.destroy()); return; } // 途中で切る
-    res.end(body.subarray(from));
-  });
-  await new Promise<void>((r) => srv.listen(0, '127.0.0.1', () => r()));
-  const base = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
   const dest = join(tmp, 'dl', 'a.osm.pbf');
-  const log = () => {};
-  try {
-    await assert.rejects(download({ url: `${base}/a`, dest, md5, log }), /途中で切れました/);
-    assert.equal(existsSync(dest), false, '切れたら本当の名前にしない');
-    assert.ok(statSync(`${dest}.part`).size >= 100_000);
-    await download({ url: `${base}/a`, dest, md5, log });
-    assert.deepEqual(readFileSync(dest), body);
-    assert.ok(ranges.length === 1 && /^bytes=\d+-$/.test(ranges[0]) && ranges[0] !== 'bytes=0-', `続きから取る（${ranges}）`);
-    assert.equal(existsSync(`${dest}.part`), false);
-    await download({ url: `${base}/nothing-to-fetch`, dest, md5: 'x', log }); // 取ってあれば何もしない
-    const d2 = join(tmp, 'dl', 'b.osm.pbf');
-    await assert.rejects(download({ url: `${base}/b`, dest: d2, md5: '0'.repeat(32), log }), /md5 が合いません/);
-    assert.deepEqual([existsSync(d2), existsSync(`${d2}.part`)], [false, false], 'md5 が違えば捨てる');
-    await assert.rejects(download({ url: `${base}/missing`, dest: join(tmp, 'dl', 'c'), log }), (e: Error & { status?: number }) => e.status === 404);
-  } finally {
-    srv.close();
+  await assert.rejects(download({ url: `${base}/a`, dest, md5, log }), /途中で切れました/);
+  assert.equal(existsSync(dest), false, '切れたら本当の名前にしない');
+  assert.ok(statSync(`${dest}.part`).size >= 100_000);
+  await download({ url: `${base}/a`, dest, md5, log });
+  assert.deepEqual(readFileSync(dest), body);
+  assert.ok(ranges.length === 1 && /^bytes=\d+-$/.test(ranges[0]) && ranges[0] !== 'bytes=0-', `続きから取る（${ranges}）`);
+  assert.equal(existsSync(`${dest}.part`), false);
+  await download({ url: `${base}/nothing-to-fetch`, dest, md5: 'x', log }); // 取ってあれば何もしない
+  const d2 = join(tmp, 'dl', 'b.osm.pbf');
+  await assert.rejects(download({ url: `${base}/b`, dest: d2, md5: '0'.repeat(32), log }), /md5 が合いません/);
+  assert.deepEqual([existsSync(d2), existsSync(`${d2}.part`)], [false, false], 'md5 が違えば捨てる');
+  await assert.rejects(download({ url: `${base}/missing`, dest: join(tmp, 'dl', 'c'), log }), (e: Error & { status?: number }) => e.status === 404);
+});
+await t('ダウンロード：取り終えた .part は取り直さずに確かめる', async () => {
+  for (const name of ['full', 'nosize']) {
+    const dest = join(tmp, 'dl', `${name}.osm.pbf`);
+    writeFileSync(`${dest}.part`, body);
+    const g = gets;
+    await download({ url: `${base}/${name}`, dest, md5, log });
+    assert.deepEqual(readFileSync(dest), body, name);
+    assert.equal(existsSync(`${dest}.part`), false, name);
+    assert.equal(gets - g, name === 'full' ? 0 : 1, `${name}：GET の回数（大きさが分からなければ 416 で分かる）`);
   }
 });
+await t('ダウンロード：md5 のファイルが取れなかった回のあと、もう一度回すと通る', async () => {
+  const dest = join(tmp, 'dl', 'd.osm.pbf');
+  md5Fail = 1;
+  await assert.rejects(download({ url: `${base}/d`, dest, md5Url: true, log }), /md5 のファイルを取れません（HTTP 404）/);
+  assert.equal(statSync(`${dest}.part`).size, body.length);
+  const g = gets;
+  await download({ url: `${base}/d`, dest, md5Url: true, log });
+  assert.deepEqual([readFileSync(dest).equals(body), existsSync(`${dest}.part`), gets - g], [true, false, 0]);
+});
+srv.close();
 
 // ===== 5. 確認の手順（偽の docker と osmium を PATH に置く） =====
 const bin = join(tmp, 'bin');
 mkdirSync(bin);
 const stub = (name: string, script: string) => { writeFileSync(join(bin, name), `#!/bin/sh\n${script}\n`); chmodSync(join(bin, name), 0o755); };
-const none: Needs = { docker: false, dockerMemGiB: 2, go: false, goAvoid: [], python: false, osmium: null, pmtiles: false, port: null, diskBytes: 0, dir: tmp };
+const none: Needs = { docker: false, dockerMemGiB: 2, dockerDiskGiB: 1, go: false, goAvoid: [], python: false, osmium: null, pmtiles: false, port: null, diskBytes: 0, dir: tmp };
 const env = { PATH: bin };
 const problems = async (n: Partial<Needs>) => (await prereq({ ...none, ...n }, env)).problems.join('\n');
 await t('確認：何も要らなければ問題なし', async () => assert.equal(await problems({}), ''));
@@ -175,6 +195,13 @@ await t('確認：Docker のメモリ', async () => {
   assert.match(await problems({ docker: true, dockerMemGiB: 4 }), /Docker が使えるメモリが 1\.0 GiB です。4 GiB 以上に/);
   assert.equal(await problems({ docker: true, dockerMemGiB: 1 }), '');
 });
+await t('確認：Docker の置き場の空き（Linux のように手元にあるときだけ）', async () => {
+  stub('docker', `case "$3" in *Server.Version*) echo 29.0.0;; *MemTotal*) echo 8589934592;; *DockerRootDir*) echo "$ROOT_DIR";; esac`);
+  const p = async (root: string, gib: number) => (await prereq({ ...none, docker: true, dockerDiskGiB: gib }, { ...env, ROOT_DIR: root })).problems.join('\n');
+  assert.match(await p(tmp, 2 ** 30), /Docker の置き場（.*）の空きは .* GiB で、住所のデータを作るのに約 1073741824 GiB 要ります.*--abr-cache/);
+  assert.equal(await p(tmp, 1), '');
+  assert.equal(await p('/var/lib/docker-in-the-vm', 2 ** 30), '', '手元にない置き場（Mac の Docker Desktop）は見ない');
+});
 await t('確認：osmium がなければコンテナの osmium', async () => {
   const r = await prereq({ ...none, osmium: 'auto' }, env); // 偽の docker は動いている
   assert.deepEqual([r.found.osmium, r.problems], ['container', []]);
@@ -184,10 +211,14 @@ await t('確認：osmium がなければコンテナの osmium', async () => {
   stub('osmium', 'echo osmium version 1.19.1');
   assert.deepEqual((await prereq({ ...none, osmium: 'auto' }, env)).found.osmium, 'host');
 });
-await t('確認：Go と python3 がない', async () => {
+await t('確認：Go と C のコンパイラと python3 がない', async () => {
   const p = await problems({ go: true, goAvoid: ['--abrg-bin=<abrg>'], python: true });
   assert.match(p, /Go がありません。.*go\.dev\/dl.*--abrg-bin=<abrg> で Go なしで進めます/);
+  assert.match(p, /C のコンパイラがありません。.*xcode-select --install.*--abrg-bin=<abrg> で進めます/);
   assert.match(p, /python3 がありません。.*--valhalla-dir/);
+  stub('go', 'echo go version go1.25.0');
+  stub(process.platform === 'darwin' ? 'xcode-select' : 'cc', 'echo ok');
+  assert.equal(await problems({ go: true }), '');
 });
 await t('確認：ポートが使用中', async () => {
   const s = tcpServer().listen(0, '127.0.0.1');
@@ -207,12 +238,6 @@ await t('Geofabrik の .poly', () => {
 });
 await t('地図の範囲（境界＋2km、0.01度で外へ）', () => {
   assert.deepEqual(mapBBox([133.5, 34.1, 134.4, 34.5]), [133.47, 34.08, 134.43, 34.52]);
-});
-await t('Task 4b の部品がないとき', async () => {
-  if (existsSync('scripts/setup/abr.ts')) assert.equal(typeof (await external.abr()).abrgServe, 'function');
-  else await assert.rejects(external.abr(), /住所（ABR）の部品（scripts\/setup\/abr\.ts）がまだありません/);
-  if (existsSync('scripts/setup/valhalla.ts')) assert.equal(typeof (await external.valhalla()).buildValhalla, 'function');
-  else await assert.rejects(external.valhalla(), /ルート（Valhalla）の部品（scripts\/setup\/valhalla\.ts）がまだありません/);
 });
 
 // 関東の pbf があれば：東京の境界を作り直して、今の tokyo-boundary.json と比べる（2000点）

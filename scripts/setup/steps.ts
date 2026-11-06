@@ -65,6 +65,9 @@ export class Marks {
     mkdirSync(this.dir, { recursive: true });
     writeAtomic(this.file(step), JSON.stringify({ inputs, result, at: new Date().toISOString() } satisfies Mark, null, 1) + '\n');
   }
+  clear(step: string): void {
+    rmSync(this.file(step), { force: true });
+  }
 }
 
 /** 書きかけのファイルを残さない：.tmp に書いてから rename */

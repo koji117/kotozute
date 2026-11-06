@@ -143,6 +143,8 @@ export function sizes(r: Region, maxzoom: 14 | 15) {
     ramGiB: r.kind === 'japan' ? 12 : 5,
     /** 作業用の PostgreSQL に要る Docker のメモリ（GiB） */
     dockerMemGiB: all ? 4 : 2,
+    /** 作業用の PostgreSQL が Docker の置き場に書く量（GiB）。ponytail: 測っていない見積もり（abr の temp の DB の分＋イメージ） */
+    dockerDiskGiB: all ? 3 : 1,
   };
 }
 

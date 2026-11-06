@@ -10,6 +10,8 @@ export interface Needs {
   docker: boolean;
   /** Docker に要るメモリ（GiB） */
   dockerMemGiB: number;
+  /** Docker の置き場（DockerRootDir）に要る空き（GiB）。Linux のように置き場が手元にあるときだけ見る */
+  dockerDiskGiB: number;
   /** abrg と ABR の取り込みの道具を作る */
   go: boolean;
   /** Go が要る理由のうち、作ってあるものを渡して避けられるオプション */
@@ -77,6 +79,12 @@ export async function prereq(n: Needs, env: NodeJS.ProcessEnv = process.env): Pr
       const mem = Number(sh('docker', ['info', '--format', '{{.MemTotal}}']).out) || 0;
       if (n.docker && mem && mem < n.dockerMemGiB * 2 ** 30) problems.push(`Docker が使えるメモリが ${GiB(mem)} GiB です。${n.dockerMemGiB} GiB 以上にしてください（Docker Desktop：設定 → Resources → Memory）`);
       else ok.push(`Docker ${v.out}${mem ? `（メモリ ${GiB(mem)} GiB）` : ''}${found.osmium === 'container' ? '。osmium はコンテナのものを使います' : ''}`);
+      // Docker の置き場の空き。Mac の Docker Desktop では置き場が VM の中のパスで手元にないので見ない
+      const root = n.docker ? sh('docker', ['info', '--format', '{{.DockerRootDir}}']).out : '';
+      if (root.startsWith('/') && existsSync(root)) {
+        const f = statfsSync(root), free = f.bavail * f.bsize;
+        if (free < n.dockerDiskGiB * 2 ** 30) problems.push(`Docker の置き場（${root}）の空きは ${GiB(free)} GiB で、住所のデータを作るのに約 ${n.dockerDiskGiB} GiB 要ります（見積もり）。空きを作るか、作ってある abrg.duckdb を --abr-cache=<パス> で渡してください`);
+      }
     }
     if (!up && found.osmium === 'container') found.osmium = null;
   }
@@ -84,8 +92,14 @@ export async function prereq(n: Needs, env: NodeJS.ProcessEnv = process.env): Pr
   // 4. Go（abrg と ABR の取り込みの道具を作る。足りない版は Go が自分で取ってくる）
   if (n.go) {
     const g = sh('go', ['version']);
+    const avoid = (what: string) => (n.goAvoid.length ? `。作ってあるものがあれば ${n.goAvoid.join(' と ')} で${what}進めます` : '');
     if (g.ok) ok.push(`Go（${g.out.replace(/^go version /, '')}）`);
-    else problems.push(`Go がありません。住所の道具（abrg）を手元で作るのに使います。https://go.dev/dl/ から入れてください${n.goAvoid.length ? `。作ってあるものがあれば ${n.goAvoid.join(' と ')} で Go なしで進めます` : ''}`);
+    else problems.push(`Go がありません。住所の道具（abrg）を手元で作るのに使います。https://go.dev/dl/ から入れてください${avoid(' Go なしで')}`);
+    // abrg は DuckDB を使うので cgo で作る（C のコンパイラが要る）。Mac の cc は Command Line Tools がないと入れる窓を出すので、xcode-select -p で見る
+    if ((process.platform === 'darwin' ? sh('xcode-select', ['-p']) : sh('cc', ['--version'])).ok) ok.push('C のコンパイラ（cgo）');
+    else {
+      problems.push(`C のコンパイラがありません。住所の道具（abrg）は cgo で作ります。Mac は「xcode-select --install」、Ubuntu は「sudo apt install build-essential」で入ります${avoid('')}`);
+    }
   }
 
   // 5. python3（valhallajs のルートのデータを作る道具）

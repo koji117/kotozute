@@ -28,10 +28,10 @@ for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => stopAll(0));
 
 const env = { ...process.env };
 if (region.abrg_bin && region.abr_cache) {
-  register(); // abrg の起こし方は Task 4b の部品（TypeScript）を使う
-  const { abr } = await import('./setup/external.ts');
+  register(); // abrg の起こし方は scripts/setup/abr.ts（TypeScript）を使う
+  const { abrgServe } = await import('./setup/abr.ts');
   const port = await new Promise((ok) => { const s = createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => ok(p)); }); });
-  const a = await abr().then((m) => m.abrgServe({ bin: abs(region.abrg_bin), cache: abs(region.abr_cache), port }), (e) => { console.error(e.message); process.exit(1); });
+  const a = abrgServe({ bin: abs(region.abrg_bin), cache: abs(region.abr_cache), port });
   const p = spawn(a.cmd, a.args, { env: a.env, stdio: ['ignore', 'inherit', 'inherit'] });
   children.push(p);
   p.on('error', (e) => { console.error(`住所の道具（abrg）を起動できません：${e.message}`); stopAll(1); });

@@ -36,24 +36,29 @@ export async function download(o: { url: string; dest: string; md5?: string; md5
   const s = statfsSync(dirname(dest));
   if (s.bavail * s.bsize < left * 1.1) throw new Error(`空きディスクが足りません（${dirname(dest)} に、あと ${MiB(left * 1.1)} 要ります）。ファイルを消して空きを作ってから、もう一度回してください`);
 
-  // If-Range：途中のファイルが変わっていたら（latest が新しくなった）、サーバは全部を 200 で返す。そのときは最初から書く
-  const res = await fetch(h.url, { headers: have ? { range: `bytes=${have}-`, ...(h.etag ? { 'if-range': h.etag } : {}) } : {} });
-  if (!res.ok || !res.body) throw new Error(`ダウンロードに失敗しました（HTTP ${res.status}）：${h.url}`);
-  const resume = have > 0 && res.status === 206;
-  let got = resume ? have : 0;
-  log(`取得：${h.url}（${Number.isFinite(h.bytes) ? MiB(h.bytes) : '大きさ不明'}${resume ? `、${MiB(have)} から続き` : ''}）`);
-  const out = createWriteStream(part, { flags: resume ? 'a' : 'w' });
-  try {
-    for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
-      if (!out.write(chunk)) await new Promise((r) => out.once('drain', r));
-      got += chunk.length;
+  // .part を取り終えたあと、確かめる前に止まった回（md5 のファイルが取れない、Ctrl-C など）は、取らずに確かめへ進む
+  let got = have;
+  const res = have > 0 && have === h.bytes ? null : await fetch(h.url, { headers: have ? { range: `bytes=${have}-`, ...(h.etag ? { 'if-range': h.etag } : {}) } : {} });
+  if (res?.status === 416 && have > 0) await res.body?.cancel(); // 続きがない＝取り終えている（大きさが分からないとき）
+  else if (res) {
+    // If-Range：途中のファイルが変わっていたら（latest が新しくなった）、サーバは全部を 200 で返す。そのときは最初から書く
+    if (!res.ok || !res.body) throw new Error(`ダウンロードに失敗しました（HTTP ${res.status}）：${h.url}`);
+    const resume = have > 0 && res.status === 206;
+    got = resume ? have : 0;
+    log(`取得：${h.url}（${Number.isFinite(h.bytes) ? MiB(h.bytes) : '大きさ不明'}${resume ? `、${MiB(have)} から続き` : ''}）`);
+    const out = createWriteStream(part, { flags: resume ? 'a' : 'w' });
+    try {
+      for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
+        if (!out.write(chunk)) await new Promise((r) => out.once('drain', r));
+        got += chunk.length;
+      }
+    } catch (e) {
+      throw new Error(`ダウンロードが途中で切れました（${MiB(got)}）。もう一度回すと続きから取ります（${(e as Error).message}）`);
+    } finally {
+      await new Promise((r) => out.end(r));
     }
-  } catch (e) {
-    throw new Error(`ダウンロードが途中で切れました（${MiB(got)}）。もう一度回すと続きから取ります（${(e as Error).message}）`);
-  } finally {
-    await new Promise((r) => out.end(r));
+    if (Number.isFinite(h.bytes) && got !== h.bytes) throw new Error(`ダウンロードの大きさが合いません（${got} / ${h.bytes} バイト）。もう一度回すと続きから取ります`);
   }
-  if (Number.isFinite(h.bytes) && got !== h.bytes) throw new Error(`ダウンロードの大きさが合いません（${got} / ${h.bytes} バイト）。もう一度回すと続きから取ります`);
 
   let want = o.md5 ?? null;
   if (!want && o.md5Url) {

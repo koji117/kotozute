@@ -11,14 +11,15 @@ import type { BBox } from '../../src/ops/types';
 import type { RegionConfig } from '../../src/region';
 import { dictSignature } from '../../src/services/osm-sqlite';
 import { buildBoundary, mapBBox } from './boundary';
+import { buildAbrData, buildAbrg } from './abr';
 import { download, head } from './download';
-import * as external from './external';
 import { buildOsmIndex } from './osm-index';
 import { DEFAULT, fmtBytes, parseSetupArgs, regionConfig, resolveRegion, SetupError, sizes, type Args, type Region, type StepName } from './plan';
 import { prereq } from './prereq';
-import { ensureEnv, lock, Marks, openLog, sameFile, writeAtomic } from './steps';
+import { ensureEnv, lock, Marks, mask, openLog, sameFile, writeAtomic } from './steps';
 import { extract, latestBuild, pmtilesBin, poly2geojson, tilesInfo } from './tiles';
 import { OSMIUM_IMAGE, osmiumFor, type Log } from './tools';
+import { buildValhalla } from './valhalla';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DATA = join(ROOT, 'data/setup');
@@ -128,7 +129,7 @@ async function main(argv: string[]): Promise<void> {
       inputs: () => (pbfKey() ? { pbf: pbfKey() } : null),
       outputs: () => ['valhalla_tiles.tar', 'valhalla.json'].map((f) => join(DATA, 'valhalla', f)),
       run: async () => {
-        await (await external.valhalla()).buildValhalla({ pbf: await ensurePbf(), dir: join(DATA, 'valhalla'), jobs: args.jobs, log });
+        await buildValhalla({ pbf: await ensurePbf(), dir: join(DATA, 'valhalla'), jobs: args.jobs, log });
         return { config: rel(join(DATA, 'valhalla', 'valhalla.json')) };
       },
     },
@@ -138,7 +139,7 @@ async function main(argv: string[]): Promise<void> {
       inputs: () => ({ pref: region.abrPref }),
       outputs: () => [join(DATA, 'abr', 'abrg.duckdb')],
       run: async () => {
-        await (await external.abr()).buildAbrData({ pref: region.abrPref, dir: join(DATA, 'abr'), log });
+        await buildAbrData({ pref: region.abrPref, dir: join(DATA, 'abr'), log });
         return { cache: rel(join(DATA, 'abr', 'abrg.duckdb')) };
       },
     },
@@ -147,7 +148,7 @@ async function main(argv: string[]): Promise<void> {
       reuse: () => (args.abrgBin ? { note: `--abrg-bin（${args.abrgBin}）を使います`, result: { bin: rel(args.abrgBin) } } : null),
       inputs: () => ({ platform: `${process.platform}-${process.arch}` }),
       outputs: () => [join(DATA, 'abr', 'abrg')],
-      run: async () => ({ bin: rel(await (await external.abr()).buildAbrg({ dir: join(DATA, 'abr'), log })) }),
+      run: async () => ({ bin: rel(await buildAbrg({ dir: join(DATA, 'abr'), log })) }),
     },
     {
       name: 'tiles', title: '地図タイル（Protomaps）',
@@ -242,7 +243,7 @@ async function main(argv: string[]): Promise<void> {
   // ===== 確認（設計書 §7 の 0） =====
   const pbfOutside = args.pbf && relative(DATA, resolve(args.pbf)).startsWith('..');
   const pre = await prereq({
-    docker: todo.has('abr'), dockerMemGiB: size.dockerMemGiB,
+    docker: todo.has('abr'), dockerMemGiB: size.dockerMemGiB, dockerDiskGiB: size.dockerDiskGiB,
     go: todo.has('abr') || todo.has('abrg'),
     goAvoid: [...(todo.has('abr') ? ['--abr-cache=<abrg.duckdb>'] : []), ...(todo.has('abrg') ? ['--abrg-bin=<abrg>'] : [])],
     python: todo.has('valhalla'), osmium: todo.has('index') || todo.has('boundary') ? args.osmium : null,
@@ -255,8 +256,9 @@ async function main(argv: string[]): Promise<void> {
   if (args.dryRun) { log('--dry-run なので、ここで止めます'); return; }
   found = pre.found;
   if (found.osmium) osmium = osmiumFor(found.osmium, DATA);
-  // コンテナの osmium のイメージは、セットアップが取ってきたときだけ最後に消す（前からあるものは消さない）
-  const pulledOsmium = found.osmium === 'container' && spawnSync('docker', ['image', 'inspect', OSMIUM_IMAGE], { stdio: 'ignore' }).status !== 0;
+  // コンテナの osmium のイメージは、セットアップが取ってきたときだけ最後に消す（前からあるものは消さない）。
+  // 取ってくる前に印を残す（途中で止まった回のあとも、次に最後まで回ったときに消すため）
+  if (found.osmium === 'container' && spawnSync('docker', ['image', 'inspect', OSMIUM_IMAGE], { stdio: 'ignore' }).status !== 0) marks.set('osmium-image', { image: OSMIUM_IMAGE });
   const osmiumOut = (a: string[]) => new Promise<string>((res, rej) => {
     const p = osmium!(a);
     let out = '';
@@ -285,7 +287,10 @@ async function main(argv: string[]): Promise<void> {
     // OSM データを使う手順が全部済んだら、取ってきた pbf を消す（--pbf で渡したものと --keep-pbf は残す）
     if (['boundary', 'index', 'valhalla'].includes(p.s.name)) dropPbf();
   }
-  if (pulledOsmium && spawnSync('docker', ['rmi', OSMIUM_IMAGE], { stdio: 'ignore' }).status === 0) log('取ってきた osmium のイメージを消しました');
+  if (marks.get('osmium-image') && spawnSync('docker', ['rmi', OSMIUM_IMAGE], { stdio: 'ignore' }).status === 0) {
+    marks.clear('osmium-image');
+    log('取ってきた osmium のイメージを消しました');
+  }
   function dropPbf() {
     const m = pbfMark();
     if (args.pbf || args.keepPbf || !m || !existsSync(abs(m.file))) return;
@@ -394,7 +399,7 @@ async function verify(region: Region, args: Args, need: (s: StepName) => Record<
 }
 
 main(process.argv.slice(2)).catch((e: Error) => {
-  console.error(e instanceof SetupError ? e.message : `\nセットアップが止まりました：${e.message}`);
+  console.error(mask(e instanceof SetupError ? e.message : `\nセットアップが止まりました：${e.message}`));
   if (!(e instanceof SetupError)) console.error(`\n同じコマンドをもう一度回すと、続きから回ります：\n  npm run setup -- ${process.argv.slice(2).join(' ')}`);
   process.exit(1);
 });
