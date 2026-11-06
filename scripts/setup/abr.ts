@@ -1,7 +1,7 @@
 // 住所（ABR）の部品。設計書 §8.3・§16。
 //   buildAbrg：手元の Go で Mac 用の abrg を作る（Docker なし）
 //   buildAbrData：住所のデータ（DuckDB のファイル1つ）を作る。Docker を使うのは作るときの PostgreSQL だけ
-//   abrgServe：abrg serve の起動のしかた
+//   （abrg serve の起動のしかた abrgServe は src/launch.mjs。npm start と Mac のアプリが使う）
 // abr-geocoder は ABR_COMMIT に固定し、codeload から取る（../abr-geocoder は使わない・変えない）。
 // Go の作業の残り（ソース、モジュール、Go の新しい版、DuckDB の拡張）は <dir>/abr-build にだけ置き、終わったら消す。
 import { spawn } from 'node:child_process';
@@ -117,9 +117,4 @@ export async function buildAbrData(o: { pref: string; dir: string; log: Log }): 
     await docker(['rm', '-f', '-v', name], []).catch(() => {});
     await rmWork(work);
   }
-}
-
-/** abrg serve の起動のしかた。127.0.0.1 だけで待ち受ける。env はこれだけを渡す（API キーなど親の環境は渡さない） */
-export function abrgServe(o: { bin: string; cache: string; port: number }): { cmd: string; args: string[]; env: Record<string, string> } {
-  return { cmd: o.bin, args: ['serve'], env: { ABRG_HTTP_HOST: '127.0.0.1', ABRG_HTTP_PORT: String(o.port), ABRG_CACHE_PATH: o.cache } };
 }

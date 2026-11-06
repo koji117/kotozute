@@ -1,10 +1,12 @@
 // Mac のアプリの確認：Playwright の Electron でアプリを開き、キーの画面 → 地図 → 郵便局の札 → 窓を閉じる、を確かめる。
-// 実行：node scripts/check-desktop.mjs（Overpass・Valhalla・ABR が動いていること。npm run app と同じ desktop/main.mjs を開く）
+// 実行：node scripts/check-desktop.mjs（npm run app と同じ desktop/main.mjs を開く。data/region.json のデータを使う。なければ Overpass・Valhalla・ABR が動いていること）
 //   APP=<kotozute.app/Contents/MacOS/kotozute> なら、作ったアプリ（npm run app:dist）を確かめる。作ったアプリは
 //   Node の -r を受け付けず Playwright の Electron がつながらないので、「キーなし」を保存してから直接起こし、
-//   画面は Playwright の Chromium で開き、終わりは SIGTERM で確かめる（キーの画面は開発中の確認で見る。同じファイル）。
+//   アプリの窓に CDP（--remote-debugging-port、CDP_PORT 既定 18798）でつないで確かめ、終わりは窓を閉じて確かめる（キーの画面は開発中の確認で見る。同じファイル）。
+//   作ったアプリでは、ルート（組み込みの Valhalla）と住所（アプリの中の abrg）でデモの例1の数字が出ること、アプリのメモリ（全部のプロセスの RSS）、
+//   アプリ（と DMG=<.dmg> ならその中身）に .env とキーらしい文字列がないことも確かめる。
 //   KOTOZUTE_PORT（既定 18797）は、開発中の確認では userData の port.json に書いて、アプリが覚えたポートとして使わせる（作ったアプリにはそのまま渡す）。
-//   ABRG_BIN・ABRG_PORT・ABRG_CACHE_PATH はそのままアプリに渡す。
+//   ABRG_PORT はアプリに渡す（abrg のポート）。開発中の確認の abrg は地域の設定（data/region.json）から決まる（ABRG_BIN・ABRG_CACHE_PATH があればそちら）。
 // キーには試しの文字列を使う（本物のキーは使わない）。Claude API は呼ばない。
 // キーとデータはふだんの場所（~/Library/Application Support/kotozute）ではなく、一時フォルダ（KOTOZUTE_USER_DATA）に置く。
 import { execSync, spawn } from 'node:child_process';
@@ -14,11 +16,15 @@ import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { regionLaunch } from '../src/launch.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PORT = process.env.KOTOZUTE_PORT ?? '18797';
 const BASE = `http://127.0.0.1:${PORT}`;
 const ABRG_PORT = process.env.ABRG_PORT ?? '18033';
+const CDP_PORT = process.env.CDP_PORT ?? '18798';
+/** abrg が子のプロセスで動くはずか（作ったアプリは必ず。開発中は地域の設定か ABRG_BIN があるとき） */
+const ABRG = !!process.env.APP || !!regionLaunch(ROOT).abrg;
 const require = createRequire(import.meta.url);
 // Playwright は check-web.mjs と同じく、require('playwright') か、グローバルの @playwright/cli の中のものを使う
 function playwrightPath() {
@@ -87,7 +93,7 @@ async function checkMain(page, userData) {
   const op = (name, input) => page.evaluate(async ([n, i]) => (await fetch(`/api/op/${n}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: 'check-desktop-0002', input: i }) })).json(), [name, input]);
   const share = await op('make_share_link', {});
   check('書き込む場所：共有リンクは userData の shares/', !!share.ok && fs.existsSync(path.join(userData, 'shares', `${share.output?.id}.json`)), share.output?.id);
-  if (process.env.ABRG_BIN) check('住所（abrg）が子のプロセスで動く', await fetch(`http://127.0.0.1:${ABRG_PORT}/health`).then((r) => r.ok, () => false));
+  if (ABRG) check('住所（abrg）が子のプロセスで動く', await fetch(`http://127.0.0.1:${ABRG_PORT}/health`).then((r) => r.ok, () => false));
   const geo = await op('geocode_address', { address: '東京都港区芝公園4-2-8' });
   check('住所：港区芝公園4-2-8 は街区の代表点', geo.ok && geo.output?.level === 'rsdtdsp_blk', geo.error?.message ?? geo.output?.level);
   const recipe = await page.evaluate(async () => (await fetch('/api/recipe', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: 'check-desktop-0002' }) })).json());
@@ -100,38 +106,92 @@ async function checkGone(pid, kids, name, how) {
   const left = [pid, ...kids].filter(alive);
   check(`${name}：${how}とアプリと子のプロセス（${kids.length}）が残らない`, left.length === 0, left.join(','));
   check(`${name}：サーバのポートが閉じる`, await fetch(`${BASE}/`).then(() => false, () => true));
-  if (process.env.ABRG_BIN) check(`${name}：abrg のポートが閉じる`, await fetch(`http://127.0.0.1:${ABRG_PORT}/health`).then(() => false, () => true));
+  if (ABRG) check(`${name}：abrg のポートが閉じる`, await fetch(`http://127.0.0.1:${ABRG_PORT}/health`).then(() => false, () => true));
 }
 
-/** 作ったアプリ（APP）：キーなしを保存 → 直接起こす → Chromium で画面 → SIGTERM */
+/** pid とその子と孫の RSS（MiB）：合計と、プロセスの種類ごと */
+function memMiB(pid) {
+  const kind = (c) => c.includes('--type=gpu-process') ? 'GPU' : c.includes('--type=renderer') ? '画面' : c.includes('--type=utility') ? 'utility'
+    : c.includes('src/server/main.ts') ? 'サーバ' : /\/abrg serve$/.test(c) ? 'abrg' : c.includes('--type=') ? 'その他' : 'main';
+  const parts = {};
+  for (const l of execSync(`ps -o rss=,command= -p ${[pid, ...descendants(pid)].join(',')}`).toString().trim().split('\n')) {
+    const [, kb, cmd] = l.trim().match(/^(\d+)\s+(.*)$/);
+    parts[kind(cmd)] = (parts[kind(cmd)] ?? 0) + Number(kb) / 1024;
+  }
+  const total = Object.values(parts).reduce((a, x) => a + x, 0);
+  return `${Math.round(total)} MiB（${Object.entries(parts).map(([k, v]) => `${k} ${Math.round(v)}`).join('、')}）`;
+}
+
+/** 例1（docs/plan.md §7）：現在地（品川駅 高輪口）→ 郵便局 → 手土産の店 → 港区芝公園4-2-8。AI を通さずに /api/op で回す（scripts/golden.ts の demo:ex1 と同じ入力） */
+async function checkExample1(page) {
+  const api = (p, body) => page.evaluate(async ([u, b]) => (await fetch(u, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) })).json(), [p, body]);
+  const sessionId = 'check-desktop-0004';
+  await api('/api/context', { sessionId, here: { coord: [139.7379847, 35.6288086], accuracy_m: 30 } });
+  const geo = await api('/api/op/geocode_address', { sessionId, input: { address: '東京都港区芝公園4-2-8' } });
+  check('例1：住所はアプリの中の abrg（127.0.0.1）が答える', geo.ok && geo.output?.place?.ref === 'abr:1' && geo.net?.hosts?.['127.0.0.1'] === 1 && geo.net.other === 0 && geo.net.anthropic === 0,
+    `${geo.output?.place?.name ?? geo.error?.message}、${JSON.stringify(geo.net?.hosts)}`);
+  const r = await api('/api/op/route', { sessionId, input: { from: 'here:', to: 'abr:1', stops: [{ ref: null, word: 'post_office' }, { ref: null, word: 'souvenir' }], keep_order: true, avoid_highways: false } });
+  const o = r.output;
+  const got = r.ok ? `${o.total.minutes}分・${o.total.km}km、${o.stops.map((x) => x.chosen.name).join(' → ')} → ${o.to.name}` : r.error?.message;
+  check('例1：ルートは 7.3分・3.65km（泉岳寺駅前郵便局 → 文銭堂 → 東京都港区芝公園4丁目2）', got === '7.3分・3.65km、泉岳寺駅前郵便局 → 文銭堂 → 東京都港区芝公園4丁目2', got);
+  // 組み込みの Valhalla と SQLite の検索データなら、ルートの間にサーバは HTTP の要求を1つも出さない（Docker の Valhalla や Overpass なら localhost に出る）
+  check('例1：ルートと寄り先の検索で HTTP の要求がない（組み込みの Valhalla、SQLite）', r.ok && Object.keys(r.net?.hosts ?? { x: 1 }).length === 0, JSON.stringify(r.net?.hosts));
+}
+
+/** 作ったアプリの中（と dmg の中）に .env とキーらしい文字列がない */
+function scanSecrets(dir, name) {
+  const envs = execSync(`find "${dir}" \\( -name .env -o -name '.env.*' \\) -print`).toString().trim();
+  check(`${name}：.env がない`, envs === '', envs.split('\n').slice(0, 3).join('、'));
+  // Anthropic の API キーは全部のファイルで探す。秘密鍵（PEM の見出しだけの行）、AWS・GitHub・Slack のトークンはテキストのファイルだけで探す
+  // （Electron と abrg のバイナリには、偶然の AKIA… の並びと、TLS の PEM の見出しの文字列がある。11/6 に確かめた）。grep は見つからないと 1 で終わる
+  const grep = (opts, pat) => { try { return execSync(`grep ${opts} '${pat}' "${dir}"`, { maxBuffer: 1 << 24 }).toString().trim(); } catch (e) { if (e.status !== 1) throw e; return ''; } };
+  const hits = [grep('-rlaE', 'sk-ant-[A-Za-z0-9_-]{10,}'), grep('-rlIE', '^-----BEGIN [A-Z ]*PRIVATE KEY-----$|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36}|xox[abprs]-[A-Za-z0-9-]{10,}')].filter(Boolean).join('\n');
+  check(`${name}：キーらしい文字列がない`, hits === '', hits.split('\n').slice(0, 5).join('、'));
+}
+
+/** 作ったアプリ（APP）：キーなしを保存 → 直接起こす → アプリの窓に CDP でつなぐ → 窓を閉じる */
 async function checkPackaged() {
+  const appDir = fs.realpathSync(path.resolve(process.env.APP, '../../..')); // <名前>.app（ps は /tmp を /private/tmp で出す）
+  scanSecrets(appDir, '作ったアプリ');
+  if (process.env.DMG) {
+    const mnt = path.join(tmp, 'dmg');
+    fs.mkdirSync(mnt);
+    execSync(`hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "${mnt}" "${process.env.DMG}"`, { stdio: 'ignore' });
+    try { scanSecrets(mnt, 'dmg の中'); } finally { execSync(`hdiutil detach "${mnt}"`, { stdio: 'ignore' }); }
+  }
   const userData = path.join(tmp, 'app');
   fs.mkdirSync(userData, { recursive: true });
   fs.writeFileSync(path.join(userData, 'key.json'), JSON.stringify({ key: null }));
   const t0 = Date.now();
-  const app = spawn(process.env.APP, [], { env: { ...process.env, KOTOZUTE_USER_DATA: userData, KOTOZUTE_PORT: PORT, ABRG_PORT }, stdio: 'ignore' });
+  const app = spawn(process.env.APP, [`--remote-debugging-port=${CDP_PORT}`], { env: { ...process.env, KOTOZUTE_USER_DATA: userData, KOTOZUTE_PORT: PORT, ABRG_PORT }, stdio: 'ignore' });
   const exited = new Promise((r) => app.once('exit', (code, signal) => r(signal ?? code)));
   for (; Date.now() - t0 < 30000; await new Promise((r) => setTimeout(r, 50))) {
     if (await fetch(`${BASE}/`).then((r) => r.ok, () => false)) break;
   }
   check('作ったアプリ：起こしてからサーバが答えるまで5秒以内', Date.now() - t0 < 5000, `${Date.now() - t0} ms`);
-  const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }).catch(() => {
-    // check-web.mjs と同じ：Playwright の版に合うブラウザがなければ、入っている headless shell を使う
-    const dir = `${os.homedir()}/Library/Caches/ms-playwright`;
-    const shell = fs.readdirSync(dir).filter((d) => d.startsWith('chromium_headless_shell-')).sort().at(-1);
-    return chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'], executablePath: `${dir}/${shell}/chrome-headless-shell-mac-arm64/chrome-headless-shell` });
-  });
-  try {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-    await page.goto(`${BASE}/`);
-    await checkMain(page, userData);
-  } finally {
-    await browser.close();
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${CDP_PORT}`);
+  let page;
+  for (const t = Date.now(); !page && Date.now() - t < 15000; await new Promise((r) => setTimeout(r, 100))) {
+    page = browser.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith(`${BASE}/`));
   }
+  check('作ったアプリ：窓が開く（キーなしで使う。キーの画面は出ない）', !!page && browser.contexts().flatMap((c) => c.pages()).length === 1, page?.url());
+  if (!page) throw new Error('アプリの窓が見つかりません');
+  await waitMap(page);
+  await new Promise((r) => setTimeout(r, 3000));
+  const idle = memMiB(app.pid);
   const kids = descendants(app.pid);
-  app.kill('SIGTERM');
+  const abrgCmd = execSync(`ps -o command= -p ${kids.join(',')}`).toString().split('\n').find((c) => /\/abrg serve$/.test(c.trim())) ?? '';
+  check('作ったアプリ：abrg はアプリの中のもの', abrgCmd.trim().startsWith(path.join(appDir, 'Contents/Resources/app/')), abrgCmd.trim().replace(appDir, '<app>'));
+  await checkMain(page, userData);
+  await checkExample1(page);
+  console.log(`メモリ（アプリの全部のプロセスの RSS）：地図を出して3秒待つ ${idle}／確かめたあと ${memMiB(app.pid)}`);
+  // 地図の窓を閉じる（画面の window.close()）→ アプリが終わり、子のプロセスも止まる
+  const left = descendants(app.pid);
+  await page.evaluate(() => window.close()).catch(() => {});
   const how = await Promise.race([exited, new Promise((r) => setTimeout(() => r('10秒で終わらない'), 10000))]);
-  await checkGone(app.pid, kids, '作ったアプリ', `SIGTERM（${how}）で終わる`);
+  await browser.close().catch(() => {});
+  if (how === '10秒で終わらない') app.kill('SIGTERM');
+  await checkGone(app.pid, left, '作ったアプリ', `窓を閉じる（${how}）`);
 }
 
 /** 地図の窓を閉じる → アプリと子のプロセスが全部終わる */

@@ -245,7 +245,7 @@ Task 4 のうち、Valhalla と ABR を Docker で動かす部分は Task 4b に
 
 ### Task 12: アプリのデータと通しの確認（私がする）
 
-- [ ] 東京のデータ（SQLite の検索データ、valhallajs の tar、`abrg.duckdb`、`abrg`、`tokyo.pmtiles`、フォントとアイコン、`data/region.json`）を作り、アプリに入れて `.dmg` を作る。
-- [ ] 比べる確認（golden）をアプリと同じ組み合わせ（SQLite、組み込みの Valhalla、Mac の abrg）で回す。
+- [x] 東京のデータ（SQLite の検索データ、valhallajs の tar、`abrg.duckdb`、`abrg`、`tokyo.pmtiles`、フォントとアイコン、`data/region.json`）を作り、アプリに入れて `.dmg` を作る。
+- [x] 比べる確認（golden）をアプリと同じ組み合わせ（SQLite、組み込みの Valhalla、Mac の abrg）で回す。
 - [ ] `.dmg` を入れるところから試す（この Mac の別の場所、MacBook Air）。
 - [ ] README（Mac のアプリの入れ方と開き方、確かめた環境、Apple Silicon だけ、署名なし、使ったOSS）。

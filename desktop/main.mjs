@@ -1,7 +1,8 @@
 // ことづての Mac のアプリ（Electron の main）。
-// ポートを決める（前に使ったポートが空いていれば同じもの。port.json）→ 住所（abrg serve。ABRG_BIN があるとき）→ アプリのサーバ（Electron の Node で src/server/main.ts を tsx で動かす）
+// ポートを決める（前に使ったポートが空いていれば同じもの。port.json）→ 住所（abrg serve）→ アプリのサーバ（Electron の Node で src/server/main.ts を tsx で動かす）
 // → / が 200 になるまで待つ → 窓を出す。窓を閉じたら子のプロセスを全部止めて終わる。
-// 地図・検索・ルートの設定は環境変数のまま子に渡す（OSM_BACKEND、OSM_INDEX、VALHALLA_MODE、VALHALLA_CONFIG、ABR_URL など）。
+// 検索・ルート・住所のデータは、アプリの中の data/region.json から npm start と同じように決める（src/launch.mjs）。
+// 環境変数（OSM_BACKEND、OSM_INDEX、VALHALLA_MODE、VALHALLA_CONFIG、ABRG_BIN、ABRG_CACHE_PATH、ABR_URL）があればそちら（開発用）。
 // 書き込む場所（共有リンク、レシピ、操作の記録、書き出し、キー、ポート）は ~/Library/Application Support/kotozute/。
 // Claude API のキーは safeStorage（キーチェーンの鍵）で暗号化して保存し、サーバには環境変数で渡す。画面とログには出さない。
 import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, session, shell } from 'electron';
@@ -10,8 +11,10 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { abrgServe, regionLaunch, waitHttp } from '../src/launch.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)); // リポジトリと同じ並び（アプリでは Contents/Resources/app）
+const LAUNCH = regionLaunch(ROOT);
 app.setPath('userData', process.env.KOTOZUTE_USER_DATA ?? join(app.getPath('appData'), 'kotozute')); // 確認用のスクリプトは別の場所にする
 const DATA = app.getPath('userData');
 const KEY_FILE = join(DATA, 'key.json');
@@ -106,13 +109,6 @@ function stop(p) {
   });
 }
 
-async function waitHttp(url, ms) {
-  for (const t = Date.now(); Date.now() - t < ms; await new Promise((r) => setTimeout(r, 100))) {
-    try { if ((await fetch(url)).ok) return; } catch {}
-  }
-  throw new Error(`${url} が ${ms / 1000} 秒以内に起動しませんでした`);
-}
-
 /**
  * アプリのサーバのポート。共有リンク（location.origin で作る）と画面の設定（localStorage）はポートごとなので、
  * 前に使ったポート（port.json）が空いていれば同じものを使う。使われていれば新しく選んで覚え直す。KOTOZUTE_PORT が優先
@@ -126,18 +122,18 @@ async function appPort() {
   return p;
 }
 
-/** 住所：ABRG_BIN（Mac 用の abrg）があれば 127.0.0.1 の空いたポートで動かす。なければ ABR_URL（既定は :3002）のまま */
+/** 住所：地域の設定に abrg とそのデータがあれば 127.0.0.1 の空いたポートで動かす。なければ ABR_URL（既定は :3002）のまま */
 async function startAbrg() {
-  if (!process.env.ABRG_BIN) return;
+  if (!LAUNCH.abrg) return;
   const p = Number(process.env.ABRG_PORT) || await freePort();
-  // データの場所は ABRG_CACHE_PATH（abrg の設定の名前のまま）
-  start('住所の検索（abrg）', process.env.ABRG_BIN, ['serve'], { ...process.env, ABRG_HTTP_HOST: '127.0.0.1', ABRG_HTTP_PORT: String(p) });
+  const a = abrgServe({ ...LAUNCH.abrg, port: p });
+  start('住所の検索（abrg）', a.cmd, a.args, a.env);
   abrUrl = `http://127.0.0.1:${p}`;
   await waitHttp(`${abrUrl}/health`, 15_000);
 }
 
 async function startServer(key) {
-  const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1', PORT: String(port), KOTOZUTE_DATA_DIR: DATA };
+  const env = { ...process.env, ...LAUNCH.env, ELECTRON_RUN_AS_NODE: '1', PORT: String(port), KOTOZUTE_DATA_DIR: DATA };
   // 「キーなしで使う」なら空の文字列にする（起動した環境のキーを渡さない）。消すだけだと、サーバが ROOT の .env を読んでキーが戻る。
   // process.loadEnvFile は、空でも決まっている変数を上書きしない。サーバは空のキーを「キーがない」として Claude を呼ばない
   env.ANTHROPIC_API_KEY = key ?? '';
