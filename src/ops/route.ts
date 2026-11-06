@@ -5,7 +5,8 @@ import { DICT, type DictKey } from './dict';
 import { defineOp, OpError, Ref, Word, type Leg, type LngLat, type Place, type RouteOutput, type StopChoice } from './types';
 import { toSteps } from './steps';
 import { addResult, resolveRef } from '../server/session';
-import { featureQuery, overpass, toPlace } from '../services/overpass';
+import { features } from '../services/osm';
+import { toPlace } from '../services/overpass';
 import { distM, inTokyo, REGION_LABEL } from '../services/region';
 import { valhallaRoute, type VRoute } from '../services/valhalla';
 
@@ -93,7 +94,7 @@ export const route = defineOp({
     for (const { word } of input.stops) {
       if (!word || found.has(word)) continue;
       // Overpass は同じ検索文が短い間に続くと JSON でない応答（duplicate_query）を返すので、OpError にする
-      const { elements } = await overpass(featureQuery(word, { around: { points: thin(line), radius_m: CORRIDOR_M } })).catch((e) => {
+      const { elements } = await features(word, { around: { points: thin(line), radius_m: CORRIDOR_M } }).catch((e) => {
         throw e instanceof OpError ? e : new OpError('service', '地物の検索（自社の Overpass）がエラーを返しました。少し待ってから試してください');
       });
       // ponytail: Overpass は上限 +1 件で切るので、長いルートで件数が多いと近い順が崩れる。道路につながらない候補は組み合わせで落ちるだけで、次の候補で埋めない
