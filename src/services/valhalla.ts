@@ -1,6 +1,6 @@
 // 自社の Valhalla（Docker、関東の OSM データ）への問い合わせ。公開のルート検索は使わない。
 // 既定は HTTP（VALHALLA_URL）。VALHALLA_MODE=embedded では同じプロセスの中で動かす（下の embedded）。
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { OpError, type LngLat } from '../ops/types';
 
@@ -39,13 +39,17 @@ function embedded() {
     const file = process.env.VALHALLA_CONFIG ?? '';
     const cfg = JSON.parse(await readFile(file, 'utf8'));
     for (const k of ['tile_extract', 'tile_dir'] as const) if (cfg.mjolnir[k]) cfg.mjolnir[k] = resolve(dirname(file), cfg.mjolnir[k]);
+    await stat(cfg.mjolnir.tile_extract); // tar がないと Actor は作れても、どのルートも「道がつながっていません」になる。ここで止める
     return new Actor(cfg);
   })().catch((e) => { actor = undefined; throw e; }));
 }
 
 /** 組み込みで1回問い合わせる。エラーは HTTP のときと同じ OpError にそろえる（Valhalla の 400 → not_found） */
 async function postEmbedded(path: string, body: unknown, notFound: string): Promise<any> {
-  const a = await embedded().catch(() => { throw new OpError('service', 'ルートの検索（自社の Valhalla）に接続できません'); });
+  const a = await embedded().catch((e) => {
+    console.error('[valhalla] 組み込みの Valhalla を起こせません（VALHALLA_CONFIG とその tile_extract を確かめてください）:', String(e)); // 本当の理由はサーバの記録に1行だけ出す
+    throw new OpError('service', 'ルートの検索（自社の Valhalla）に接続できません');
+  });
   const q = JSON.stringify(body);
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new OpError('limit', 'ルートの検索に時間がかかりすぎました')), 20_000); });

@@ -62,15 +62,22 @@ function wayDiff(a: number[], b: number[]) {
   return `最初に分かれる位置 ${i}／今だけ ${[...new Set(a.filter((w) => !sb.has(w)))].join(',') || 'なし'}／新だけ ${[...new Set(b.filter((w) => !sa.has(w)))].join(',') || 'なし'}`;
 }
 
+// 分かっている違い（ここにある行なら ok）。valhallajs 3.7.0 と今の Docker の Valhalla 3.9.1 の版の違い。
+// r10（奥多摩の手前 → 葛西）は目的地の手前で service の道（way 566057092）を1本多く通り、95.92→96.40分、103.733→103.805km（11/6 に確かめた）
+const KNOWN: Record<string, string> = {
+  'r10 69f32bf4 [5784.095,103.805] 751bc082': 'valhallajs 3.7.0：目的地の手前で service の道を1本多く通る（+0.48分）',
+};
+
 const CONFIG = process.env.VALHALLA_CONFIG;
 if (CONFIG) {
   const q = CONFIG.startsWith('http') ? http(CONFIG) : await embedded(CONFIG); // http://… なら、その HTTP の Valhalla を確かめる
   const base = http(process.env.VALHALLA_URL ?? 'http://localhost:8002');
-  const want = readFileSync('scripts/fixtures/valhalla-cmp-tokyo.txt', 'utf8').trim().split('\n');
+  const want = readFileSync(new URL('./fixtures/valhalla-cmp-tokyo.txt', import.meta.url), 'utf8').trim().split('\n');
   let same = 0;
   for (const [i, [name, body]] of ROUTES.entries()) {
     const got = await one(q, name, body);
     if (got.line === want[i]) { same++; continue; }
+    if (KNOWN[got.line]) { console.log(`  ${name}：分かっている違い（${KNOWN[got.line]}）`); continue; }
     bad.push(`ルート ${name}：今 ${want[i]} ／ 新 ${got.line}`);
     const old = await one(base, name, body).catch(() => null);
     if (!old) continue;

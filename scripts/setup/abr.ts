@@ -9,11 +9,11 @@ import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import { run, type Log } from './run';
+import { childEnv, run, type Log } from './run';
 
 /** 使う abr-geocoder の版（11/6 の ../abr-geocoder の HEAD。今のデモの ABR と同じ） */
 export const ABR_COMMIT = '8215e09e805713f97f65604a8acd9e6dbf5d0bf5';
-const PG_IMAGE = 'postgres:17'; // 上流の docker-compose.yml と同じ
+const PG_IMAGE = 'postgres:17@sha256:653186fe15006c099d2fb3bc1d8461c1dee9d036c43f2e5fdaf4f22e5e601876'; // 上流の docker-compose.yml と同じ postgres:17。11/5 の版に固定
 const NO_GO = 'Go が見つかりません。住所の道具（abrg）は手元の Go で作ります（https://go.dev/dl/。足りない版は Go が自分で取ってきます）';
 
 /** <work>/src に ABR_COMMIT のソースを置く（.commit が同じならそのまま使う） */
@@ -34,7 +34,7 @@ async function source(work: string, log: Log): Promise<string> {
 
 /** Go の作業の場所を work の中だけにする（GOFLAGS=-modcacherw で、あとで消せる） */
 const goEnv = (work: string): NodeJS.ProcessEnv => ({
-  ...process.env, CGO_ENABLED: '1', GOFLAGS: '-modcacherw',
+  ...childEnv(), CGO_ENABLED: '1', GOFLAGS: '-modcacherw',
   GOPATH: path.join(work, 'go'), GOMODCACHE: path.join(work, 'go', 'mod'), GOCACHE: path.join(work, 'go', 'cache'),
 });
 
@@ -79,7 +79,7 @@ export async function buildAbrData(o: { pref: string; dir: string; log: Log }): 
   const name = `kotozute-abr-build-${randomBytes(4).toString('hex')}`;
   const pw = randomBytes(24).toString('hex');
   const log: Log = (m) => o.log(m.replaceAll(pw, '***'));
-  const docker = (args: string[], out?: string[]) => run(`docker ${args[0]}`, 'docker', args, { log, out, env: { ...process.env, POSTGRES_PASSWORD: pw }, missing: 'docker が見つかりません。Docker を入れて起動してください' });
+  const docker = (args: string[], out?: string[]) => run(`docker ${args[0]}`, 'docker', args, { log, out, env: { ...childEnv(), POSTGRES_PASSWORD: pw }, missing: 'docker が見つかりません。Docker を入れて起動してください' });
   try {
     await goBuild('abrdb', work, path.join(work, 'abrdb'), log);
     await goBuild('abrg', work, path.join(work, 'abrg'), log);
@@ -99,15 +99,20 @@ export async function buildAbrData(o: { pref: string; dir: string; log: Log }): 
 
     // HOME を作業の場所にして、DuckDB の拡張（postgres、zipfs）もそこに入れる。cwd も作業の場所（DuckDB の一時ファイル）
     const env = {
-      ...process.env, HOME: path.join(work, 'home'), DB_HOST: '127.0.0.1', DB_PORT: port, DB_USER: 'postgres', DB_PASSWORD: pw, DB_NAME: 'abrdb', DB_SSLMODE: 'disable',
+      ...childEnv(), HOME: path.join(work, 'home'), DB_HOST: '127.0.0.1', DB_PORT: port, DB_USER: 'postgres', DB_PASSWORD: pw, DB_NAME: 'abrdb', DB_SSLMODE: 'disable',
       ABRDB_DOWNLOAD_DIR: path.join(work, 'download'), ABRG_CACHE_MEMORY_LIMIT: '1GB',
     };
     await mkdir(env.HOME, { recursive: true });
     log(`住所のデータを取り込みます（都道府県 ${o.pref}、住居表示、座標つき）`);
     await run('abrdb init', path.join(work, 'abrdb'), ['init', '--pref', o.pref, '--category', 'rsdtdsp', '--pos', '-y'], { log, env, cwd: work });
     await run('abrdb import', path.join(work, 'abrdb'), ['import'], { log, env, cwd: work });
+    // 作業の場所で作り、できてから置き換える（途中で止まっても、半端なファイルを <dir>/abrg.duckdb に残さない）
     log('住所の検索用のファイル（DuckDB）を作ります');
-    await run('abrg cache build', path.join(work, 'abrg'), ['cache', 'build', '--cache', path.join(dir, 'abrg.duckdb')], { log, env, cwd: work });
+    const db = path.join(work, 'abrg.duckdb');
+    for (const f of [db, db + '.wal']) await rm(f, { force: true }); // 前に止まった回の残り
+    await run('abrg cache build', path.join(work, 'abrg'), ['cache', 'build', '--cache', db], { log, env, cwd: work });
+    await rm(path.join(dir, 'abrg.duckdb.wal'), { force: true }); // 古いファイルの .wal を新しいファイルに当てない
+    await rename(db, path.join(dir, 'abrg.duckdb'));
   } finally {
     await docker(['rm', '-f', '-v', name], []).catch(() => {});
     await rmWork(work);
