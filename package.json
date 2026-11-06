@@ -8,7 +8,12 @@
     "server": "tsx watch src/server/main.ts",
     "mcp": "tsx src/mcp/server.ts",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "setup": "node scripts/setup.mjs",
+    "start": "node scripts/start.mjs"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",

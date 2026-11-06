@@ -24,6 +24,13 @@ export interface RegionConfig {
   osm_backend?: 'overpass' | 'sqlite';
   osm_as_of: string;
   tiles_as_of: string;
+  // ここから下はセットアップが書く（npm start が読む。Git の中の既定にはない）
+  /** ルートのデータの設定（valhallajs の組み込み。VALHALLA_CONFIG） */
+  valhalla_config?: string;
+  /** 住所のデータ（abrg の DuckDB） */
+  abr_cache?: string;
+  /** 住所の道具（abrg） */
+  abrg_bin?: string;
 }
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));

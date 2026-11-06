@@ -1,0 +1,130 @@
+{
+ "note": "Geofabrik の地方と日本全国、47都道府県。-latest の URL は日付つきのファイルへ転送される。mib は 2026-11-04 ごろの大きさ（見積もりに使う）。capital は県庁所在地",
+ "tokyo": {
+  "url": "https://download.geofabrik.de/asia/japan/kanto-261103.osm.pbf",
+  "md5": "ed491b9606723288cd4bc39ab84dba5d",
+  "bytes": 523821119
+ },
+ "japan": {
+  "label": "日本全国",
+  "name": "日本",
+  "url": "https://download.geofabrik.de/asia/japan-latest.osm.pbf",
+  "poly": "https://download.geofabrik.de/asia/japan.poly",
+  "mib": 2449
+ },
+ "subregions": {
+  "hokkaido": {
+   "label": "北海道",
+   "name": "北海道",
+   "url": "https://download.geofabrik.de/asia/japan/hokkaido-latest.osm.pbf",
+   "poly": "https://download.geofabrik.de/asia/japan/hokkaido.poly",
+   "mib": 181,
+   "prefs": ["01"]
+  },
+  "tohoku": {
+   "label": "東北地方の6県",
+   "name": "東北地方",
+   "url": "https://download.geofabrik.de/asia/japan/tohoku-latest.osm.pbf",
+   "poly": "https://download.geofabrik.de/asia/japan/tohoku.poly",
+   "mib": 297,
+   "prefs": ["02", "03", "04", "05", "06", "07"]
+  },
+  "kanto": {
+   "label": "関東地方の1都6県",
+   "name": "関東地方",
+   "url": "https://download.geofabrik.de/asia/japan/kanto-latest.osm.pbf",
+   "poly": "https://download.geofabrik.de/asia/japan/kanto.poly",
+   "mib": 499,
+   "prefs": ["08", "09", "10", "11", "12", "13", "14"]
+  },
+  "chubu": {
+   "label": "中部地方の9県",
+   "name": "中部地方",
+   "url": "https://download.geofabrik.de/asia/japan/chubu-latest.osm.pbf",
+   "poly": "https://download.geofabrik.de/asia/japan/chubu.poly",
+   "mib": 492,
+   "prefs": ["15", "16", "17", "18", "19", "20", "21", "22", "23"]
+  },
+  "kansai": {
+   "label": "関西の2府5県",
+   "name": "関西",
+   "url": "https://download.geofabrik.de/asia/japan/kansai-latest.osm.pbf",
+   "poly": "https://download.geofabrik.de/asia/japan/kansai.poly",
+   "mib": 338,
+   "prefs": ["24", "25", "26", "27", "28", "29", "30"]
+  },
+  "chugoku": {
+   "label": "中国地方の5県",
+   "name": "中国地方",
+   "url": "https://download.geofabrik.de/asia/japan/chugoku-latest.osm.pbf",
+   "poly": "https://download.geofabrik.de/asia/japan/chugoku.poly",
+   "mib": 228,
+   "prefs": ["31", "32", "33", "34", "35"]
+  },
+  "shikoku": {
+   "label": "四国の4県",
+   "name": "四国",
+   "url": "https://download.geofabrik.de/asia/japan/shikoku-latest.osm.pbf",
+   "poly": "https://download.geofabrik.de/asia/japan/shikoku.poly",
+   "mib": 87,
+   "prefs": ["36", "37", "38", "39"]
+  },
+  "kyushu": {
+   "label": "九州・沖縄の8県",
+   "name": "九州・沖縄",
+   "url": "https://download.geofabrik.de/asia/japan/kyushu-latest.osm.pbf",
+   "poly": "https://download.geofabrik.de/asia/japan/kyushu.poly",
+   "mib": 302,
+   "prefs": ["40", "41", "42", "43", "44", "45", "46", "47"]
+  }
+ },
+ "prefectures": [
+  { "jis": "01", "name": "北海道", "key": "hokkaido", "capital": [141.3469, 43.0642], "subregion": "hokkaido" },
+  { "jis": "02", "name": "青森県", "key": "aomori", "capital": [140.74, 40.8244], "subregion": "tohoku" },
+  { "jis": "03", "name": "岩手県", "key": "iwate", "capital": [141.1527, 39.7036], "subregion": "tohoku" },
+  { "jis": "04", "name": "宮城県", "key": "miyagi", "capital": [140.8721, 38.2689], "subregion": "tohoku" },
+  { "jis": "05", "name": "秋田県", "key": "akita", "capital": [140.1024, 39.7186], "subregion": "tohoku" },
+  { "jis": "06", "name": "山形県", "key": "yamagata", "capital": [140.3633, 38.2404], "subregion": "tohoku" },
+  { "jis": "07", "name": "福島県", "key": "fukushima", "capital": [140.4676, 37.7503], "subregion": "tohoku" },
+  { "jis": "08", "name": "茨城県", "key": "ibaraki", "capital": [140.4468, 36.3418], "subregion": "kanto" },
+  { "jis": "09", "name": "栃木県", "key": "tochigi", "capital": [139.8836, 36.5658], "subregion": "kanto" },
+  { "jis": "10", "name": "群馬県", "key": "gunma", "capital": [139.0608, 36.3911], "subregion": "kanto" },
+  { "jis": "11", "name": "埼玉県", "key": "saitama", "capital": [139.6489, 35.8569], "subregion": "kanto" },
+  { "jis": "12", "name": "千葉県", "key": "chiba", "capital": [140.1233, 35.6047], "subregion": "kanto" },
+  { "jis": "13", "name": "東京都", "key": "tokyo", "capital": [139.6917, 35.6895], "subregion": "kanto" },
+  { "jis": "14", "name": "神奈川県", "key": "kanagawa", "capital": [139.6425, 35.4478], "subregion": "kanto" },
+  { "jis": "15", "name": "新潟県", "key": "niigata", "capital": [139.0236, 37.9026], "subregion": "chubu" },
+  { "jis": "16", "name": "富山県", "key": "toyama", "capital": [137.2113, 36.6953], "subregion": "chubu" },
+  { "jis": "17", "name": "石川県", "key": "ishikawa", "capital": [136.6256, 36.5947], "subregion": "chubu" },
+  { "jis": "18", "name": "福井県", "key": "fukui", "capital": [136.2216, 36.0652], "subregion": "chubu" },
+  { "jis": "19", "name": "山梨県", "key": "yamanashi", "capital": [138.5684, 35.6642], "subregion": "chubu" },
+  { "jis": "20", "name": "長野県", "key": "nagano", "capital": [138.181, 36.6513], "subregion": "chubu" },
+  { "jis": "21", "name": "岐阜県", "key": "gifu", "capital": [136.7223, 35.3912], "subregion": "chubu" },
+  { "jis": "22", "name": "静岡県", "key": "shizuoka", "capital": [138.3831, 34.9769], "subregion": "chubu" },
+  { "jis": "23", "name": "愛知県", "key": "aichi", "capital": [136.9066, 35.1802], "subregion": "chubu" },
+  { "jis": "24", "name": "三重県", "key": "mie", "capital": [136.5086, 34.7303], "subregion": "kansai" },
+  { "jis": "25", "name": "滋賀県", "key": "shiga", "capital": [135.8686, 35.0045], "subregion": "kansai" },
+  { "jis": "26", "name": "京都府", "key": "kyoto", "capital": [135.7556, 35.0214], "subregion": "kansai" },
+  { "jis": "27", "name": "大阪府", "key": "osaka", "capital": [135.52, 34.6863], "subregion": "kansai" },
+  { "jis": "28", "name": "兵庫県", "key": "hyogo", "capital": [135.183, 34.6913], "subregion": "kansai" },
+  { "jis": "29", "name": "奈良県", "key": "nara", "capital": [135.8329, 34.6851], "subregion": "kansai" },
+  { "jis": "30", "name": "和歌山県", "key": "wakayama", "capital": [135.1675, 34.226], "subregion": "kansai" },
+  { "jis": "31", "name": "鳥取県", "key": "tottori", "capital": [134.2383, 35.5036], "subregion": "chugoku" },
+  { "jis": "32", "name": "島根県", "key": "shimane", "capital": [133.0505, 35.4723], "subregion": "chugoku" },
+  { "jis": "33", "name": "岡山県", "key": "okayama", "capital": [133.9344, 34.6618], "subregion": "chugoku" },
+  { "jis": "34", "name": "広島県", "key": "hiroshima", "capital": [132.4596, 34.3966], "subregion": "chugoku" },
+  { "jis": "35", "name": "山口県", "key": "yamaguchi", "capital": [131.4714, 34.1859], "subregion": "chugoku" },
+  { "jis": "36", "name": "徳島県", "key": "tokushima", "capital": [134.5593, 34.0658], "subregion": "shikoku" },
+  { "jis": "37", "name": "香川県", "key": "kagawa", "capital": [134.0434, 34.3401], "subregion": "shikoku" },
+  { "jis": "38", "name": "愛媛県", "key": "ehime", "capital": [132.7657, 33.8416], "subregion": "shikoku" },
+  { "jis": "39", "name": "高知県", "key": "kochi", "capital": [133.5311, 33.5597], "subregion": "shikoku" },
+  { "jis": "40", "name": "福岡県", "key": "fukuoka", "capital": [130.4181, 33.6064], "subregion": "kyushu" },
+  { "jis": "41", "name": "佐賀県", "key": "saga", "capital": [130.2988, 33.2494], "subregion": "kyushu" },
+  { "jis": "42", "name": "長崎県", "key": "nagasaki", "capital": [129.8737, 32.7448], "subregion": "kyushu" },
+  { "jis": "43", "name": "熊本県", "key": "kumamoto", "capital": [130.7417, 32.7898], "subregion": "kyushu" },
+  { "jis": "44", "name": "大分県", "key": "oita", "capital": [131.6126, 33.2382], "subregion": "kyushu" },
+  { "jis": "45", "name": "宮崎県", "key": "miyazaki", "capital": [131.4239, 31.9111], "subregion": "kyushu" },
+  { "jis": "46", "name": "鹿児島県", "key": "kagoshima", "capital": [130.5581, 31.5602], "subregion": "kyushu" },
+  { "jis": "47", "name": "沖縄県", "key": "okinawa", "capital": [127.6809, 26.2124], "subregion": "kyushu" }
+ ]
+}
