@@ -17,6 +17,7 @@
     "@hono/node-server": "^2.1.6",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@protomaps/basemaps": "^5.7.2",
+    "@valhallajs/valhallajs": "3.7.0",
     "hono": "^4.13.16",
     "maplibre-gl": "^6.16.0",
     "pmtiles": "^4.5.0",
