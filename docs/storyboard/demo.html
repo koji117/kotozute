@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>ことづて デモ動画</title>
+<!-- 提出用のデモ動画（3分）の元ページ。アプリの場面は、本物のアプリを Playwright で録った録画（~/kotozute-video/events.json）。
+     render.js が window.EVENTS（録画と結果）と window.REPO（hook と tag-auditor の記録）を入れてから開く。
+     字幕の数字は events.json の結果からテンプレートで作る（{名前} の所）。storyboard.html は前の絵コンテ。 -->
+<!-- フォントは自前（@fontsource）。ネット接続なしで描ける -->
+<link rel="stylesheet" href="../../node_modules/@fontsource/m-plus-1/400.css">
+<link rel="stylesheet" href="../../node_modules/@fontsource/m-plus-1/500.css">
+<link rel="stylesheet" href="../../node_modules/@fontsource/m-plus-1/700.css">
+<link rel="stylesheet" href="../../node_modules/@fontsource/m-plus-1/800.css">
+<link rel="stylesheet" href="../../node_modules/@fontsource/noto-sans-mono/400.css">
+<link rel="stylesheet" href="../../node_modules/@fontsource/noto-sans-mono/500.css">
+<style>
+/* 色・角丸・文字は案E（design/option-e.html の :root）と同じ */
+:root{
+  --sumi-900:#111518; --sumi-800:#1B2126; --sumi-700:#12343B; --sumi-line:#2E363D;
+  --on-sumi:#F2F5F6; --on-sumi-2:#AEB8BF;
+  --teal-600:#0B6E78; --teal-700:#085862; --teal-300:#7CCFD3; --teal-50:#E4F2F2;
+  --text:#161B1F; --text-2:#434C53; --text-3:#5A646B;
+  --surface:#FFFFFF; --surface-2:#F3F5F6; --line:#E2E6E9; --line-2:#C7CED3;
+  --ok-700:#18703E; --ok-50:#E5F3EA; --ng-700:#B3261E; --ng-50:#FBE7E5;
+  --cap-bg:#0E1215; --cap-ink:#C3CCD2; --cap-line:#39434A; --white:#FFFFFF;
+  --r-xs:5px; --r-sm:8px; --r-md:10px; --r-lg:14px; --r-pill:999px;
+  --sh-pill:0 1px 2px rgba(10,20,25,.10), 0 4px 14px rgba(10,20,25,.10);
+  --sh-bar:0 2px 6px rgba(10,20,25,.20), 0 10px 28px rgba(10,20,25,.18);
+  --sh-win:0 12px 40px rgba(10,20,25,.24);
+  --glass:rgba(255,255,255,.93); --glass-line:rgba(17,21,24,.08);
+  --f-ui:"M PLUS 1","Hiragino Sans",sans-serif; --f-mono:"Noto Sans Mono","M PLUS 1",ui-monospace,monospace;
+  --fs-label:12px; --fs-small:13px; --fs-body:14px; --fs-ui:15px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:720px;overflow:hidden;background:var(--cap-bg)}
+body{font-family:var(--f-ui);color:var(--text);font-size:var(--fs-body);line-height:1.5;line-break:strict;-webkit-font-smoothing:antialiased}
+[data-show]{opacity:0;visibility:hidden}
+.abs{position:absolute}
+.mono{font-family:var(--f-mono)}
+svg{display:block;flex:none}
+.stage{position:absolute;left:0;top:0;width:1280px;height:640px;overflow:hidden;background:var(--sumi-900)}
+
+/* ===== 録画（本物のアプリ）。縦横比は録画のまま（余りは墨色） ===== */
+.clip{position:absolute;inset:0;background:var(--sumi-900)}
+.clip video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.clip .none{position:absolute;inset:0;display:grid;place-items:center;color:var(--on-sumi-2);font-size:20px;font-family:var(--f-mono)}
+.dummy{z-index:90;left:50%;top:6px;transform:translateX(-50%);padding:4px 14px;border-radius:var(--r-pill);background:var(--ng-700);color:#fff;font-weight:800;font-size:var(--fs-small);white-space:nowrap}
+
+/* 約束の欄（右上）と、約束を守った場面の印 */
+.pill{display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:var(--r-pill);background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--sh-pill);font-size:var(--fs-small);font-weight:500;white-space:nowrap;color:var(--text)}
+.tracker{right:16px;top:66px;padding:0 5px 0 14px;gap:6px;z-index:30}
+.tracker .lab{font-weight:700;color:var(--text-2);margin-right:4px}
+.step{position:relative;display:flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 6px;border-radius:var(--r-pill);font-size:var(--fs-small);color:var(--text-3)}
+.step .num{width:18px;height:18px;border:1.5px dashed var(--line-2);border-radius:50%;display:grid;place-items:center;font-size:var(--fs-label);line-height:1}
+.step .on{position:absolute;inset:0;display:flex;align-items:center;gap:6px;padding:0 10px 0 6px;border-radius:var(--r-pill);background:var(--sumi-800);color:var(--on-sumi);font-weight:700}
+.step .on .num{border:0;background:var(--teal-300);color:var(--sumi-900);font-weight:800}
+.stamp{right:16px;top:112px;z-index:45;display:flex;align-items:center;gap:12px;padding:10px 16px 10px 10px;border-radius:var(--r-lg);background:var(--sumi-800);color:var(--on-sumi);box-shadow:var(--sh-bar);max-width:440px}
+.stamp .tag{display:flex;flex-direction:column;align-items:center;justify-content:center;width:46px;height:44px;flex:none;border-radius:var(--r-md);background:var(--teal-300);color:var(--sumi-900);font-weight:800;line-height:1.1}
+.stamp .tag .n{font-size:var(--fs-ui)} .stamp .tag .w{font-size:var(--fs-label)}
+.stamp .t{font-size:var(--fs-ui);font-weight:700;line-height:1.35} .stamp .s{font-size:var(--fs-small);color:var(--on-sumi-2);line-height:1.4}
+.stamp .back{margin-top:4px;font-size:var(--fs-label);font-weight:700;color:var(--teal-300);line-height:1.4}
+
+/* ③ の見せ方：解釈には「Claudeが読んだ」、結果の値には「地図のデータが答えた」 */
+.callouts{right:16px;top:196px;width:420px;z-index:40;display:flex;flex-direction:column;gap:10px}
+.co{border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--sh-win);padding:12px 16px 12px;border:1px solid var(--glass-line)}
+.co .who{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:var(--r-pill);font-size:var(--fs-small);font-weight:800;margin-bottom:6px}
+.co.read .who{background:var(--sumi-800);color:var(--teal-300)}
+.co.data .who{background:var(--ok-700);color:#fff}
+.co .li{display:flex;align-items:baseline;gap:8px;font-size:var(--fs-ui);line-height:1.55;color:var(--text)}
+.co .li .k{flex:none;font-weight:800;color:var(--text-2)}
+.co .v{font-size:20px;font-weight:800}
+.co .li.sm{font-size:var(--fs-small);color:var(--text-2);line-height:1.45} .co .li.sm .nb{white-space:normal}
+.ok{color:var(--ok-700);font-weight:800} .ng{color:var(--ng-700);font-weight:800}
+
+/* 地図の上に重ねる窓（別のブラウザ、書き出した画像、Mac のアプリ） */
+.win{z-index:50;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--sh-win);overflow:hidden;border:1px solid var(--glass-line)}
+.win .bar{height:36px;display:flex;align-items:center;gap:8px;padding:0 14px;background:var(--surface-2);border-bottom:1px solid var(--line);font-size:var(--fs-small);color:var(--text-2);white-space:nowrap}
+.win .url{flex:1;height:24px;display:flex;align-items:center;padding:0 10px;border-radius:var(--r-pill);background:var(--surface);border:1px solid var(--line);font-family:var(--f-mono);font-size:var(--fs-label);color:var(--text-2);overflow:hidden}
+.win .body{position:relative}
+.badge{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 11px;border-radius:var(--r-pill);font-size:var(--fs-small);font-weight:700;white-space:nowrap}
+.b-acc{background:var(--teal-50);color:var(--teal-700)}
+
+/* ===== 全画面の場面 ===== */
+.full{left:0;top:0;width:1280px;height:640px;background:var(--surface-2);z-index:60}
+.full.dark{background:var(--sumi-900);color:var(--on-sumi)}
+.hero{left:0;width:1280px;text-align:center;font-weight:800}
+.h3{font-size:30px;font-weight:800}
+.src{font-size:12.5px;color:var(--text-3);line-height:1.6}
+.dark .src{color:var(--on-sumi-2)}
+.case{display:flex;align-items:center;gap:18px;padding:9px 16px;border-radius:var(--r-md);font-size:17px;background:var(--sumi-800);border:1px solid var(--sumi-line)}
+.case .yr{flex:none;width:58px;font-family:var(--f-mono);font-weight:500;font-size:20px;color:var(--teal-300)}
+.case b{flex:none;width:260px;font-weight:800}
+.card{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);padding:12px 14px}
+.term{background:var(--sumi-900);color:#D6E2E2;font-family:var(--f-mono);font-size:15px;line-height:1.65;padding:16px 18px}
+.pre,#hooks div{white-space:pre}
+.nb{white-space:nowrap}
+.term .r{color:#F19A8F}.term .g{color:#8FD6A8}.term .y{color:#F2C46B}.term .c{color:var(--teal-300)}.term .m{color:#9FB0B3}
+.promise{width:340px;flex:none;border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-pill);padding:18px 20px}
+.promise .no{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--sumi-800);color:var(--teal-300);font-weight:800;font-size:20px;margin-bottom:10px}
+.promise h4{font-size:22px;font-weight:800;margin-bottom:6px;line-height:1.35}
+.promise div{font-size:15px;line-height:1.6;color:var(--text-2)}
+.cols{display:flex;gap:28px}
+.col{flex:1;border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--line);padding:18px 22px;box-shadow:var(--sh-pill)}
+.col h4{font-size:22px;font-weight:800;margin-bottom:10px}
+.col li{list-style:none;font-size:15px;line-height:1.55;padding:5px 0;border-top:1px solid var(--line)}
+.col li:first-of-type{border-top:0}
+.col li small{color:var(--text-3);font-family:var(--f-mono);font-size:12px;margin-left:6px}
+.audit{display:grid;grid-template-columns:repeat(3,1fr);gap:2px 30px;margin-top:10px;white-space:normal}
+.audit div{display:flex;justify-content:space-between;border-bottom:1px solid var(--sumi-line)}
+.bars{display:flex;align-items:flex-end;gap:34px;margin:14px 0 0 30px;white-space:normal}
+.bars .b{width:110px;text-align:center;display:flex;flex-direction:column;justify-content:flex-end}
+.bars .b i{display:block;margin:4px 0;border-radius:4px 4px 0 0}
+.chain{display:flex;align-items:center;gap:22px}
+.icon-box{width:150px;text-align:center;font-size:15px;font-weight:700;color:var(--text)}
+
+/* ===== 字幕帯（下 80px）。右の欄は小さな札（想定の役割、現在地、待ち時間、早送り） ===== */
+.cap{left:0;top:640px;width:1280px;height:80px;background:var(--cap-bg);display:flex;align-items:center;gap:18px;padding:0 20px 0 24px;color:var(--white);z-index:80}
+.scene{flex:none;height:34px;padding:0 14px;border-radius:var(--r-pill);background:var(--teal-300);color:var(--sumi-900);font-size:var(--fs-ui);font-weight:800;display:flex;align-items:center;white-space:nowrap}
+.captext{position:relative;flex:1;height:80px}
+.captext > div{position:absolute;left:0;top:0;right:0;height:80px;display:flex;align-items:center;font-size:21px;font-weight:700;line-height:1.35}
+.notes{flex:none;width:350px;display:flex;flex-direction:column;justify-content:center;gap:3px;height:80px}
+.notes > div{font-size:12px;line-height:1.3;color:var(--cap-ink);border:1px solid var(--cap-line);border-radius:var(--r-sm);padding:2px 8px}
+.notes .wait{color:var(--sumi-900);background:#F2C46B;border-color:#F2C46B;font-weight:700}
+.notes .speed{color:var(--sumi-900);background:var(--teal-300);border-color:var(--teal-300);font-weight:700}
+.notes .bad{color:#fff;background:var(--ng-700);border-color:var(--ng-700);font-weight:800}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-logo" viewBox="0 0 26 26"><rect width="26" height="26" rx="8" fill="#7CCFD3"/><path d="M6.5 16.5c2.6-6 6.4-1.2 9.2-6.6" fill="none" stroke="#111518" stroke-width="2.4" stroke-linecap="round"/><circle cx="18.4" cy="8.6" r="2.4" fill="#111518"/><circle cx="6.5" cy="17" r="1.6" fill="#111518"/></symbol>
+  </defs>
+</svg>
+
+<div class="stage">
+
+<!-- ============ アプリの場面（録画）。SHOTS（下の script）が、ここに video を入れる ============ -->
+<div id="clips" class="abs" style="inset:0"></div>
+<div id="dummy" class="abs dummy" hidden></div>
+
+<!-- 約束の欄（アプリの場面だけ） -->
+<div data-show="25.5-61.8,71.5-107.2,148.5-163.8" class="abs pill tracker">
+  <span class="lab">約束</span>
+  <span class="step"><span class="num">1</span>あなたのマシンに<span data-show="27.1-111.8,148.5-163.8" class="on"><span class="num">1</span>あなたのマシンに</span></span>
+  <span class="step"><span class="num">2</span>詳しくなくても<span data-show="32.7-111.8,148.5-163.8" class="on"><span class="num">2</span>詳しくなくても</span></span>
+  <span class="step"><span class="num">3</span>答えは地図<span data-show="46.7-111.8,148.5-163.8" class="on"><span class="num">3</span>答えは地図</span></span>
+</div>
+
+<!-- 約束を守った場面の印 -->
+<div data-show="27.1-30.5" class="abs stamp pop"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">札は AI を通さない</div><div class="s">地図も検索も自分のマシンで。回数ごとの料金はない</div><div class="back">↩ 冒頭の問い：2018 無料枠の縮小</div></div></div>
+<div data-show="32.7-35.5" class="abs stamp pop"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">地図の表示も、日本語で動かせる</div><div class="s">拡大・移動・表示の切り替え</div></div></div>
+<div data-show="41-45.5" class="abs stamp pop"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">日本語ひとことで頼める</div><div class="s">検索文もタグも書かない</div></div></div>
+<div data-show="46.7-51.1" class="abs stamp pop"><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">言葉はAI、答えは地図</div><div class="s">解釈と、答えの値に、別々の印</div></div></div>
+<div data-show="66.5-71.1" class="abs stamp pop" style="z-index:55"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">出典とデータ時点が、いつも出る</div><div class="s">地図のデータは、自分で入れ替えるまで変わらない</div><div class="back">↩ 冒頭の問い：2019 地図の作り替え</div></div></div>
+<div data-show="98.1-103.3" class="abs stamp pop"><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">合うかどうかは、通った道の OSM のタグで</div><div class="s">プログラムが数えて確かめる</div></div></div>
+<div data-show="107.9-111.5" class="abs stamp pop" style="z-index:55"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">出典とデータ時点を、画像に焼き込む</div><div class="s">OSM の地図なので、出典を入れて社外の資料に使える</div><div class="back">↩ 冒頭の問い：Google Earth の画像</div></div></div>
+<div data-show="151.1-155.5" class="abs stamp pop" data-fill><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">外に出たのは Claude への依頼だけ{advOtherZero}</div><div class="s">地図・検索・ルート・住所は自分のマシンで</div></div></div>
+<div data-show="158.5-163.3" class="abs stamp pop" data-fill><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">Claude を使わずに再実行</div><div class="s">このときの Claude への通信は {recA}</div></div></div>
+<div data-show="165.5-171.3" class="abs stamp pop" style="z-index:65;left:60px;right:auto;top:430px"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">あなたの地図を、あなたのマシンに</div><div class="s">キーがなくても、地図と札は動く</div><div class="back">↩ 冒頭の問い：2026 Earth Pro の配布終了</div></div></div>
+
+<!-- ③：解釈（Claudeが読んだ）と結果の値（地図のデータが答えた）。中身は events.json の結果から作る -->
+<div class="abs callouts">
+  <div data-show="27.3-30.5" class="co data rise" data-fill><span class="who">地図のデータが答えた</span><div class="li"><span class="k">郵便局</span><span class="v">{po}</span><span style="color:var(--text-3)">この画面の範囲</span></div></div>
+  <div data-show="46.9-57.5" class="co read rise"><span class="who">Claudeが読んだ</span><div data-list="ex1read"></div></div>
+  <div data-show="51.9-61.5" class="co data rise" data-fill><span class="who">地図のデータが答えた</span>
+    <div class="li"><span class="v">{ex1min}・{ex1km}</span></div>
+    <div class="li"><span class="k">住所</span><span>{ex1addr}</span></div>
+    <div class="li"><span class="k">寄り先</span><span>{ex1stopsArrow}</span></div>
+    <div class="li"><span class="k">寄り道で増えた時間</span><span>{ex1extra}</span></div>
+    <div class="li sm">{ex1how}</div></div>
+  <div data-show="76.5-80.5" class="co data rise" data-fill><span class="who">地図のデータが答えた</span>
+    <div class="li"><span class="k">踏切</span><span class="v">{lc}</span><span style="color:var(--text-3)">OSM の点 {lcp}個をまとめた</span></div>
+    <div class="li"><span class="k">トンネル</span><span class="v">{tn}</span></div></div>
+  <div data-show="87.1-97.5" class="co read rise"><span class="who">Claudeが読んだ</span><div data-list="ex2read"></div></div>
+  <div data-show="92.9-103.5" class="co data rise" data-fill><span class="who">地図のデータが答えた</span>
+    <div class="li"><span class="k">1回目</span><span>{c1via}：トンネル {c1t}・<span class="ng">× {c1r}</span></span></div>
+    <div data-show="97.9-103.5" class="li"><span class="k">{c2k}回目</span><span>{c2via}：トンネル {c2t}・{c2min}・<span class="ok">◯ {c2r}</span></span></div></div>
+</div>
+
+<!-- 例1 (d)：共有リンクを別のブラウザで開く（録画 s3b-share） -->
+<div data-show="61.5-71.8" class="abs win rise" style="left:300px;top:70px;width:900px" data-fill>
+  <div class="bar"><span>別のブラウザ</span><span class="url">{shareUrl}</span></div>
+  <div id="box-share" class="body" style="height:506px"></div>
+</div>
+
+<!-- 例2 (d)：書き出した画像そのもの -->
+<div data-show="106.9-111.8" class="abs win rise" style="left:250px;top:30px;width:780px">
+  <div class="bar" style="justify-content:space-between"><b style="color:var(--text);font-size:var(--fs-ui)">書き出した画像</b><span class="badge b-acc">出典とデータ時点は焼き込み</span></div>
+  <div class="body" style="height:420px;background:var(--surface-2)"><img id="png" alt="" style="position:absolute;inset:8px;width:calc(100% - 16px);height:calc(100% - 16px);object-fit:contain"></div>
+</div>
+
+<!-- ============ 冒頭：もし明日（0-12） ============ -->
+<div data-show="0-12.3" class="abs full dark">
+  <div data-show="0-4.3" class="abs hero" style="top:190px;font-size:54px;line-height:1.45">明日、Googleマップの<br>商用利用が禁止されたら？</div>
+  <div data-show="1.6-4.3" class="abs hero" style="top:400px;font-size:16px;font-weight:500;color:var(--on-sumi-2)">※ 仮定の話です</div>
+  <div data-show="4.0-12.3" class="abs" style="left:110px;top:56px;width:1060px">
+    <div style="font-size:27px;font-weight:800;line-height:1.55">業務で使ってよい範囲は、ガイドラインに例で書かれているだけ。<br><span data-show="8.2-12.3" class="rise" style="display:inline-block">境目はあいまいで、線を引き直すのも Google。</span></div>
+    <div data-show="9.2-12.3" class="rise" style="font-size:20px;font-weight:700;color:var(--teal-300);margin-top:8px">Google Earth の画像は、今も商用には使えない。</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:30px">
+      <div data-show="4.8-12.3" class="case rise"><span class="yr">2018</span><b>Google Maps Platform</b><span>無料枠を大幅に縮小。一部のサイトで地図が灰色に</span></div>
+      <div data-show="5.6-12.3" class="case rise"><span class="yr">2019</span><b>Googleマップ（日本）</b><span>地図を作り替え。道やバス停が欠けた</span></div>
+      <div data-show="6.4-12.3" class="case rise"><span class="yr">2026</span><b>Google Earth Pro</b><span>デスクトップ版の配布終了を発表（2027年6月まで）</span></div>
+    </div>
+    <div class="src" style="margin-top:22px">出典：Google の Geo Guidelines、INTERNET Watch（2018年6月）、週刊アスキー（2019年3月）、窓の杜（2026年7月）。2019年の件は、Google の新しい地図の発表と、表示の変化の報道による（理由は Google が説明していない）。2026年11月4日に確認</div>
+  </div>
+</div>
+
+<!-- ============ 課題・作った人・約束（12-25.5） ============ -->
+<div data-show="12-25.8" class="abs full">
+  <div data-show="12-15.9" class="abs" style="left:100px;top:150px;display:flex;gap:40px;align-items:stretch">
+    <div class="card" style="width:460px;padding:26px 28px;box-shadow:var(--sh-pill)">
+      <div class="h3" style="font-size:28px">OpenStreetMap（OSM）</div>
+      <div style="font-size:19px;line-height:1.9;margin-top:14px">誰でも使えるオープンデータ（ODbL）<br>データを手元に置き、<b>自分のマシンで動かせる</b><br>どこか1社の判断で止まらない</div>
+    </div>
+    <div data-show="12.6-15.9" class="rise" style="width:580px">
+      <div class="win" style="position:relative">
+        <div class="bar">今の道具で「港区のトンネル」を探すと</div>
+        <div class="term pre" style="font-size:16px">[out:json][timeout:25];
+area["name"="港区"]-&gt;.a;
+way["tunnel"="yes"]["highway"](area.a);
+out geom;</div>
+      </div>
+      <div data-show="13.4-15.9" class="rise" style="margin-top:16px;font-weight:800;font-size:24px;color:var(--ng-700)">使えるのは、これが書ける人だけ</div>
+    </div>
+  </div>
+  <div data-show="15.7-19.2" class="abs rise" style="left:0;width:1280px;top:190px;text-align:center">
+    <div style="display:flex;justify-content:center;align-items:center;gap:16px"><svg width="64" height="64"><use href="#i-logo"/></svg><span style="font-weight:800;font-size:64px;letter-spacing:.04em">ことづて</span></div>
+    <div style="font-size:20px;color:var(--text-2);margin-top:10px;line-height:1.6">地図の業界に長くいる開発者が、ひとりで作った<br>日本語で頼める、自分のマシンで動く OSM の地図</div>
+    <div style="margin-top:16px"><span class="badge b-acc" style="font-size:15px;height:30px">Claude Code で開発</span></div>
+  </div>
+  <div data-show="18.9-25.8" class="abs" style="left:90px;top:120px;width:1100px">
+    <div class="h3" style="margin-bottom:22px">3つの約束</div>
+    <div style="display:flex;gap:26px">
+      <div data-show="19.2-25.8" class="promise rise"><div class="no">1</div><h4>あなたの地図を、<br>あなたのマシンに</h4><div>地図・検索・ルート・住所を、自分のマシンで動かす。外に出るのは Claude への依頼だけ。コードはオープンソース（Apache-2.0）で、自分で変えられる</div></div>
+      <div data-show="20.9-25.8" class="promise rise"><div class="no">2</div><h4>詳しくなくても<br>使える</h4><div>日本語ひとことで頼む。検索文もタグも知らなくてよい</div></div>
+      <div data-show="22.7-25.8" class="promise rise"><div class="no">3</div><h4>言葉はAI、<br>答えは地図</h4><div>Claude が読むのは依頼の言葉。件数・時間・◯×は、地図のデータが答える</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 期間中に作ったもの ／ 使ったOSS・公開データ（110-115）。README の2つの表から ============ -->
+<div data-show="111.5-116.8" class="abs full">
+  <div class="abs" style="left:70px;top:34px;width:1140px">
+    <div class="h3" style="margin-bottom:18px">期間中に作ったもの ／ 使ったOSS・公開データ</div>
+    <div class="cols">
+      <div class="col"><h4>期間中に作ったもの</h4><ul>
+        <li>操作13個と、その型・検証・操作ログ<small>src/ops/</small></li>
+        <li>業務の言葉と OSM タグの辞書<small>src/ops/dict.ts</small></li>
+        <li>サーバ（Claude のツールループ、レシピ、外部通信の記録、共有リンク）<small>src/server/</small></li>
+        <li>画面（地図アプリの配置、結果パネル、条件の確認、画像の書き出し）<small>src/web/</small></li>
+        <li>MCP サーバ<small>src/mcp/</small></li>
+        <li>評価セット（50問）と結果<small>eval/</small></li>
+        <li>Claude Code の hooks、サブエージェント、Skill<small>.claude/</small></li>
+      </ul></div>
+      <div class="col"><h4>使ったOSS・公開データ</h4><ul>
+        <li>地図の表示：MapLibre GL JS、pmtiles、@protomaps/basemaps、basemaps-assets</li>
+        <li>地物検索：Overpass API／ルート：Valhalla／住所：abr-geocoder（デジタル庁）、PostgreSQL</li>
+        <li>サーバと画面：Hono、zod、Vite、TypeScript、tsx</li>
+        <li>@anthropic-ai/sdk、@modelcontextprotocol/sdk、Playwright</li>
+        <li>文字：M PLUS 1、Noto Sans Mono（OFL）／構築のときだけ：osmium-tool、pmtiles CLI</li>
+        <li>データ：OpenStreetMap（ODbL）、Protomaps の日ごとのビルド、アドレス・ベース・レジストリ</li>
+      </ul></div>
+    </div>
+    <div class="src" style="margin-top:12px">版とライセンスは README の表のとおり</div>
+  </div>
+</div>
+
+<!-- ============ Claude Code での開発（115-147）。リポジトリのファイルとコミットにある、日付つきの出来事だけ ============ -->
+<div data-show="116.5-148.8" class="abs full">
+  <div class="abs win" style="left:50px;top:24px;width:1180px;height:592px">
+    <div class="bar">Claude Code での開発（リポジトリの記録から）</div>
+    <div class="term" style="height:556px">
+      <div data-show="116.5-131.8">
+        <div class="c">$ cat logs/hook-blocks.jsonl　<span class="m"># PreToolUse hook が止めた記録（時刻は UTC）</span></div>
+        <div id="hooks" style="margin-top:8px"></div>
+        <div data-show="121.9-131.8" class="g rise" style="margin-top:14px" data-fill>→ Google のフォント配信を {hookFonts}回止めた。フォントは自前で配信する（@fontsource）</div>
+        <div data-show="126.9-131.8" class="y rise" data-fill>→ {hookFalse}：公開サービスの一覧を書こうとして止まった（止めすぎ。ファイルは作られていない。be68c41）</div>
+      </div>
+      <div data-show="131.5-138.8" data-fill>
+        <div class="c">$ cat logs/tag-audit.json　<span class="m"># tag-auditor（サブエージェント）{auditAt}</span></div>
+        <div class="m" style="margin-top:6px">辞書の {auditN}語を、関東の OSM データ（{auditBase}時点）で数えた件数</div>
+        <div id="audit" class="audit"></div>
+        <div data-show="133.5-138.8" class="g rise" style="margin-top:14px">→ 0件の言葉：{auditZeroN}語。辞書（src/ops/dict.ts）は変えていない</div>
+      </div>
+      <div data-show="138.5-146.6">
+        <div class="c">$ git log --reverse（抜粋。時刻は日本時間）</div>
+        <!-- 評価の推移はコミットの件名から（f2bba9f、3a215f9、47bf364）。件名の「捏造」は今は「AIが座標を作った回数」と呼ぶので、そこから先は省いた -->
+        <div style="margin-top:6px" class="y">f799188 11/05 21:19 評価セットを追加（プロンプト調整より前）</div>
+        <div>f2bba9f 11/05 21:24 評価1回目：39/50（78%）…</div>
+        <div>3a215f9 11/05 22:50 評価2回目：47/50（94%）…</div>
+        <div>47bf364 11/05 22:55 プロンプトを調整する（評価2回目の失敗から2行）、評価3回目：50/50（100%）…</div>
+        <div style="display:flex;align-items:flex-end;gap:40px">
+          <div class="bars">
+            <div class="b" data-show="139.5-146.6"><span>78%</span><i style="height:117px;background:#2E5E66"></i><span class="m">1回目</span></div>
+            <div class="b" data-show="140.1-146.6"><span>94%</span><i style="height:141px;background:var(--teal-600)"></i><span class="m">2回目</span></div>
+            <div class="b" data-show="140.7-146.6"><span>100%</span><i style="height:150px;background:var(--teal-300)"></i><span class="m">3回目</span></div>
+          </div>
+          <div class="m" style="padding-bottom:30px;line-height:1.9">自作の50問（40問＋罠10問）<br>AIが座標を作った回数：どの回も 0</div>
+        </div>
+      </div>
+      <div data-show="146.3-148.8">
+        <div class="c">$ ls src/mcp/</div>
+        <div>server.ts</div>
+        <div class="c" style="margin-top:10px">$ git log -1 8c94575（時刻は日本時間）</div>
+        <div>8c94575 11/05 21:46 MCP サーバ（stdio）と、23区の区役所の住所一覧を足す</div>
+        <div class="m" style="margin-top:10px"># 同じ操作の定義（src/ops/）から、MCP のツールを作る</div>
+      </div>
+    </div>
+  </div>
+  <div data-show="119-126.1" class="abs stamp pop" style="right:70px;top:360px"><div class="tag"><span class="n">①</span><span class="w">印</span></div><div><div class="t">開発中から、公開サービスを止める</div><div class="s">hook はホスト名で判定する</div></div></div>
+  <div data-show="141.1-146.1" class="abs stamp pop" style="right:70px;top:160px"><div class="tag"><span class="n">記録</span></div><div><div class="t">評価セットを先にコミットしてから、直す</div><div class="s">git の履歴で順番を示す</div></div></div>
+</div>
+
+<!-- ============ Mac のアプリ（162-170）：入れ方の絵と、本物の窓の録画（s6-app） ============ -->
+<div data-show="163.5-171.8" class="abs full">
+  <div class="abs" id="mac-how" style="left:60px;top:150px;width:520px">
+    <div class="h3" style="font-size:24px;margin-bottom:24px">.dmg を開いて、アプリを<br>アプリケーションに入れるだけ</div>
+    <div class="chain">
+      <div class="icon-box"><svg width="96" height="96" viewBox="0 0 96 96" style="margin:0 auto 8px"><rect x="10" y="20" width="76" height="60" rx="10" fill="#E2E6E9" stroke="#8E989F" stroke-width="2"/><rect x="11" y="64" width="74" height="15" fill="#C7CED3"/><circle cx="74" cy="72" r="3" fill="#5A646B"/><use href="#i-logo" x="34" y="28" width="28" height="28"/></svg>ことづて.dmg</div>
+      <svg width="60" height="24" viewBox="0 0 60 24"><path d="M4 12h46M40 4l10 8-10 8" fill="none" stroke="#0B6E78" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="icon-box"><svg width="96" height="96" viewBox="0 0 96 96" style="margin:0 auto 8px"><path d="M8 26a6 6 0 0 1 6-6h22l8 8h38a6 6 0 0 1 6 6v40a6 6 0 0 1-6 6H14a6 6 0 0 1-6-6z" fill="#7CCFD3" stroke="#0B6E78" stroke-width="2"/><use href="#i-logo" x="34" y="40" width="28" height="28"/></svg>アプリケーション</div>
+    </div>
+  </div>
+  <div class="abs win" id="mac-win" style="left:620px;top:90px;width:620px">
+    <div class="bar">Mac のアプリ（本物の窓の録画）</div>
+    <div id="box-app" class="body" style="height:382px;overflow:hidden"></div>
+  </div>
+</div>
+
+<!-- ============ おわり（170-178） ============ -->
+<div data-show="171.5-179.5" class="abs full dark">
+  <div data-show="171.7-179.5" class="abs rise" style="left:0;width:1280px;top:110px;display:flex;justify-content:center;gap:14px">
+    <span class="badge" style="background:var(--sumi-800);color:var(--teal-300);height:34px;font-size:16px">① あなたの地図を、あなたのマシンに</span>
+    <span class="badge" style="background:var(--sumi-800);color:var(--teal-300);height:34px;font-size:16px">② 詳しくなくても使える</span>
+    <span class="badge" style="background:var(--sumi-800);color:var(--teal-300);height:34px;font-size:16px">③ 言葉はAI、答えは地図</span>
+  </div>
+  <div data-show="172-179.5" class="abs hero rise" style="top:210px;font-size:44px">明日、Googleマップの規約が変わっても。</div>
+  <div data-show="175.1-179.5" class="abs hero rise" style="top:290px;font-size:44px;color:var(--teal-300)">あなたの地図は、止まらない。</div>
+  <div data-show="176.5-179.5" class="abs hero rise" style="top:410px">
+    <div style="display:flex;justify-content:center;align-items:center;gap:16px"><svg width="52" height="52"><use href="#i-logo"/></svg><span style="font-size:52px;letter-spacing:.06em">ことづて</span></div>
+    <div style="margin-top:12px;font-size:15px;font-weight:500;color:var(--on-sumi-2)">Built with Claude: Japan 2026 ／ テーマ1「あなたにしかない深さを」</div>
+  </div>
+</div>
+
+</div><!-- /stage -->
+
+<!-- ============ 字幕帯。字幕は読み上げる（narrate.js）。{名前} は events.json の結果で埋める ============ -->
+<div class="abs cap">
+  <span class="scene" id="sceneLabel">冒頭</span>
+  <div class="captext" data-fill>
+    <div data-show="0-4.0">明日、Googleマップの商用利用が禁止されたら？</div>
+    <div data-show="4.0-8.2">業務で使ってよい範囲は、ガイドラインに例で書かれているだけ。</div>
+    <div data-show="8.2-12">境目はあいまいで、線を引き直すのもGoogleです。</div>
+    <div data-show="12-15.8">OSMなら自分で動かせるけど、検索文が要る。</div>
+    <div data-show="15.8-19">地図の業界に長くいる私が作りました。</div>
+    <div data-show="19-25.5">あなたの地図を、あなたのマシンに。詳しくなくても使える。言葉はAI、答えは地図。</div>
+    <div data-show="25.5-30.5">札を押すと、AIを通さずに地図に出ます。郵便局は{po}。</div>
+    <div data-show="30.5-35.5">表示も日本語で。芝公園のあたりを大きく、郵便局だけ残して。</div>
+    <div data-show="35.5-41">例1。今いる場所から、郵便局と手土産の店に寄って、客先へ。</div>
+    <div data-show="41-45.5">頼むのは、このひとことだけです。</div>
+    <div data-show="45.5-51.5">ひとことを、Claudeが{ex1n}つの操作に分けた。{ex1ops}。</div>
+    <div data-show="51.5-57.7">ルートは自分のマシンで。{ex1stops}に寄って{ex1min}。</div>
+    <div data-show="57.7-61.5">寄り道で増えたのは{ex1extra}。共有リンクもできました。</div>
+    <div data-show="61.5-66.5">共有リンクを別のブラウザで開くと、同じルートと寄り先が出ます。</div>
+    <div data-show="66.5-71.5">出典とデータ時点も、いっしょに出ます。</div>
+    <div data-show="71.5-76.1">例2。まず、北品川の踏切とトンネルを札で出します。</div>
+    <div data-show="76.1-80.5">踏切は点{lcp}個を{lc}にまとめ、トンネルは{tn}。</div>
+    <div data-show="80.5-86.5">品川駅を出て、トンネル2本、高速なし、60分以内のコースを頼みます。</div>
+    <div data-show="86.5-92.5">Claudeが条件を読み、経由するトンネルはプログラムが選んで、コースを引きます。</div>
+    <div data-show="92.5-97.5">1回目は{c1via}だけで、トンネル{c1t}。条件に{c1r}。</div>
+    <div data-show="97.5-103.5">{c2k}回目は{c2add}を足して、{c2r}。{c2min}です。</div>
+    <div data-show="103.5-107.5">資料用の画像を書き出します。</div>
+    <div data-show="107.5-111.5">出典とデータ時点は、画像に焼き込まれます。</div>
+    <div data-show="111.5-116.5">期間中に作ったものと、使ったOSS・公開データです。</div>
+    <div data-show="116.5-121.9">開発はClaude Codeで。hookが、公開サービスを使う書き込みを止めます。</div>
+    <div data-show="121.9-126.9">Googleのフォント配信を{hookFonts}回止めたので、フォントは自前で配信しています。</div>
+    <div data-show="126.9-131.5">止めすぎた時の記録も、そのまま残しています。</div>
+    <div data-show="131.5-138.5">サブエージェントが、辞書の{auditN}語を関東のデータで数えました。{auditZero}</div>
+    <div data-show="138.5-146.3">評価セットは、プロンプトを直す前にコミット。自作の50問で、78、94、100%。</div>
+    <div data-show="146.3-148.5">MCPでも使えます。</div>
+    <div data-show="148.5-155.5">詳細を開くと、外部通信の記録。Claudeへ{advA}、その他の外部は{advO}。</div>
+    <div data-show="155.5-163.5">保存したレシピは、Claudeを使わずに再実行できます。Claudeへの通信は{recA}。</div>
+    <div data-show="163.5-171.5">Macでは、.dmgを開いて、アプリをアプリケーションに入れるだけ。キーがなくても、地図と札は使えます。</div>
+    <div data-show="171.5-175">明日、Googleマップの規約が変わっても。</div>
+    <div data-show="175-179.5">あなたの地図は、止まらない。ことづて。</div>
+  </div>
+  <div class="notes" id="notes">
+    <div data-show="35.5-71.5">想定：郵便局と手土産の店に寄って客先へ行く人</div>
+    <div data-show="35.5-71.5">現在地は撮影用に設定（品川駅 高輪口）</div>
+    <div data-show="71.5-111.5">想定：条件つきのコースを作る人</div>
+  </div>
+</div>
+
+<script>
+const DURATION = 179.5;
+const F = 0.35;
+// アプリの場面：[録画のid, 動画の時刻, [[印, 印, 枠の秒], …], {hold: 最後のコマを止めて見せる時刻, box: 窓の中に入れる, zoom: 録画を拡大する倍率, focus: [動画の時刻, 倍率, 中心] その時刻から寄る}]
+// 枠は印の区間を順に並べる。録画が枠より長ければ速め（早送りの札）、短ければ最後のコマで止める。
+// 'sent' で終わる枠の次が 'answered' で始まる枠なら、その間（Claude の待ち時間）を切り、札を出す。
+const SHOTS = [
+  ['s1-chips', 25.5, [['start', 'done', 5]]],
+  ['s2-view', 30.5, [['start', 'sent', 2], ['answered', 'done', 3]], { focus: [32.8, 1.7, '94.45% 93.75%'] }], // 結果のパネルの名前の一覧（同じ名前が10行）ではなく、地図の変化を見せる。出典の欄は画面に残す
+  ['s3-ex1', 35.5, [['start', 'typing', 4.5], ['typing', 'sent', 5.5], ['answered', 'done', 16]], { hold: 71.5 }], // 打ち始めを早めに見せる（字幕が先に行きすぎない）
+  ['s3b-share', 61.5, [['start', 'done', 10]], { box: 'share' }],
+  ['s4-feat', 71.5, [['start', 'done', 9]]],
+  ['s4-ex2', 80.5, [['start', 'typing', 1.6], ['typing', 'sent', 4.4], ['answered', 'done', 17]]],
+  ['s4b-png', 103.5, [['start', 'done', 4]], { hold: 111.5 }],
+  ['s5-adv', 148.5, [['start', 'done', 7]]],
+  ['s5-recipe', 155.5, [['start', 'done', 8]]],
+  ['s6-app', 163.5, [['start', 'done', 8]], { box: 'app', zoom: 1.5 }], // 録る側はアプリの窓（1280×788）を 1920×1080 の真ん中に置く。窓の中身だけを見せる
+];
+const SCENES = [[0, '冒頭：もし明日'], [12, '課題・作った人・約束'], [25.5, '札（AIを通さない）'], [30.5, '(e) 地図の表示'], [35.5, '例1 寄り道して客先へ'], [61.5, '例1 (d) 共有リンク'], [71.5, '例2 (b) 踏切とトンネル'], [80.5, '例2 (c) 条件の確認'], [103.5, '例2 (d) 資料用の画像'], [111.5, '作ったもの／使ったもの'], [116.5, 'Claude Code での開発'], [148.5, '外部通信の記録'], [155.5, 'レシピ'], [163.5, 'Mac のアプリ'], [171.5, 'おわり']];
+
+const E = window.EVENTS ?? null, REPO = window.REPO ?? {}, VDIR = window.VIDEO_DIR ?? '';
+const MISSING = window.MISSING = [];
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+// ===== events.json の結果から値を作る（画面の文章と同じく、結果にない数字や名前は出さない） =====
+// 録る側は2つ目からの応答を results['場面:2'] … に入れる。ここでは場面ごとの配列にまとめる
+const R = {};
+for (const [k, v] of Object.entries(E?.results ?? {})) { const id = k.replace(/:\d+$/, ''); R[id] = id in R ? [R[id], v].flat() : v; }
+const list = (x) => Array.isArray(x) ? x.flatMap(list) : x?.steps ? x.steps : x?.op ? [x] : [];
+const oks = (id) => list(R[id]).filter((s) => s?.ok);
+const out = (id, op) => oks(id).filter((s) => s.op === op).at(-1)?.output;
+const netOf = (id) => { const x = R[id]; return (Array.isArray(x) ? x.at(-1) : x)?.net; };
+const grp = (id, w) => oks(id).filter((s) => s.op === 'find_features').flatMap((s) => s.output.groups).filter((g) => g.word === w).at(-1);
+const unit = (g) => `${g.count}${g.word === 'tunnel' ? '本' : g.points != null ? 'か所' : '件'}${g.truncated ? '以上' : ''}`;
+const min = (m) => `${Math.round(m * 10) / 10}分`;
+const km = (k) => `${Math.round(k * 100) / 100}km`;
+const n = (x) => { if (typeof x !== 'number' || !isFinite(x)) throw 0; return x; };
+const V_TEXT = { pass: '合う', fail: '合わない' }; // 「分からない（データなし）」は動画に出さない（2026-11-06 にユーザーが決定）。出たら「？」と知らせる
+const V_ALL = { pass: 'すべて合う', fail: '合わない条件あり' };
+const route1 = () => out('s3-ex1', 'route');
+const course = () => out('s4-ex2', 'plan_course');
+const chosen = () => course().attempts[n(course().chosen)];
+const tunnelRow = (a) => a.check.rows.find((r) => r.kind === 'tunnels');
+// 寄り先に着く側（画面の区間の表と同じ。最後の案内が 5 なら右側、6 なら左側）
+const sides = (r) => { const s = r.stops.map((_, i) => ({ 5: '右側', 6: '左側' })[r.legs[i].steps.at(-1)?.type]); if (s.some((x) => !x)) return undefined; return new Set(s).size === 1 && s.length > 1 ? `どちらも到着が${s[0]}` : `到着が${s.join('・')}`; };
+const vias = (a) => a.via.map((v) => v.name ?? '名前のないトンネル');
+const advNet = () => netOf('s5-adv') ?? netOf('s3-ex1'); // 録る側は s5-adv を例1の結果で録った（例2の「詳細」には車線数の「分からない」が出るため）
+const hooks = () => REPO.hooks;
+const audit = () => REPO.audit;
+const V = {
+  po: () => unit(grp('s1-chips', 'post_office')),
+  ex1n: () => n(oks('s3-ex1').length),
+  ex1ops: () => oks('s3-ex1').map((s) => s.title).join('、'),
+  ex1stops: () => route1().stops.map((s) => s.chosen.name).join('と'),
+  ex1stopsArrow: () => route1().stops.map((s) => s.chosen.name).join(' → '),
+  ex1min: () => min(n(route1().total.minutes)),
+  ex1km: () => km(n(route1().total.km)),
+  ex1extra: () => min(n(route1().extra_min)),
+  ex1addr: () => { const g = out('s3-ex1', 'geocode_address'), m = g.matched.replace(/^東京都.+?[区市町村]/, ''); return g.unmatched ? `「${m}」まで一致（「${g.unmatched}」は一致せず）` : `「${m}」`; },
+  ex1how: () => { const sd = sides(route1()); return `${n(route1().tried)}通りを引いて、いちばん早い組み合わせ${sd ? `。寄り先は${sd}` : ''}`; },
+  shareUrl: () => out('s3-ex1', 'make_share_link').url,
+  lc: () => unit(grp('s4-feat', 'level_crossing')),
+  lcp: () => n(grp('s4-feat', 'level_crossing').points),
+  tn: () => unit(grp('s4-feat', 'tunnel')),
+  c1via: () => vias(course().attempts[0]).join('・'),
+  c1t: () => `${n(tunnelRow(course().attempts[0]).got)}本`,
+  c1r: () => V_TEXT[tunnelRow(course().attempts[0]).result],
+  c2k: () => n(course().chosen) + 1,
+  c2via: () => vias(chosen()).join('・'),
+  c2add: () => vias(chosen()).filter((v) => !vias(course().attempts[0]).includes(v)).join('と') || undefined,
+  c2t: () => `${n(tunnelRow(chosen()).got)}本`,
+  c2min: () => min(n(chosen().minutes)),
+  c2r: () => V_ALL[chosen().check.verdict],
+  advA: () => `${n(advNet().anthropic)}件`,
+  advO: () => `${n(advNet().other)}件`,
+  advOtherZero: () => advNet().other === 0 ? '' : undefined, // その他の外部が0件でなければ、印の言葉が言い過ぎになる
+  recA: () => `${n(netOf('s5-recipe').anthropic)}件`,
+  hookFonts: () => n(hooks().filter((h) => h.host.startsWith('fonts.')).length),
+  hookFalse: () => hooks().find((h) => h.file === 'src/public-hosts.ts').file,
+  auditN: () => n(audit().rows.length),
+  auditAt: () => audit().at.slice(0, 16) + 'Z',
+  auditBase: () => audit().osm_base.slice(0, 10),
+  auditZeroN: () => audit().rows.filter((r) => r.kanto === 0).length,
+  auditZero: () => audit().rows.some((r) => r.kanto === 0) ? undefined : '0件の言葉はなく、辞書は変えていません。',
+};
+const val = (k) => {
+  let v; try { v = V[k](); } catch { v = undefined; }
+  if (v == null) { MISSING.push(`{${k}}`); return '？'; }
+  return String(v);
+};
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+// 字幕の行は flex なので、中身を1つの span にまとめる（埋めた値の span が別の行にならないように）
+for (const e of document.querySelectorAll('.captext > div')) e.innerHTML = `<span>${e.innerHTML}</span>`;
+for (const e of document.querySelectorAll('[data-fill]')) e.innerHTML = e.innerHTML.replace(/\{(\w+)\}/g, (_, k) => `<span class="nb">${esc(val(k))}</span>`);
+
+// 解釈の行（画面の「解釈」と同じ作り：操作の名前と、入力を日本語にしたもの。src/web/panel.ts の pairs）
+const LABEL = { post_office: '郵便局', souvenir: '手土産', convenience: 'コンビニ', cafe: 'カフェ', parking: '駐車場', fuel: 'ガソリンスタンド', toilets: 'トイレ', park: '公園', station: '駅', hospital: '病院', level_crossing: '踏切', foot_crossing: '歩行者用の踏切', tunnel: 'トンネル' };
+const KEY = { words: '探すもの', area: '範囲', radius_m: '半径（m）', name: '名前', address: '住所', from: '出発', to: '目的地', stops: '寄り先', ref: '場所', word: '種類', target: '場所', show: '残す', hide: '隠す', avoid_highways: '高速を使わない', keep_order: '頼んだ順に寄る', start: '出発・到着', tunnels: 'トンネル（本）', max_minutes: '時間の上限（分）' };
+function interp(id) {
+  const names = { 'here:': '現在地', 'view:': '画面の範囲' };
+  const remember = (v) => {
+    if (Array.isArray(v)) return v.forEach(remember);
+    if (!v || typeof v !== 'object') return;
+    if (typeof v.ref === 'string' && Array.isArray(v.coord)) { names[v.ref] = v.name ?? '名前なし'; if (v.osm) names[`osm:${v.osm}`] = v.name ?? '名前なし'; }
+    Object.values(v).forEach(remember);
+  };
+  oks(id).forEach((s) => remember(s.output));
+  const LOOKS_REF = /^(here:|view:|click:\d+|result:\d+|abr:\d+|osm:\w+\/\d+)$/;
+  const inVal = (v) => Array.isArray(v) ? v.map(inVal).join('、') : typeof v === 'boolean' ? (v ? 'はい' : 'いいえ')
+    : typeof v === 'string' ? (LABEL[v] ?? names[v] ?? (LOOKS_REF.test(v) ? '（結果にない参照）' : v)) : v && typeof v === 'object' ? pairs(v, '、') : String(v);
+  const pairs = (o, sep) => {
+    const e = Object.entries(o).filter(([, v]) => v != null && v !== false && !(Array.isArray(v) && !v.length));
+    return e.length === 1 ? inVal(e[0][1]) : e.map(([k, v]) => `${KEY[k] ?? k}：${inVal(v)}`).join(sep);
+  };
+  return oks(id).map((s) => {
+    const input = s.op === 'find_features' && s.output.area.radius_m == null ? Object.fromEntries(Object.entries(s.input).filter(([k]) => k !== 'radius_m')) : s.input;
+    return [s.title, input && typeof input === 'object' ? pairs(input, '／') : ''];
+  });
+}
+for (const box of document.querySelectorAll('[data-list]')) {
+  const id = { ex1read: 's3-ex1', ex2read: 's4-ex2' }[box.dataset.list];
+  const rows = interp(id);
+  if (!rows.length) MISSING.push(`解釈:${id}`);
+  rows.forEach(([t, v], i) => { const li = el('div', 'li'); li.append(el('span', 'k', `${i + 1} ${t}`), el('span', null, v)); box.append(li); });
+}
+
+// Claude Code の場面：hook と tag-auditor の記録（render.js がリポジトリのファイルから入れる）
+try {
+  for (const h of hooks()) $('#hooks').append(el('div', h.file === 'src/public-hosts.ts' ? 'y' : 'r', `${h.at.slice(0, 16)}Z  ${h.tool.padEnd(5)}  ${h.host.padEnd(20)}  ${(h.file ?? '').replace(/^\.claude\/worktrees\/[^/]+\//, '(worktree)/')}`));
+  for (const r of audit().rows) { const d = el('div'); d.append(el('span', null, r.label), el('span', null, r.kanto.toLocaleString('en-US'))); $('#audit').append(d); }
+} catch { MISSING.push('REPO（hook と tag-auditor の記録）'); }
+
+// ===== 録画を置く =====
+const clips = Object.fromEntries((E?.clips ?? []).map((c) => [c.id, c]));
+const notes = $('#notes');
+const note = (cls, text, a, b) => { const d = el('div', cls, text); d.dataset.show = `${a.toFixed(2)}-${b.toFixed(2)}`; notes.append(d); };
+const shots = SHOTS.map(([id, at, segDefs, opt = {}]) => {
+  const c = clips[id];
+  const box = opt.box ? $(`#box-${opt.box}`) : $('#clips');
+  const wrap = el('div', 'clip');
+  const mark = (name) => {
+    const m = c?.marks?.find((x) => x.name === name)?.t;
+    if (m != null) return m;
+    if (c) MISSING.push(`印:${id}.${name}`);
+    return name === 'start' ? 0 : c?.duration_s ?? 0;
+  };
+  let t = at;
+  const segs = segDefs.map(([a, b, slot]) => {
+    const c0 = mark(a), c1 = Math.min(mark(b), (c?.duration_s ?? Infinity) - 0.05);
+    const g = { a, b, t0: t, t1: t + slot, c0, c1, rate: Math.max(1, (c1 - c0) / slot) };
+    t += slot;
+    return g;
+  });
+  const end = Math.max(t, opt.hold ?? 0);
+  wrap.dataset.show = `${at}-${end + F}`; // 次の録画の下で少し残し、つなぎ目を重ねる（窓の中の録画も、窓が消えきるまで残す）
+  segs.forEach((g, k) => {
+    if (g.rate > 1.05) note('speed', `早送り ×${g.rate.toFixed(1)}`, g.t0, g.t1);
+    const next = segs[k + 1];
+    if (c && g.b === 'sent' && next?.a === 'answered') note('wait', `Claude の待ち時間を短くしています（実際は ${(next.c0 - g.c1).toFixed(1)}秒）`, next.t0 - 0.1, Math.min(next.t1, next.t0 + 6));
+  });
+  let v = null;
+  if (!c) { wrap.append(el('div', 'none', `録画なし：${id}`)); MISSING.push(`録画:${id}`); }
+  else { v = el('video'); v.muted = true; v.preload = 'auto'; v.src = VDIR + c.file; if (opt.zoom) v.style.transform = `scale(${opt.zoom})`; wrap.append(v); }
+  box.append(wrap);
+  return { id, wrap, v, segs, focus: opt.focus };
+});
+// Mac のアプリの録画がなければ、入れ方の絵だけを真ん中に出す
+if (!clips['s6-app']) { $('#mac-win').remove(); $('#mac-how').style.left = '380px'; }
+$('#png').src = VDIR + (clips['s4b-png']?.png ?? clips['s4b-png']?.downloads?.[0] ?? 's4b-png.png');
+if (E?.dummy) { $('#dummy').hidden = false; $('#dummy').textContent = 'ダミーの録画と結果（dummy-events.js）。本番では使わない'; }
+if (!E) note('bad', 'events.json がありません（render.js から開く）', 0, DURATION);
+
+// ===== 時刻 t の画面（storyboard.html と同じ仕組み）。録画は決まった時刻まで送ってから返す =====
+const ease = (k) => k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+const win = (s) => s.split(',').map((w) => w.split('-').map(Number));
+const els = [...document.querySelectorAll('[data-show]')].map((e) => ({ e, d: e.style.display, rise: e.classList.contains('rise'), pop: e.classList.contains('pop'), w: win(e.dataset.show) }));
+const label = $('#sceneLabel');
+const clipTime = (s, t) => { let g = s.segs[0]; for (const x of s.segs) if (t >= x.t0) g = x; return Math.min(g.c1, g.c0 + Math.max(0, t - g.t0) * g.rate + 1e-3); }; // 1e-3：コマの境目でひとつ前のコマにならないように
+const seek = (v, x) => Math.abs(v.currentTime - x) < 1e-3 ? null
+  : new Promise((res) => { v.addEventListener('seeked', res, { once: true }); v.currentTime = x; });
+async function render(t) {
+  for (const { e, d, rise, pop, w } of els) {
+    let o = 0, kin = 1;
+    for (const [a, b] of w) if (t >= a && t < b) { const ki = a === 0 ? 1 : Math.min(1, (t - a) / F); o = Math.max(o, ease(Math.min(ki, (b - t) / F, 1))); kin = ki; }
+    e.style.opacity = o; e.style.visibility = o > 0 ? 'visible' : 'hidden'; e.style.display = o > 0 ? d : 'none';
+    if (rise) e.style.transform = `translateY(${(1 - ease(kin)) * 18}px)`;
+    if (pop) e.style.transform = `scale(${1 + 0.22 * (1 - ease(kin))})`;
+  }
+  let sc = SCENES[0][1]; for (const [a, nm] of SCENES) if (t >= a) sc = nm; label.textContent = sc;
+  for (const s of shots) if (s.v && s.focus) { const [a, z, o] = s.focus, k = ease(Math.min(1, Math.max(0, (t - a) / 0.8))); s.v.style.transformOrigin = o; s.v.style.transform = `scale(${1 + (z - 1) * k})`; }
+  await Promise.all(shots.map((s) => s.v && s.wrap.style.visibility === 'visible' ? seek(s.v, clipTime(s, t)) : null));
+}
+window.render = render;
+window.DURATION = DURATION;
+// 録画と画像の読み込みを待つ（render.js が待つ）
+const loaded = (m, ok, ng) => new Promise((res) => {
+  if (m.readyState >= 2 || (m.tagName === 'IMG' && m.complete && m.naturalWidth)) return res();
+  m.addEventListener(ok, res, { once: true });
+  m.addEventListener(ng, () => { MISSING.push(`読めない：${m.src.split('/').pop()}`); res(); }, { once: true });
+  setTimeout(() => { if (m.readyState < 2 && !(m.complete && m.naturalWidth)) MISSING.push(`読み込みが終わらない：${m.src.split("/").pop()}`); res(); }, 30000); // 止まったままにしない
+});
+window.ready = Promise.all([document.fonts.ready, loaded($('#png'), 'load', 'error'), ...shots.filter((s) => s.v).map((s) => loaded(s.v, 'loadeddata', 'error'))])
+  .then(() => render(0));
+</script>
+</body></html>
