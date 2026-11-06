@@ -4,12 +4,15 @@
 //   3. 辞書の言葉ごとに印の色（src/web/panel.ts の COLOR）があるか
 //   4. 踏切の点とトンネルの上下線のまとめ方（src/ops/find_features.ts の mergeCrossings、mergeTunnels）
 //   5. Claude に渡る文が、記録した東京の文（scripts/fixtures/claude-text-tokyo.txt）と1バイトも違わないか
+//   6. 地点の詳細のタグとカード（src/poi.ts、src/web/poi-card.ts）
 // 実行：npx tsx scripts/check-quick.ts。問題があれば一覧を出して終了コード 1。
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { DICT, DICT_KEYS } from '../src/ops/dict';
 import { mergeCrossings, mergeTunnels } from '../src/ops/find_features';
 import type { OsmElement } from '../src/services/overpass';
+import { pickDetails } from '../src/poi';
 import { COLOR } from '../src/web/panel';
+import { poiCard } from '../src/web/poi-card';
 import { renderClaudeText } from './claude-text';
 
 const bad: string[] = [];
@@ -104,6 +107,16 @@ for (const k of DICT_KEYS) {
     const i = a.findIndex((l, k) => l !== b[k]);
     bad.push(`Claude に渡る文が記録と違います（${i + 1}行目）\n  記録：${a[i] ?? '（なし）'}\n  今　：${b[i] ?? '（なし）'}`);
   }
+}
+
+// ===== 6. 地点の詳細（自由文のタグは出さない。名前は逃がし、リンクは http と https だけ） =====
+{
+  const got = JSON.stringify(pickDetails({ name: 'a', description: 'x', note: 'y', fixme: 'z', website: 'https://e' }));
+  if (got !== JSON.stringify({ name: 'a', website: 'https://e' })) bad.push(`地点の詳細に出すタグが違う：${got}`);
+  const evil = poiCard({ name: '<script>x</script>', kindLabel: null, tags: { website: 'javascript:alert(1)' } });
+  if (evil.includes('<script>') || evil.includes('javascript:')) bad.push(`地点のカードが名前を逃がしていないか、http でないリンクを出す：${evil}`);
+  const ok = poiCard({ name: '郵便局', kindLabel: null, tags: { website: 'https://example.jp' } });
+  if (!ok.includes('href="https://example.jp"') || !ok.includes('rel="noopener noreferrer"')) bad.push(`地点のカードのリンクが違う：${ok}`);
 }
 
 if (bad.length) {

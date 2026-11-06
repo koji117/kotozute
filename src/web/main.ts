@@ -14,16 +14,18 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { Protocol } from 'pmtiles';
 import type { Feature as F } from 'geojson';
 import { layers, namedFlavor } from '@protomaps/basemaps';
-import { ATTRIBUTION, attributionParts, dataAsOfText } from '../attribution';
+import { ATTRIBUTION, attributionParts, dataAsOfText, MAP_TILES_AS_OF } from '../attribution';
 import { CHIPS, DICT, type DictKey } from '../ops/dict';
 import type {
   AddPinOutput, BBox, ChatResponse, CheckRouteOutput, ContextResponse, CourseOutput, ExportRouteOutput, FindFeaturesOutput, GeocodeOutput,
   LngLat, OpResult, Place, RecipeRunResponse, RecipeSaved, RouteOutput, SearchPlaceOutput, Session, SetViewOutput, ShareState, TunnelRun,
 } from '../ops/types';
 import type { NoteDraftOutput } from '../ops/draft_osm_note';
+import type { PoiResponse } from '../poi';
 import {
   type Card, CHIP_ICON, COLOR, html, nm, type Raw, recipeCard, renderChat, renderDirect, renderError, renderRecipe, renderWait, stepHtml,
 } from './panel';
+import { BASEMAP_KIND_JA, poiCard } from './poi-card';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const r6 = (x: number) => Math.round(x * 1e6) / 1e6;
@@ -94,6 +96,8 @@ const map = new maplibregl.Map({
 Object.assign(window, { map, sessionId }); // 確認用（scripts/check-web.mjs）
 
 const pt = (c: LngLat, p: Record<string, string> = {}): F => ({ type: 'Feature', properties: p, geometry: { type: 'Point', coordinates: c } });
+/** 地点の詳細のカード用（印をクリックしたときに読む）。kind は辞書の言葉の日本語名 */
+const info = (p: Place) => ({ osm: p.osm ?? '', name: p.name ?? '', kind: Object.hasOwn(DICT, p.kind) ? DICT[p.kind as DictKey].label : '' });
 /** 半径 r m の円（現在地の精度） */
 function circle([lng, lat]: LngLat, r: number): F {
   const k = r / 111320, ring: LngLat[] = [];
@@ -166,7 +170,7 @@ function draw() {
   for (const b of $('#chips').querySelectorAll<HTMLButtonElement>('.chip')) b.setAttribute('aria-pressed', String(st.visible.has(b.dataset.word as DictKey)));
   if (!loaded) return;
   const set = (id: string, features: F[]) => (map.getSource(id) as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features });
-  set('feat', [...st.visible].flatMap((w) => (st.feat.get(w) ?? []).map((p) => pt(p.coord, { color: COLOR[w], name: p.name ?? '' }))));
+  set('feat', [...st.visible].flatMap((w) => (st.feat.get(w) ?? []).map((p) => pt(p.coord, { color: COLOR[w], ...info(p) }))));
   const r = st.route;
   set('route', r ? r.legs.map((l): F => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: l.shape } })) : []);
   set('tun', st.tunnels.flatMap((t): F[] => [
@@ -176,15 +180,15 @@ function draw() {
   const marks: F[] = [];
   if (r) {
     const loop = r.from.ref === r.to.ref; // 試走コース（出発地に戻る）は印を1つにする
-    if (!loop && (r.from.kind !== 'here' || !st.here)) marks.push(pt(r.from.coord, { n: '出', label: nm(r.from), color: C.sumi }));
+    if (!loop && (r.from.kind !== 'here' || !st.here)) marks.push(pt(r.from.coord, { n: '出', label: nm(r.from), color: C.sumi, ...info(r.from) }));
     // 経由地のトンネルの名前は、トンネルの札（tun-t）に出すので重ねない
-    r.stops.forEach((s, i) => marks.push(pt(s.chosen.coord, { n: String(i + 1), label: s.chosen.kind === 'tunnel' && st.tunnels.length ? '' : nm(s.chosen), color: C.sumi })));
-    marks.push(pt(r.to.coord, loop ? { n: '発', label: `${nm(r.to)}（出発・到着）`, color: C.sumi } : { n: '終', label: nm(r.to), color: C.sumi }));
+    r.stops.forEach((s, i) => marks.push(pt(s.chosen.coord, { n: String(i + 1), label: s.chosen.kind === 'tunnel' && st.tunnels.length ? '' : nm(s.chosen), color: C.sumi, ...info(s.chosen) })));
+    marks.push(pt(r.to.coord, { ...info(r.to), ...(loop ? { n: '発', label: `${nm(r.to)}（出発・到着）`, color: C.sumi } : { n: '終', label: nm(r.to), color: C.sumi }) }));
   }
   const onRoute = new Set(r ? [r.from, r.to, ...r.stops.map((s) => s.chosen)].map((p) => p.ref) : []);
   const pinned = new Set(st.pinned.map((p) => p.ref));
-  for (const { place, n } of st.pins) if (!onRoute.has(place.ref) && !pinned.has(place.ref)) marks.push(pt(place.coord, { n, label: nm(place), color: place.kind === 'address' ? C.sumi : C.teal }));
-  for (const p of st.pinned) if (!onRoute.has(p.ref)) marks.push(pt(p.coord, { n: '', label: nm(p), color: C.pin })); // 自前のフォントに ★ などの記号がないので、赤い丸だけ
+  for (const { place, n } of st.pins) if (!onRoute.has(place.ref) && !pinned.has(place.ref)) marks.push(pt(place.coord, { n, label: nm(place), color: place.kind === 'address' ? C.sumi : C.teal, ...info(place) }));
+  for (const p of st.pinned) if (!onRoute.has(p.ref)) marks.push(pt(p.coord, { n: '', label: nm(p), color: C.pin, ...info(p) })); // 自前のフォントに ★ などの記号がないので、赤い丸だけ
   for (const c of st.clicks) marks.push(pt(c.coord, { n: c.n, label: `クリック${c.n}`, color: C.gray }));
   set('marks', marks);
   set('here', st.here ? [pt(st.here.coord, { label: `現在地 半径${st.here.accuracy_m}m` })] : []);
@@ -536,6 +540,7 @@ $('#locate').addEventListener('click', async () => {
   if (why) toast(why === GEO_OFF ? `${GEO_OFF}。地図をクリックして場所を指定できます` : why);
 });
 map.on('click', async (e) => {
+  poiAt(e.point); // 共有の画面でも出す
   if (shareId || replaying) return;
   const click: LngLat = [r6(e.lngLat.lng), r6(e.lngLat.lat)];
   try {
@@ -544,6 +549,28 @@ map.on('click', async (e) => {
     if (n) { st.clicks.push({ coord: click, n }); draw(); }
   } catch (err) { toast((err as Error).message); }
 });
+
+// ===== 地点の詳細：クリックした所に地点があれば、横にカードを出す（AI を通さない。左のパネルはそのまま） =====
+let popup: maplibregl.Popup | undefined;
+function poiAt(point: maplibregl.Point) {
+  popup?.remove();
+  // 先に自分の印（OSM の要素のもの）、なければベースマップの地点
+  const own = map.queryRenderedFeatures(point, { layers: ['marks-c', 'feat-c'] }).find((f) => f.properties.osm);
+  const f = own ?? map.queryRenderedFeatures(point, { layers: ['pois'] })[0];
+  if (f?.geometry.type !== 'Point') return;
+  const at = f.geometry.coordinates as LngLat, p = f.properties;
+  const card = (h: string) => (popup = new maplibregl.Popup({ maxWidth: '300px', offset: 14, className: 'poi-pop' }).setLngLat(at).setHTML(h).addTo(map));
+  if (!own) { // タイルには名前と種類しかない。推測で OSM の要素は探さない
+    const name = p['name:ja'] ?? p.name ?? null, kindLabel = BASEMAP_KIND_JA[p.kind] ?? null;
+    if (name || kindLabel) card(poiCard({ name, kindLabel, asOf: MAP_TILES_AS_OF }));
+    return;
+  }
+  const base = { name: p.name || null, kindLabel: p.kind || null, osm: p.osm as string };
+  const pop = card(poiCard(base));
+  api<PoiResponse>(`/api/poi/${base.osm}`).then(
+    (r) => pop.setHTML(poiCard({ ...base, tags: r.tags, asOf: r.osm_as_of })),
+    (err) => pop.setHTML(poiCard({ ...base, error: (err as Error).message })));
+}
 
 // ===== 資料用の画像：地図に出典とデータ時点を描き込んで PNG にする =====
 async function exportPng() {

@@ -15,6 +15,9 @@ import { loadShare } from '../ops/share';
 import { blockedWords, envBlockWords } from '../ops/note_rules';
 import { OpError, type ChatResponse, type ContextResponse, type RecipeRunResponse, type Session } from '../ops/types';
 import { inTokyo } from '../services/region';
+import { elementTags } from '../services/overpass';
+import { pickDetails, type PoiResponse } from '../poi';
+import { OSM_DATA_AS_OF } from '../attribution';
 
 const ASSETS = 'data/basemaps-assets-src/basemaps-assets-main';
 export const app = new Hono();
@@ -114,6 +117,16 @@ app.post('/api/recipe/:id/run', async (c) => {
 app.post('/api/note/check', async (c) => {
   const { text } = await body(c, z.object({ text: z.string().max(2000, 'ノートは2000文字までにしてください') }));
   return c.json({ blocked: blockedWords(text, envBlockWords()) });
+});
+
+// 地点の詳細（地図の印をクリックしたときのカード）。AI を通さず、OSM のタグから決まったものだけを返す
+app.get('/api/poi/:type/:id', async (c) => {
+  const type = c.req.param('type'), id = c.req.param('id');
+  if (!/^(node|way|relation)$/.test(type) || !/^[1-9]\d{0,11}$/.test(id)) return c.json({ error: '地点の指定が正しくありません' }, 400);
+  const osm = `${type}/${id}`;
+  const tags = await elementTags(osm);
+  if (!tags) return c.json({ error: 'OSM上で見つかりません' }, 404);
+  return c.json({ osm, tags: pickDetails(tags), osm_as_of: OSM_DATA_AS_OF } satisfies PoiResponse);
 });
 
 app.get('/api/share/:id', (c) => {
