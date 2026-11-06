@@ -35,3 +35,4 @@ docs/storyboard/voice/
 docs/storyboard/maps/
 docs/storyboard/*.mp4
 logs/ops.jsonl
+.claude/worktrees/
