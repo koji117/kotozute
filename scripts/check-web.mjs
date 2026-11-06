@@ -76,6 +76,33 @@ try {
     return false;
   };
   const overlap = (a, b) => a && b && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  // 地点の詳細：地図の動きと記号の配置が落ち着くまで待つ
+  const settle = async (page) => {
+    await until(page, () => !window.map.isMoving() && window.map.loaded() && window.map.areTilesLoaded());
+    await page.evaluate(() => new Promise((r) => { window.map.once('idle', r); window.map.triggerRepaint(); }));
+  };
+  // 画面の中の範囲 [x0, y0, x1, y1] で、札の印（feat）のうちクリックで当たるもの
+  const findMark = (page, area) => page.evaluate(async ([x0, y0, x1, y1]) => {
+    for (const f of (await window.map.getSource('feat').getData()).features) {
+      const p = window.map.project(f.geometry.coordinates);
+      if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) continue;
+      if (window.map.queryRenderedFeatures([p.x, p.y], { layers: ['marks-c', 'feat-c'] })[0]?.properties.osm === f.properties.osm) return { x: p.x, y: p.y, ...f.properties };
+    }
+    return null;
+  }, area);
+  // ベースマップの地点（pois）のうち、名前があり、その点をクリックすると当たり、自分の印と重ならないもの
+  const findPoi = (page, area) => page.evaluate(([x0, y0, x1, y1]) => {
+    const map = window.map, nameOf = (f) => f.properties['name:ja'] ?? f.properties.name;
+    for (const f of map.queryRenderedFeatures({ layers: ['pois'] })) {
+      const p = map.project(f.geometry.coordinates);
+      if (!nameOf(f) || p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) continue;
+      if (map.queryRenderedFeatures([p.x, p.y], { layers: ['marks-c', 'feat-c'] }).length) continue;
+      const hit = map.queryRenderedFeatures([p.x, p.y], { layers: ['pois'] })[0];
+      if (hit && nameOf(hit) === nameOf(f)) return { x: p.x, y: p.y, name: nameOf(f), kind: f.properties.kind };
+    }
+    return null;
+  }, area);
+  const POI_AT = { center: [139.7638, 35.6707], zoom: 17 }; // 銀座・有楽町（ベースマップの地点が多い）
 
   // ===== デスクトップ 1280x720 =====
   const page = await open({ viewport: { width: 1280, height: 720 } });
@@ -174,6 +201,14 @@ try {
     const n = Number(panelText.match(/郵便局 (\d+)件/)?.[1]);
     check('共有リンク：同じ印が出る', await until(shared, async () => (await window.map.getSource('feat').getData()).features.length > 0) || n === 0);
     await shared.screenshot({ path: `${OUT}/desktop-shared.png` });
+    if (n > 0) {
+      await settle(shared);
+      const sm = await findMark(shared, [100, 80, 1100, 560]);
+      if (sm) await shared.mouse.click(sm.x, sm.y);
+      const sc = await until(shared, () => document.querySelector('.maplibregl-popup .poi')?.textContent.includes('データ時点'));
+      check('共有の画面：印をクリックすると地点のカード、クリックの点は作らない', !!sm && sc && (await text(shared, '.maplibregl-popup .poi')).includes('OSM上の情報')
+        && await shared.evaluate(async () => (await window.map.getSource('marks').getData()).features.every((f) => !f.properties.label?.startsWith('クリック'))), sm?.name);
+    }
 
     await page.click('#chips .chip');
     check('札：もう一度押すと隠す', await page.locator('#chips .chip').first().getAttribute('aria-pressed') === 'false'
@@ -187,6 +222,39 @@ try {
   } else {
     const ok = await page.waitForFunction(() => document.querySelector('#toast')?.textContent?.includes('サーバに接続できません'), null, { timeout: 5000 }).then(() => true, () => false);
     check('クリック：API がないときは案内を出す', ok, await text(page, '#toast'));
+  }
+
+  // 地点の詳細：札で出た郵便局の印をクリック → カードに名前・「OSM上の情報」・OSM の ID とデータ時点。今のクリック（click:N）もそのまま作る
+  if (apiUp) {
+    const pp = await open({ viewport: { width: 1280, height: 720 } });
+    await pp.click('#zin'); // 1枚目と同じ範囲にして、サーバが覚えている検索の結果を使う（Overpass に同じ問い合わせを続けて送らない）
+    await settle(pp);
+    await pp.click('#chips .chip');
+    await pp.waitForFunction(() => !document.querySelector('#chips .chip[aria-busy]'));
+    await settle(pp);
+    const mk = await findMark(pp, [500, 120, 1000, 560]); // 左のパネル、札、右下の札に隠れない所
+    if (mk) await pp.mouse.click(mk.x, mk.y);
+    const got = await until(pp, () => document.querySelector('.maplibregl-popup .poi')?.textContent.includes('データ時点'));
+    const pt = got ? await text(pp, '.maplibregl-popup .poi') : '';
+    check('地点の詳細：郵便局の印 → カードに名前と「OSM上の情報」', !!mk && got && (!mk.name || pt.includes(mk.name)) && pt.includes('郵便局') && pt.includes('OSM上の情報'), pt.slice(0, 120));
+    check('地点の詳細：OSM の ID へのリンク（新しいタブ）', !!mk && await pp.locator(`.maplibregl-popup .poi a[href="https://www.openstreetmap.org/${mk.osm}"][target=_blank]`).count() === 1, mk?.osm);
+    check('地点の詳細：今のクリック（クリック1）も作る', await until(pp, async () => (await window.map.getSource('marks').getData()).features.some((f) => f.properties.label === 'クリック1')));
+    check('地点の詳細：左のパネルは消さない', await pp.locator('#panel').isVisible());
+    await pp.screenshot({ path: `${OUT}/desktop-poi.png` });
+
+    // ベースマップの地点：タイルの名前と種類だけ（OSM の要素は探さない）
+    await pp.click('.maplibregl-popup-close-button');
+    check('地点の詳細：× で閉じる', await pp.locator('.maplibregl-popup').count() === 0);
+    await pp.evaluate((v) => window.map.jumpTo(v), POI_AT);
+    await settle(pp);
+    const bp = await findPoi(pp, [500, 120, 1000, 560]);
+    let poiReq = 0;
+    pp.on('request', (r) => { if (r.url().includes('/api/poi/')) poiReq++; });
+    if (bp) await pp.mouse.click(bp.x, bp.y);
+    const bt = await until(pp, () => !!document.querySelector('.maplibregl-popup .poi')) ? await text(pp, '.maplibregl-popup .poi h3') : '';
+    check('地点の詳細：ベースマップの地点 → カードに名前', !!bp && bt === bp.name && poiReq === 0, `${bp?.name}（${bp?.kind}） / ${bt}`);
+    await pp.screenshot({ path: `${OUT}/desktop-poi-basemap.png` });
+    await pp.context().close();
   }
 
   // 「今いる場所から」の依頼で現在地が使えないとき：Claude に送らず、理由と次の手を出す（送ると住所だけ調べて黙って止まる）
@@ -411,6 +479,20 @@ try {
     check('スマホ：ノートの下書きが幅に収まる', tb && tb.x >= 0 && tb.x + tb.width <= 390 && await m.evaluate(() => document.documentElement.scrollWidth <= innerWidth), JSON.stringify(tb));
     check('スマホ：下書きの文字は 16px（入力で拡大しない）', await m.evaluate(() => getComputedStyle(document.querySelector('#panel .ncard textarea')).fontSize === '16px'));
     await m.screenshot({ path: `${OUT}/mobile-note.png` });
+  }
+
+  // スマホ：地点のカードが画面に収まる（右の端に近い地点で）
+  {
+    const mp = await open({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    await mp.evaluate((v) => window.map.jumpTo(v), POI_AT);
+    await settle(mp);
+    const bp = await findPoi(mp, [250, 200, 375, 640]) ?? await findPoi(mp, [15, 200, 375, 640]);
+    if (bp) await mp.touchscreen.tap(bp.x, bp.y);
+    const pop = await until(mp, () => !!document.querySelector('.maplibregl-popup .poi')) ? await box(mp, '.maplibregl-popup') : null;
+    check('スマホ：地点のカードが画面に収まる', !!pop && pop.x >= 0 && pop.x + pop.width <= 390 && pop.y >= 0 && pop.y + pop.height <= 844
+      && await mp.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${bp?.name} ${JSON.stringify(pop)}`);
+    await mp.screenshot({ path: `${OUT}/mobile-poi.png` });
+    await mp.context().close();
   }
 
   // スマホ：条件の確認が下部シートの幅に収まる

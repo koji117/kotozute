@@ -54,6 +54,14 @@ export async function wayTags(ids: number[]): Promise<Map<number, Record<string,
   return new Map(elements.map((e) => [e.id, e.tags ?? {}]));
 }
 
+/** 1つの要素（'node/123' など）のタグ。地点の詳細のカード用。見つからなければ null */
+export async function elementTags(osm: string): Promise<Record<string, string> | null> {
+  const m = osm.match(/^(node|way|relation)\/([1-9]\d{0,11})$/);
+  if (!m) throw new OpError('bad_input', 'OSM の要素の指定が正しくありません');
+  const { elements } = await overpass(`[out:json][timeout:${LIMITS.timeout_s}];${m[1]}(${m[2]});out tags;`);
+  return elements[0] ? elements[0].tags ?? {} : null;
+}
+
 /** 言葉の検索部分（範囲の書き方 a つき）。scripts/tag-audit.ts も同じものを数える */
 export const featureParts = (word: DictKey, a: string) => DICT[word].queries.map((q) => `${q.elements}${q.filter}${a};`).join('');
 
