@@ -1,0 +1,45 @@
+# Mac のアプリ（.dmg）の作り方。npm run app:dist（vite build のあと electron-builder）。
+# 中の並びはリポジトリと同じ（Contents/Resources/app/ の下）にして、サーバの相対パス（tokyo.pmtiles、data/…、dist）をそのまま使う。
+# 入れるのは下の一覧だけ。開発用のファイル、テスト、記録、.env は入れない。
+appId: jp.kotozute.app # 仮
+# 中の名前は英字にする。productName を「ことづて」にすると Electron 44.9.3 が起動してすぐ落ちる（SIGTRAP。2026-11-06 に確かめた）。
+# 画面に出る名前は CFBundleDisplayName と dmg の名前で「ことづて」にする
+productName: kotozute
+copyright: Copyright 2026 koji117
+directories:
+  output: release
+asar: false
+npmRebuild: false # ネイティブのモジュールを作り直さない（esbuild は作り済みのものを使う）
+files:
+  - package.json
+  - desktop/**
+  - src/**
+  - "!src/web/**" # 画面は dist に build 済み
+  - "!src/mcp/**" # MCP はアプリに入れない
+  - dist/**
+  # 画面だけが使う依存（dist に build 済み）と MCP の依存は入れない
+  - "!node_modules/{maplibre-gl,@maplibre,pmtiles,@protomaps,@fontsource,@modelcontextprotocol}/**"
+  - tokyo.pmtiles
+  - data/region.json
+  - data/setup/**
+  - "!data/setup/logs/**"
+  - "!data/setup/**/*.pbf"
+  - "!data/setup/**/*.part"
+  # フォントとアイコン。from で入る（フォルダがシンボリックリンクでも中を入れる）
+  - from: data/basemaps-assets-src/basemaps-assets-main
+    to: data/basemaps-assets-src/basemaps-assets-main
+    filter: ["fonts/**", "sprites/**"]
+  - "!**/.env"
+  - "!**/.env.*"
+mac:
+  target:
+    - target: dmg
+      arch: arm64
+  identity: null # 署名なし
+  category: public.app-category.navigation
+  extendInfo:
+    CFBundleDisplayName: ことづて
+    # 現在地（here:）を使うときに Mac が出す確認の文。この Mac は位置情報サービスが全体で切ってあり、出るかどうかは確かめていない（2026-11-06）
+    NSLocationWhenInUseUsageDescription: 現在地からのルートや検索に使います。地図をクリックして場所を指定することもできます。
+dmg:
+  title: ことづて

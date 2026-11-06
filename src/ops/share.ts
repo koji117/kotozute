@@ -1,12 +1,13 @@
 // 共有リンク：いま地図に出ているもの（表示中の印、ルート、住所とピン）を保存して、リンクの ID を返す。
 import { randomInt } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { z } from 'zod';
 import { defineOp, type BBox, type Layer, type Place, type RouteOutput, type Session, type ShareOutput, type ShareState } from './types';
 import { OSM_DATA_AS_OF } from '../attribution';
 import { resolveRef } from '../server/session';
 
-const DIR = 'data/shares'; // data/ は .gitignore 済み
+const DIR = join(process.env.KOTOZUTE_DATA_DIR ?? 'data', 'shares'); // data/ は .gitignore 済み。Mac のアプリは KOTOZUTE_DATA_DIR に書く
 export const ID = /^[0-9A-Za-z]{10}$/; // レシピの ID も同じ形
 const B62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 export const newId = () => Array.from({ length: 10 }, () => B62[randomInt(62)]).join('');

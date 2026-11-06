@@ -1,12 +1,13 @@
 // レシピ：画面で成功した操作の並びを保存し、Claude を使わずに同じ順で呼び直す（Claude API が止まっても同じ地図を出す）。
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { OSM_DATA_AS_OF } from '../attribution';
 import { runOp } from '../ops/registry';
 import { ID, newId } from '../ops/share';
 import { OpError, type OpResult, type Recipe, type RecipeSaved, type Session } from '../ops/types';
 import { getSession } from './session';
 
-const DIR = 'data/recipes'; // data/ は .gitignore 済み
+const DIR = join(process.env.KOTOZUTE_DATA_DIR ?? 'data', 'recipes'); // data/ は .gitignore 済み。Mac のアプリは KOTOZUTE_DATA_DIR に書く
 // ponytail: 再実行で自社のサービスに同じ数だけ問い合わせるので、長いレシピは断る。要るなら上げる
 const MAX_STEPS = 50;
 
