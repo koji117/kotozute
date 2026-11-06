@@ -213,4 +213,6 @@ hooks が効くのは開発中の Claude Code だけです。アプリの実行�
 
 ## ライセンス
 
-未定です。
+このリポジトリのコードは Apache License 2.0 です（`LICENSE`）。Copyright 2026 koji117。
+
+地図のデータ（OpenStreetMap、ODbL）、住所のデータ（ABR）、部品として使っている OSS は、それぞれのライセンスに従います（上の表）。
