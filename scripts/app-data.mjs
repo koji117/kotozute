@@ -3,6 +3,7 @@
 // リポジトリの外のファイル（--abr-cache などで渡したもの）は data/setup/app/<種類>/ に入れ、アプリの中の region.json はそこを指す（アプリの根からの相対）。
 // コピーは APFS の複製（clonefile。ディスクを使わない）。モード（abrg の実行の権限）も写す。
 import { chmodSync, constants, copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -36,4 +37,10 @@ export default function afterPack(ctx) {
   }
   mkdirSync(join(app, 'data'), { recursive: true });
   writeFileSync(join(app, 'data/region.json'), JSON.stringify(region, null, 2) + '\n');
+  // 中身をすべて入れたあとで、アプリ全体に ad-hoc の署名をする（Apple の開発者登録なし）。
+  // 署名で中身を封じないと、ダウンロードしたアプリを開いたとき Mac が「壊れている」と出し、ターミナルのコマンドが要る。
+  // 封じてあれば「システム設定 → プライバシーとセキュリティ → このまま開く」で開ける（コマンドは要らない）
+  const bundle = join(ctx.appOutDir, `${ctx.packager.appInfo.productFilename}.app`);
+  execFileSync('codesign', ['--force', '--deep', '--sign', '-', bundle], { stdio: 'inherit' });
+  execFileSync('codesign', ['--verify', '--deep', '--strict', bundle], { stdio: 'inherit' });
 }
