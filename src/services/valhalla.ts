@@ -1,4 +1,7 @@
 // 自社の Valhalla（Docker、関東の OSM データ）への問い合わせ。公開のルート検索は使わない。
+// 既定は HTTP（VALHALLA_URL）。VALHALLA_MODE=embedded では同じプロセスの中で動かす（下の embedded）。
+import { readFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { OpError, type LngLat } from '../ops/types';
 
 const URL_ = process.env.VALHALLA_URL ?? 'http://localhost:8002';
@@ -27,8 +30,40 @@ function decode6(str: string): LngLat[] {
   return out;
 }
 
+// 組み込み（VALHALLA_MODE=embedded）：HTTP の代わりに @valhallajs/valhallajs の Actor を同じプロセスで使う（設計書 §16）。
+// VALHALLA_CONFIG は valhalla.json のパス。中の相対パス（tile_extract など）は設定ファイルのフォルダから解く。最初に使うときに作る
+let actor: Promise<{ route(q: string): Promise<any>; traceAttributes(q: string): Promise<any> }> | undefined;
+function embedded() {
+  return (actor ??= (async () => {
+    const { Actor } = await import('@valhallajs/valhallajs'); // HTTP のときは読み込まない（ネイティブのモジュール）
+    const file = process.env.VALHALLA_CONFIG ?? '';
+    const cfg = JSON.parse(await readFile(file, 'utf8'));
+    for (const k of ['tile_extract', 'tile_dir'] as const) if (cfg.mjolnir[k]) cfg.mjolnir[k] = resolve(dirname(file), cfg.mjolnir[k]);
+    return new Actor(cfg);
+  })().catch((e) => { actor = undefined; throw e; }));
+}
+
+/** 組み込みで1回問い合わせる。エラーは HTTP のときと同じ OpError にそろえる（Valhalla の 400 → not_found） */
+async function postEmbedded(path: string, body: unknown, notFound: string): Promise<any> {
+  const a = await embedded().catch(() => { throw new OpError('service', 'ルートの検索（自社の Valhalla）に接続できません'); });
+  const q = JSON.stringify(body);
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new OpError('limit', 'ルートの検索に時間がかかりすぎました')), 20_000); });
+  try {
+    return await Promise.race([path === '/route' ? a.route(q) : a.traceAttributes(q), timeout]);
+  } catch (e) {
+    if (e instanceof OpError) throw e;
+    const status = (e as { httpCode?: number }).httpCode;
+    if (status === 400) throw new OpError('not_found', notFound);
+    throw new OpError('service', `ルートの検索（自社の Valhalla）がエラーを返しました（${status ?? 500}）`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** 400（道路が近くにない、つながる道がない、形が道に合わない など。error_code 1xx・4xx）は notFound の文で not_found にする */
 async function post(path: string, body: unknown, notFound: string): Promise<any> {
+  if (process.env.VALHALLA_MODE === 'embedded') return postEmbedded(path, body, notFound);
   let res: Response;
   try {
     res = await fetch(`${URL_}${path}`, { method: 'POST', body: JSON.stringify(body), signal: AbortSignal.timeout(20_000) });
