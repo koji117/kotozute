@@ -3,7 +3,8 @@
 //   APP=<kotozute.app/Contents/MacOS/kotozute> なら、作ったアプリ（npm run app:dist）を確かめる。作ったアプリは
 //   Node の -r を受け付けず Playwright の Electron がつながらないので、「キーなし」を保存してから直接起こし、
 //   画面は Playwright の Chromium で開き、終わりは SIGTERM で確かめる（キーの画面は開発中の確認で見る。同じファイル）。
-//   KOTOZUTE_PORT（既定 18797）、ABRG_BIN・ABRG_PORT・ABRG_CACHE_PATH はそのままアプリに渡す。
+//   KOTOZUTE_PORT（既定 18797）は、開発中の確認では userData の port.json に書いて、アプリが覚えたポートとして使わせる（作ったアプリにはそのまま渡す）。
+//   ABRG_BIN・ABRG_PORT・ABRG_CACHE_PATH はそのままアプリに渡す。
 // キーには試しの文字列を使う（本物のキーは使わない）。Claude API は呼ばない。
 // キーとデータはふだんの場所（~/Library/Application Support/kotozute）ではなく、一時フォルダ（KOTOZUTE_USER_DATA）に置く。
 import { execSync, spawn } from 'node:child_process';
@@ -12,8 +13,9 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PORT = process.env.KOTOZUTE_PORT ?? '18797';
 const BASE = `http://127.0.0.1:${PORT}`;
 const ABRG_PORT = process.env.ABRG_PORT ?? '18033';
@@ -34,9 +36,12 @@ const check = (name, ok, extra = '') => {
   if (!ok) failed++;
 };
 
-/** アプリを開く。出力（stdout と stderr）は logs に集める */
+/** アプリを開く。出力（stdout と stderr）は logs に集める。ポートは KOTOZUTE_PORT ではなく、アプリが覚えたポート（port.json）で決める */
 async function launch(userData) {
-  const env = { ...process.env, KOTOZUTE_USER_DATA: userData, KOTOZUTE_PORT: PORT, ABRG_PORT };
+  const env = { ...process.env, KOTOZUTE_USER_DATA: userData, ABRG_PORT };
+  delete env.KOTOZUTE_PORT;
+  fs.mkdirSync(userData, { recursive: true });
+  if (!fs.existsSync(path.join(userData, 'port.json'))) fs.writeFileSync(path.join(userData, 'port.json'), JSON.stringify({ port: Number(PORT) }));
   // グローバルの Playwright は electron を探せないので、Electron のパスを渡す
   const app = await _electron.launch({ executablePath: require('electron'), args: ['-r', LOADER, path.join(ROOT, 'desktop/main.mjs')], cwd: ROOT, env });
   const logs = [];
@@ -77,7 +82,7 @@ async function checkMain(page, userData) {
   check('キーなし：key.json は null', saved.key === null);
   // キーなしなら、起動した環境にキーがあってもサーバには渡らない（Claude を呼ぶ前に止まる。外へは出ない）
   const chat = await fetch(`${BASE}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: 'check-desktop-0001', text: '郵便局' }) }).then((r) => r.json());
-  check('キーなし：サーバにキーがない', /キー/.test(chat.error ?? ''), chat.error);
+  check('キーなし：サーバにキーがない（ROOT に .env があっても）', /キー.*サーバにありません/.test(chat.error ?? ''), chat.error);
   check('書き込む場所：操作の記録は userData の logs/', fs.existsSync(path.join(userData, 'logs/ops.jsonl')));
   const op = (name, input) => page.evaluate(async ([n, i]) => (await fetch(`/api/op/${n}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: 'check-desktop-0002', input: i }) })).json(), [name, input]);
   const share = await op('make_share_link', {});
@@ -163,7 +168,7 @@ try {
       await page.waitForLoadState('load');
       const startMs = Date.now() - t1;
       check('起動：キーを選んでから窓まで5秒以内', startMs < 5000, `${startMs} ms、開いてから ${Date.now() - t0} ms`);
-      check('地図の窓：アプリの画面', page.url().startsWith(BASE), page.url());
+      check('地図の窓：前に使ったポート（port.json）で開く', page.url().startsWith(BASE), page.url());
       await checkMain(page, userData);
       await closeAndCheck(app, 'キーなし');
       open = undefined;
@@ -213,7 +218,7 @@ try {
       await waitMap(page);
       check('キーを変える：キーなしにすると key.json は null', JSON.parse(fs.readFileSync(path.join(userData, 'key.json'), 'utf8')).key === null);
       const chat = await fetch(`${BASE}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: 'check-desktop-0003', text: '郵便局' }) }).then((r) => r.json());
-      check('キーを変える：起こし直したサーバにキーがない', /キー/.test(chat.error ?? ''), chat.error);
+      check('キーを変える：起こし直したサーバにキーがない', /キー.*サーバにありません/.test(chat.error ?? ''), chat.error);
       await closeAndCheck(app, '2回目');
       check('2回目：出力にキーが出ない', !logs.join('').includes(DUMMY));
       open = undefined;

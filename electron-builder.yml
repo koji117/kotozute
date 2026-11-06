@@ -39,5 +39,7 @@ mac:
   category: public.app-category.navigation
   extendInfo:
     CFBundleDisplayName: ことづて
+    # 現在地（here:）を使うときに Mac が出す確認の文。この Mac は位置情報サービスが全体で切ってあり、出るかどうかは確かめていない（2026-11-06）
+    NSLocationWhenInUseUsageDescription: 現在地からのルートや検索に使います。地図をクリックして場所を指定することもできます。
 dmg:
   title: ことづて

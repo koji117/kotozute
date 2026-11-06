@@ -1,10 +1,10 @@
 // ことづての Mac のアプリ（Electron の main）。
-// 空いたポートを選ぶ → 住所（abrg serve。ABRG_BIN があるとき）→ アプリのサーバ（Electron の Node で src/server/main.ts を tsx で動かす）
+// ポートを決める（前に使ったポートが空いていれば同じもの。port.json）→ 住所（abrg serve。ABRG_BIN があるとき）→ アプリのサーバ（Electron の Node で src/server/main.ts を tsx で動かす）
 // → / が 200 になるまで待つ → 窓を出す。窓を閉じたら子のプロセスを全部止めて終わる。
 // 地図・検索・ルートの設定は環境変数のまま子に渡す（OSM_BACKEND、OSM_INDEX、VALHALLA_MODE、VALHALLA_CONFIG、ABR_URL など）。
-// 書き込む場所（共有リンク、レシピ、操作の記録、書き出し、キー）は ~/Library/Application Support/kotozute/。
+// 書き込む場所（共有リンク、レシピ、操作の記録、書き出し、キー、ポート）は ~/Library/Application Support/kotozute/。
 // Claude API のキーは safeStorage（キーチェーンの鍵）で暗号化して保存し、サーバには環境変数で渡す。画面とログには出さない。
-import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, session, shell } from 'electron';
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
@@ -15,6 +15,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url)); // リポジトリ�
 app.setPath('userData', process.env.KOTOZUTE_USER_DATA ?? join(app.getPath('appData'), 'kotozute')); // 確認用のスクリプトは別の場所にする
 const DATA = app.getPath('userData');
 const KEY_FILE = join(DATA, 'key.json');
+const PORT_FILE = join(DATA, 'port.json');
 
 let win; // 地図の窓
 let keyWin; // キーの画面（出ているときだけ）
@@ -73,10 +74,11 @@ function askKey() {
 
 // ===== 子のプロセス =====
 
-const freePort = () => new Promise((resolve, reject) => {
+/** 127.0.0.1 で p が空いていれば p を返す（p＝0 なら空いたポートを選ぶ）。使われていれば失敗する */
+const freePort = (p = 0) => new Promise((resolve, reject) => {
   const s = createServer();
   s.once('error', reject);
-  s.listen(0, '127.0.0.1', () => {
+  s.listen(p, '127.0.0.1', () => {
     const { port: p } = s.address();
     s.close(() => resolve(p));
   });
@@ -111,6 +113,19 @@ async function waitHttp(url, ms) {
   throw new Error(`${url} が ${ms / 1000} 秒以内に起動しませんでした`);
 }
 
+/**
+ * アプリのサーバのポート。共有リンク（location.origin で作る）と画面の設定（localStorage）はポートごとなので、
+ * 前に使ったポート（port.json）が空いていれば同じものを使う。使われていれば新しく選んで覚え直す。KOTOZUTE_PORT が優先
+ */
+async function appPort() {
+  if (Number(process.env.KOTOZUTE_PORT)) return Number(process.env.KOTOZUTE_PORT);
+  let p;
+  try { p = await freePort(JSON.parse(readFileSync(PORT_FILE, 'utf8')).port); } catch { p = await freePort(); }
+  mkdirSync(DATA, { recursive: true });
+  writeFileSync(PORT_FILE, JSON.stringify({ port: p }));
+  return p;
+}
+
 /** 住所：ABRG_BIN（Mac 用の abrg）があれば 127.0.0.1 の空いたポートで動かす。なければ ABR_URL（既定は :3002）のまま */
 async function startAbrg() {
   if (!process.env.ABRG_BIN) return;
@@ -123,8 +138,9 @@ async function startAbrg() {
 
 async function startServer(key) {
   const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1', PORT: String(port), KOTOZUTE_DATA_DIR: DATA };
-  delete env.ANTHROPIC_API_KEY; // 「キーなしで使う」なら、起動した環境のキーも渡さない
-  if (key) env.ANTHROPIC_API_KEY = key;
+  // 「キーなしで使う」なら空の文字列にする（起動した環境のキーを渡さない）。消すだけだと、サーバが ROOT の .env を読んでキーが戻る。
+  // process.loadEnvFile は、空でも決まっている変数を上書きしない。サーバは空のキーを「キーがない」として Claude を呼ばない
+  env.ANTHROPIC_API_KEY = key ?? '';
   if (abrUrl) env.ABR_URL = abrUrl;
   server = start('アプリのサーバ', process.execPath, ['--import', 'tsx', join(ROOT, 'src/server/main.ts')], env);
   await waitHttp(`http://127.0.0.1:${port}/`, 15_000);
@@ -135,6 +151,10 @@ async function startServer(key) {
 function openWindow() {
   const origin = `http://127.0.0.1:${port}`;
   win = new BrowserWindow({ width: 1280, height: 820, title: 'ことづて' });
+  // 画面が求める権限は、アプリの画面からの現在地（here:）と共有リンクのコピーだけ許す。カメラ、マイク、通知などは断る
+  session.defaultSession.setPermissionRequestHandler((wc, permission, done, { requestingUrl }) => {
+    done(['geolocation', 'clipboard-sanitized-write'].includes(permission) && !!requestingUrl?.startsWith(`${origin}/`));
+  });
   // 出典やノートのリンクは既定のブラウザで開く（http と https だけ）。アプリの窓はアプリの画面だけを出す
   const external = (url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); };
   win.webContents.setWindowOpenHandler(({ url }) => { external(url); return { action: 'deny' }; });
@@ -163,6 +183,7 @@ Menu.setApplicationMenu(Menu.buildFromTemplate([
 ]));
 
 function fail(e) {
+  if (quitting) return; // 終わる途中（起動中に Command+Q など）で子が止まっただけなら、エラーを出さない
   dialog.showErrorBox('ことづて', `起動できませんでした。${e.message}`);
   app.quit();
 }
@@ -180,7 +201,7 @@ app.whenReady().then(async () => {
     if (key === undefined) return app.quit(); // 初めての画面を選ばずに閉じた
     saveKey(key);
   }
-  port = Number(process.env.KOTOZUTE_PORT) || await freePort();
+  port = await appPort();
   await startAbrg();
   await startServer(key);
   openWindow();
