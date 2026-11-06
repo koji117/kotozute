@@ -1,6 +1,7 @@
 // 検索データ（osm.db）を OSM の pbf から作る。Overpass の代わりに src/services/osm-sqlite.ts が読む。
 // 辞書（src/ops/dict.ts）の条件を読んで、どの言葉に当たるかを作るときに決める。辞書を変えたら作り直す。
 // 使う道具は osmium（tags-filter、add-locations-to-ways、cat、fileinfo）と node:sqlite だけ。
+import { DETAIL_KEYS } from '../../src/poi';
 import { createInterface } from 'node:readline';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
@@ -15,8 +16,6 @@ type T = 'n' | 'w' | 'r';
 const NAME_KEYS = ['name', 'name:ja', 'alt_name', 'official_name'];
 /** 道（highway の way）に残すキー：ルートの判定（check_route）と試走コース（plan_course）が読むもの */
 export const HW_KEYS = ['highway', 'tunnel', 'tunnel:name', 'name', 'name:ja', 'toll', 'motorroad', 'access', 'motor_vehicle', 'maxheight', 'lanes', 'layer', 'oneway'];
-/** 地点の詳細に出すキー。src/poi.ts の DETAIL_KEYS と同じ（ponytail: 統合のときに import に替える） */
-const DETAIL_KEYS = ['name', 'name:ja', 'addr:postcode', 'addr:province', 'addr:city', 'addr:quarter', 'addr:neighbourhood', 'addr:block_number', 'addr:housenumber', 'addr:full', 'opening_hours', 'phone', 'contact:phone', 'website', 'contact:website', 'wheelchair', 'operator', 'brand', 'brand:ja'];
 /** 地物に残すキー：名前（toPlace、名前の検索）、railway（「品川駅」を駅として探す）、地点の詳細 */
 export const FEAT_KEYS = [...new Set([...NAME_KEYS, 'railway', ...DETAIL_KEYS])];
 const FEAT_HW_KEYS = [...new Set([...FEAT_KEYS, ...HW_KEYS])];

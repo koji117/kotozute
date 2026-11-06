@@ -7,18 +7,18 @@ import type { DictKey } from '../ops/dict';
 import { OpError, type BBox, type LngLat } from '../ops/types';
 import { areaClause, featureQuery, LIMITS, overpass, wayTags as overpassWayTags, type Area, type OsmElement } from './overpass';
 import type { OsmIndex } from './osm-sqlite';
+import { REGION } from '../region';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
-const DEFAULT_INDEX = 'data/setup/osm/kanto-261103/osm.db';
 
 /**
- * どちらの中身を使うか。OSM_BACKEND（overpass か sqlite。既定は overpass）と OSM_INDEX（osm.db のパス。リポジトリの根からの相対か絶対）。
- * ponytail: 地域の設定（data/region.json の osm_backend、osm_index）ができたら、そちらから読む
+ * どちらの中身を使うか。地域の設定（data/region.json）の osm_backend と osm_index。環境変数 OSM_BACKEND と OSM_INDEX があればそちら。
+ * osm_backend がなければ overpass（今のデモ）。osm.db のパスはリポジトリの根からの相対か絶対
  */
 export function osmSource(): { backend: 'overpass' | 'sqlite'; index: string } {
-  const b = process.env.OSM_BACKEND || 'overpass';
+  const b = process.env.OSM_BACKEND || REGION.osm_backend || 'overpass';
   if (b !== 'overpass' && b !== 'sqlite') throw new OpError('service', `OSM_BACKEND は overpass か sqlite です（${b}）`);
-  return { backend: b, index: resolve(ROOT, process.env.OSM_INDEX || DEFAULT_INDEX) };
+  return { backend: b, index: resolve(ROOT, process.env.OSM_INDEX || REGION.osm_index) };
 }
 
 // 検索データは最初に使うときに開く（import しただけでは開かない。ないときも読み込みでは落ちない）

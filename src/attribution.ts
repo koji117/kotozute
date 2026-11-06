@@ -1,6 +1,8 @@
 // 出典表示はこの1か所で管理する（地図画面、共有リンクの画面、書き出す画像で共通）。
-export const OSM_DATA_AS_OF = '2026-11-03T21:24:04Z'; // kanto-latest.osm.pbf（osmium fileinfo の data.timestamp.last）
-export const MAP_TILES_AS_OF = '2026-11-04T04:00:00Z'; // tokyo.pmtiles（planetiler:osm:osmosisreplicationtime）
+import { REGION } from './region';
+
+export const OSM_DATA_AS_OF = REGION.osm_as_of; // OSM データ（osmium fileinfo の data.timestamp.last）
+export const MAP_TILES_AS_OF = REGION.tiles_as_of; // 地図ファイル（planetiler:osm:osmosisreplicationtime）
 
 export const ATTRIBUTION = {
   osm: { text: '© OpenStreetMap contributors', url: 'https://www.openstreetmap.org/copyright' },

@@ -7,8 +7,9 @@ import { toSteps } from './steps';
 import { addResult, resolveRef } from '../server/session';
 import { features } from '../services/osm';
 import { toPlace } from '../services/overpass';
-import { distM, inTokyo, REGION_LABEL } from '../services/region';
+import { distM, inTokyo } from '../services/region';
 import { valhallaRoute, type VRoute } from '../services/valhalla';
+import { OUT_OF_AREA } from '../region-text';
 
 const CORRIDOR_M = 300; // ルートからこの距離までを候補にする
 const THIN_M = 100; // 検索文を短くするため、ルートの形をこの間隔に間引く
@@ -78,7 +79,7 @@ export const route = defineOp({
     const point = (ref: string) => {
       if (ref === 'view:') throw new OpError('bad_ref', '「view:」は画面の範囲なので、ルートの地点には使えません。地図をクリックするか、場所を検索してください');
       const p = resolveRef(session, ref);
-      if (!inTokyo(p.coord)) throw new OpError('out_of_area', `対応する地域は${REGION_LABEL}です`);
+      if (!inTokyo(p.coord)) throw new OpError('out_of_area', OUT_OF_AREA);
       return p;
     };
     const from = point(input.from);
