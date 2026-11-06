@@ -4,13 +4,18 @@
 //   3. 辞書の言葉ごとに印の色（src/web/panel.ts の COLOR）があるか
 //   4. 踏切の点とトンネルの上下線のまとめ方（src/ops/find_features.ts の mergeCrossings、mergeTunnels）
 //   5. Claude に渡る文が、記録した東京の文（scripts/fixtures/claude-text-tokyo.txt）と1バイトも違わないか
+//   6. 別の地域（大阪府）の設定では、Claude に渡る文に「東京都」が例の文のほかに出ないか。地域にない県の住所を断る判定
 // 実行：npx tsx scripts/check-quick.ts。問題があれば一覧を出して終了コード 1。
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { DICT, DICT_KEYS } from '../src/ops/dict';
 import { mergeCrossings, mergeTunnels } from '../src/ops/find_features';
+import { otherPref } from '../src/ops/geocode_address';
+import type { RegionConfig } from '../src/region';
 import type { OsmElement } from '../src/services/overpass';
 import { COLOR } from '../src/web/panel';
-import { renderClaudeText } from './claude-text';
 
 const bad: string[] = [];
 const isWord = (w: unknown) => typeof w === 'string' && Object.hasOwn(DICT, w);
@@ -97,12 +102,43 @@ for (const k of DICT_KEYS) {
 }
 
 // ===== 5. Claude に渡る文（東京では1バイトも変えない。評価は回し直せないため） =====
+// 地域の設定はプロセスを起こすときに読むので、別のプロセスで作る。東京は Git の中の既定で作る（data/region.json がほかの地域でも比べられる）
+function claudeText(regionFile: string): string {
+  const r = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/claude-text.ts'], { env: { ...process.env, REGION_FILE: regionFile }, encoding: 'utf8' });
+  if (r.status !== 0) bad.push(`scripts/claude-text.ts が失敗しました（${regionFile}）：${r.stderr.trim().split('\n').slice(-3).join(' ')}`);
+  return r.stdout;
+}
+const tokyoFile = 'src/region.default.json';
+const TOKYO: RegionConfig = JSON.parse(readFileSync(tokyoFile, 'utf8'));
 {
-  const want = readFileSync('scripts/fixtures/claude-text-tokyo.txt', 'utf8'), got = renderClaudeText();
+  const want = readFileSync('scripts/fixtures/claude-text-tokyo.txt', 'utf8'), got = claudeText(tokyoFile);
   if (got !== want) {
     const a = want.split('\n'), b = got.split('\n');
     const i = a.findIndex((l, k) => l !== b[k]);
     bad.push(`Claude に渡る文が記録と違います（${i + 1}行目）\n  記録：${a[i] ?? '（なし）'}\n  今　：${b[i] ?? '（なし）'}`);
+  }
+}
+
+// ===== 6. 別の地域の文と、地域にない県の住所 =====
+const OSAKA: RegionConfig = { ...TOKYO, id: 'osaka', label: '大阪府', name: '大阪府', prefs: [{ code: 27, name: '大阪府' }] };
+{
+  const dir = mkdtempSync(join(tmpdir(), 'kotozute-region-'));
+  writeFileSync(join(dir, 'region.json'), JSON.stringify(OSAKA));
+  const text = claudeText(join(dir, 'region.json'));
+  rmSync(dir, { recursive: true, force: true });
+  // 例の文（東京都港区芝公園4-2-8、品川駅、東京タワー）は、どの地域でも東京のまま
+  const rest = text.replaceAll('東京都港区芝公園4-2-8', '');
+  if (!text.includes('大阪府の地図の操作') || !text.includes('widened_to_osaka') || /東京都|tokyo/.test(rest)) {
+    const at = rest.split('\n').find((l) => /東京都|tokyo/.test(l));
+    bad.push(`大阪府の設定で、Claude に渡る文に東京が残っているか、大阪府が入っていない：${at ?? '（大阪府がない）'}`);
+  }
+}
+{
+  const OLD = /^(北海道|京都府|大阪府|[^都道府県\s]{2,3}県)/; // 地域の設定の前の正規表現（東京では同じ住所を断る）
+  const addrs = ['東京都港区芝公園4-2-8', '港区芝公園4-2-8', '大阪府大阪市北区梅田1', '北海道札幌市', '京都府京都市', '京都市中京区', '神奈川県横浜市', '鹿児島県鹿児島市', '和歌山県', '中央区大手前', '東京駅'];
+  for (const a of addrs) if (otherPref(a, TOKYO.prefs) !== OLD.test(a)) bad.push(`住所「${a}」：東京で地域の外と判定するかが前と違う`);
+  for (const [a, want] of [['大阪府大阪市北区梅田1', false], ['東京都港区芝公園4-2-8', true], ['京都府京都市', true], ['北区梅田1', false]] as const) {
+    if (otherPref(a, OSAKA.prefs) !== want) bad.push(`住所「${a}」：大阪府の設定で地域の外と判定するかが違う（${want} のはず）`);
   }
 }
 

@@ -1,6 +1,7 @@
 // セッション（画面1つぶんの状態）と、位置の参照の解決。サーバのメモリに置く。
 import { REF_PATTERN, OpError, type Place, type Session } from '../ops/types';
-import { REGION_LABEL, TOKYO_BBOX } from '../services/region';
+import { TOKYO_BBOX } from '../services/region';
+import { VIEW_NONE_NAME } from '../region-text';
 
 // ponytail: メモリだけ。サーバを止めると消える。続きが要るならファイルに書く
 const sessions = new Map<string, Session>();
@@ -41,7 +42,7 @@ export function resolveRef(s: Session, ref: string): Place {
   }
   if (ref === 'view:') {
     const [w, sth, e, n] = s.view?.bbox ?? TOKYO_BBOX;
-    return { ref, name: s.view ? '画面の範囲' : REGION_LABEL, coord: [(w + e) / 2, (sth + n) / 2], kind: 'place', bbox: s.view?.bbox ?? TOKYO_BBOX };
+    return { ref, name: s.view ? '画面の範囲' : VIEW_NONE_NAME, coord: [(w + e) / 2, (sth + n) / 2], kind: 'place', bbox: s.view?.bbox ?? TOKYO_BBOX };
   }
   const m = ref.match(/^click:(\d+)$/);
   if (m) {

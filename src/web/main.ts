@@ -16,6 +16,8 @@ import type { Feature as F } from 'geojson';
 import { layers, namedFlavor } from '@protomaps/basemaps';
 import { ATTRIBUTION, attributionParts, dataAsOfText } from '../attribution';
 import { CHIPS, DICT, type DictKey } from '../ops/dict';
+import { REGION } from '../region'; // vite が build のときに値を埋め込む（vite.config.ts）
+import { REGION_PILL } from '../region-text';
 import type {
   AddPinOutput, BBox, ChatResponse, CheckRouteOutput, ContextResponse, CourseOutput, ExportRouteOutput, FindFeaturesOutput, GeocodeOutput,
   LngLat, OpResult, Place, RecipeRunResponse, RecipeSaved, RouteOutput, SearchPlaceOutput, Session, SetViewOutput, ShareState, TunnelRun,
@@ -27,6 +29,7 @@ import {
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const r6 = (x: number) => Math.round(x * 1e6) / 1e6;
+$('#region').textContent = REGION_PILL;
 const C = { teal: '#0B6E78', sumi: '#12343B', white: '#FFFFFF', gray: '#7D868C', text: '#161B1F', pin: '#B3261E' };
 
 // 地図の配色（docs/storyboard/scenes.js の FLAVOR）：青い水、緑の公園、白い道、暖色の幹線
@@ -75,17 +78,17 @@ maplibregl.addProtocol('pmtiles', new Protocol().tile);
 const origin = location.origin;
 const map = new maplibregl.Map({
   container: 'map',
-  // 始めは都心（札で探せる広さ。範囲の上限は LIMITS.max_bbox_km2）
-  center: [139.752, 35.668],
-  zoom: 13.5,
-  maxBounds: [[138.9, 35.48], [139.95, 35.92]], // tokyo.pmtiles の切り出し範囲
+  // 始めは地域の設定の最初の表示（東京は都心。札で探せる広さ。範囲の上限は LIMITS.max_bbox_km2）
+  center: REGION.view.center,
+  zoom: REGION.view.zoom,
+  maxBounds: REGION.bbox, // 地図ファイルの切り出し範囲
   attributionControl: false, // 出典は右下に自前で出し、書き出す画像にも描き込む
   canvasContextAttributes: { preserveDrawingBuffer: true }, // 画像の書き出しに必要
   style: {
     version: 8,
     glyphs: `${origin}/assets/fonts/{fontstack}/{range}.pbf`,
     sprite: `${origin}/assets/sprites/v4/light`,
-    sources: { protomaps: { type: 'vector', url: `pmtiles://${origin}/tiles/tokyo.pmtiles` } },
+    sources: { protomaps: { type: 'vector', url: `pmtiles://${origin}/tiles/${REGION.tiles.split('/').pop()}` } }, // サーバと同じ名前（src/server/main.ts）
     // landcover は ESA WorldCover（CC BY 4.0）由来なので外す
     layers: layers('protomaps', { ...namedFlavor('light'), ...FLAVOR }, { lang: 'ja' })
       .filter((l) => !('source-layer' in l && l['source-layer'] === 'landcover')),
@@ -522,7 +525,7 @@ function locate(fly: boolean): Promise<string | null> {
   if (!navigator.geolocation) return Promise.resolve(GEO_OFF);
   return new Promise((done) => navigator.geolocation.getCurrentPosition(async (pos) => {
     const here: Session['here'] = { coord: [r6(pos.coords.longitude), r6(pos.coords.latitude)], accuracy_m: Math.max(1, Math.round(pos.coords.accuracy)) };
-    // サーバが受けた（東京都の中で、here: として使える）ときだけ地図に出す
+    // サーバが受けた（地域の中で、here: として使える）ときだけ地図に出す
     try { await api<ContextResponse>('/api/context', { sessionId, here }); } catch (err) { return done((err as Error).message); }
     st.here = here;
     draw();

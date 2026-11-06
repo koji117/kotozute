@@ -5,7 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { DICT, DICT_KEYS } from '../ops/dict';
 import { findOp, runOp, toolDefs } from '../ops/registry';
 import type { ChatResponse, OpResult, Session } from '../ops/types';
-import { REGION_LABEL } from '../services/region';
+import { SYSTEM_ROLE, VIEW_NONE } from '../region-text';
 
 // キーは .env から読む。中身は表示しない
 if (existsSync('.env')) process.loadEnvFile('.env');
@@ -17,7 +17,7 @@ const MAX_RECENT = 30;
 
 // system と tools は毎回同じ中身にする（キャッシュのため）。依頼ごとの状態は user の文に入れる
 export const SYSTEM = [
-  `あなたは「ことづて」の操作係です。地図に詳しくない社員が日本語で頼んだことを、${REGION_LABEL}の地図の操作に変えます。地図のデータは OpenStreetMap です。`,
+  SYSTEM_ROLE,
   '',
   '守ること：',
   '- 必ずツールで操作する。ツールを使わずに答えない。合うツールがなければ、何もせずに一文で終える。',
@@ -103,7 +103,7 @@ export function contextBlock(s: Session): string {
   return [
     '【画面の状態】',
     `現在地（here:）：${s.here ? `あり（精度 半径${Math.round(s.here.accuracy_m)}m）` : 'なし'}`,
-    `画面の範囲（view:）：${s.view ? 'あり' : 'なし（東京都全体）'}`,
+    `画面の範囲（view:）：${s.view ? 'あり' : VIEW_NONE}`,
     `クリックした点：${s.clicks.length ? `click:1〜click:${s.clicks.length}` : 'なし'}`,
     `地図に出ているルート：${s.route ? `あり（${s.route.from.name ?? '名前なし'} → ${s.route.to.name ?? '名前なし'}、寄り先${s.route.stops.length}か所）` : 'なし'}`,
     `地図に出ている印：${layers.join('、') || 'なし'}`,

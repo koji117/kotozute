@@ -3,18 +3,24 @@ import { z } from 'zod';
 import { defineOp, OpError, type GeocodeOutput } from './types';
 import { addAbr } from '../server/session';
 import { geocode, precisionOf } from '../services/abr';
-import { inTokyo, REGION_LABEL } from '../services/region';
+import { inTokyo } from '../services/region';
+import { REGION } from '../region';
+import { GEOCODE_SCOPE, OUT_OF_AREA as OUT } from '../region-text';
 
-const OUT = `対応する地域は${REGION_LABEL}です`;
-// 東京都以外の都道府県名で始まる住所（手元の ABR は東京都だけなので、その場合「東京都」にだけ一致してしまう）
-const OTHER_PREF = /^(北海道|京都府|大阪府|[^都道府県\s]{2,3}県)/;
+const PREF = /^(東京都|北海道|京都府|大阪府|[^都道府県\s]{2,3}県)/;
+/** 地域にない都道府県名で始まる住所か（手元の ABR は地域の都道府県だけなので、その場合、地域の都道府県にだけ一致してしまう）。
+ *  東京では前の /^(北海道|京都府|大阪府|[^都道府県\s]{2,3}県)/ と同じ住所を断る（scripts/check-quick.ts） */
+export function otherPref(address: string, prefs = REGION.prefs): boolean {
+  const m = address.match(PREF);
+  return !!m && !prefs.some((p) => p.name === m[1]);
+}
 
 export const geocodeAddress = defineOp({
   name: 'geocode_address',
   title: '住所',
   description:
     '日本語の住所（例：東京都港区芝公園4-2-8）を ABR（デジタル庁のアドレス・ベース・レジストリ）で位置にする。' +
-    '一致した部分、一致しなかった残り、座標の精度を返す。結果は abr:N の参照で返る。対応する地域は東京都（島しょ部を除く）。',
+    '一致した部分、一致しなかった残り、座標の精度を返す。結果は abr:N の参照で返る。' + GEOCODE_SCOPE,
   input: z.object({
     address: z.string().min(1).max(100).describe('住所。都道府県から書くと確実（例：東京都港区芝公園4-2-8）'),
   }),
@@ -22,7 +28,7 @@ export const geocodeAddress = defineOp({
   async run({ session }, input): Promise<GeocodeOutput> {
     const address = input.address.replace(/\p{Cc}/gu, '').trim();
     if (!address) throw new OpError('bad_input', '住所が空です');
-    if (OTHER_PREF.test(address)) throw new OpError('out_of_area', OUT);
+    if (otherPref(address)) throw new OpError('out_of_area', OUT);
     const m = await geocode(address);
     if (!m || m.match_level === 'unknown') throw new OpError('not_found', '住所が見つかりません（ABR で一致しませんでした）');
     // 都道府県か市区町村にしか一致せず残りがある＝町名から先が読めなかった（例：他県の「中央区大手前」が東京都中央区に一致する）

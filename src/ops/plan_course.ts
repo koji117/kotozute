@@ -6,8 +6,9 @@ import { toSteps } from './steps';
 import { defineOp, OpError, Ref, type CourseAttempt, type CourseOutput, type LngLat, type Place, type RouteOutput } from './types';
 import { resolveRef } from '../server/session';
 import { COURSE_RADIUS_M, LIMITS, overpass } from '../services/overpass';
-import { distM, inTokyo, lineM, midOf, REGION_LABEL } from '../services/region';
+import { distM, inTokyo, lineM, midOf } from '../services/region';
 import { valhallaRoute, type VRoute } from '../services/valhalla';
+import { noCourseTunnels, OUT_OF_AREA } from '../region-text';
 
 const MAX_ATTEMPTS = 5;
 const MAX_ROUTES = 10;
@@ -26,7 +27,7 @@ function excluded(t: Record<string, string>): boolean {
   return parseFloat(t.maxheight) < 2.1;
 }
 
-/** 出発地から 6km 以内の、東京都の中の、名前があり 50m 以上の道路トンネル。順番はトンネルの名前がある → 出発地に近い（真ん中まで）。同じ名前（反対車線や続きの way）は1つだけ */
+/** 出発地から 6km 以内の、地域の中の、名前があり 50m 以上の道路トンネル。順番はトンネルの名前がある → 出発地に近い（真ん中まで）。同じ名前（反対車線や続きの way）は1つだけ */
 async function candidates(start: LngLat): Promise<{ cands: Cand[]; excluded: number }> {
   const [lng, lat] = start;
   const { elements } = await overpass(
@@ -75,11 +76,11 @@ export const planCourse = defineOp({
   async run({ session }, input): Promise<CourseOutput> {
     if (input.start === 'view:') throw new OpError('bad_ref', '「view:」は画面の範囲なので、出発地には使えません。地図をクリックするか、場所を検索してください');
     const start = resolveRef(session, input.start);
-    if (!inTokyo(start.coord)) throw new OpError('out_of_area', `対応する地域は${REGION_LABEL}です`);
+    if (!inTokyo(start.coord)) throw new OpError('out_of_area', OUT_OF_AREA);
     if (!input.tunnels) throw new OpError('bad_input', '通るトンネルの本数（1〜4本）を指定してください。試走コースはトンネルを経由地にして作ります');
     const { tunnels, max_minutes, avoid_highways } = input;
     const { cands, excluded: ex } = await candidates(start.coord);
-    if (!cands.length) throw new OpError('not_found', `出発地から${COURSE_RADIUS_M / 1000}km以内の東京都の中に、経由地にできる名前のある道路トンネルがOSM上で見つかりません（現地にないとは限らない）`);
+    if (!cands.length) throw new OpError('not_found', noCourseTunnels(COURSE_RADIUS_M / 1000));
 
     // 経由地は出発地から見た向きの順に回る（行ったり来たりしない）
     // ponytail: 回る向きは1通りだけ試す。一方通行のトンネルで遠回りになるなら、逆回りも試す

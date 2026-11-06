@@ -1,4 +1,4 @@
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -15,6 +15,8 @@ import { loadShare } from '../ops/share';
 import { blockedWords, envBlockWords } from '../ops/note_rules';
 import { OpError, type ChatResponse, type ContextResponse, type RecipeRunResponse, type Session } from '../ops/types';
 import { inTokyo } from '../services/region';
+import { REGION } from '../region';
+import { OUTSIDE_POINT } from '../region-text';
 
 const ASSETS = 'data/basemaps-assets-src/basemaps-assets-main';
 export const app = new Hono();
@@ -23,7 +25,7 @@ installNetlog(); // 外部通信の記録（サーバが出す fetch を数え�
 // ===== 画面とのやりとり（型は src/ops/types.ts） =====
 const SessionId = z.string().regex(/^[\w-]{8,64}$/);
 const LngLat = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]);
-const InTokyo = LngLat.refine(inTokyo, '対応する地域（東京都）の外です');
+const InTokyo = LngLat.refine(inTokyo, OUTSIDE_POINT);
 const View = z.object({
   bbox: z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90), z.number().min(-180).max(180), z.number().min(-90).max(90)])
     .refine(([w, s, e, n]) => w < e && s < n, '範囲の形が正しくありません'),
@@ -129,7 +131,7 @@ app.onError((e, c) => {
 });
 
 // 地図ファイル（Range 対応）とフォント・アイコンはすべて自前で配信する。公開CDNは使わない。
-app.get('/tiles/tokyo.pmtiles', serveStatic({ path: 'tokyo.pmtiles' }));
+app.get(`/tiles/${basename(REGION.tiles)}`, serveStatic({ path: REGION.tiles })); // 画面は同じ名前で読む（src/web/main.ts）
 app.use('/assets/*', serveStatic({ root: ASSETS, rewriteRequestPath: p => decodeURIComponent(p.replace(/^\/assets/, '')) }));
 app.use('/*', serveStatic({ root: 'dist' })); // vite build の出力
 
