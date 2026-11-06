@@ -102,6 +102,8 @@ const cases: [string, () => Promise<OsmElement[]>][] = [
   ['substr-shibakoen', els(() => names('芝公園', VIEW, false))], // 3文字以上の部分一致（trigram の索引）
   ['substr-1', els(() => names('品', TOKYO, false))], // 1文字
   ['substr-2', els(() => names('品川', TOKYO, false))], // 2文字
+  // 評価の既定の画面の「五反田駅」（評価 c02）。範囲が重なるだけで、部品が画面の外のバスの路線（relation/915200 など）は入らない
+  ['substr-gotanda-view', els(() => names('五反田駅', [139.715, 35.645, 139.789, 35.691], false))],
 ];
 // 名前の記号（QL・正規表現・FTS の記号）：完全一致と部分一致の両方
 const SYMBOLS: [string, string][] = [['dotstar', '.*'], ['backslash', 'a\\'], ['quote', '"'], ['star', '*'], ['near', 'NEAR'], ['inject', 'a"];out;(']];

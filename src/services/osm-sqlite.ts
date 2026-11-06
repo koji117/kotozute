@@ -9,14 +9,16 @@ import type { Area, OsmElement } from './overpass';
 
 /** geom の部品の区切り（経度・緯度の両方にこの値） */
 export const SEP = -2147483648;
-/** 作ったときの辞書の条件。読むときに今の辞書と比べ、違えば作り直してもらう */
-export const dictSignature = () => JSON.stringify(Object.entries(DICT).map(([w, d]) => [w, d.queries]));
+/** 検索データの形の版。作り方（表や列）を変えたら上げる */
+const FORMAT = 2;
+/** 作ったときの形の版と辞書の条件。読むときに今のものと比べ、違えば作り直してもらう */
+export const dictSignature = () => JSON.stringify([FORMAT, Object.entries(DICT).map(([w, d]) => [w, d.queries])]);
 
 const TYPES = ['node', 'way', 'relation'] as const;
 /** Overpass の距離：子午線の4分の1が 10,000km の球（1度 = 1e7/90 m）。半径 6371km だと評価の b05 で駐車場が1件ずれる */
 const M_PER_DEG = 1e7 / 90;
 
-interface Row { fid: number; type: number; osm_id: number; minx: number; miny: number; maxx: number; maxy: number; tags: string; geom: Uint8Array | null; nodes: Uint8Array | null }
+interface Row { fid: number; type: number; osm_id: number; minx: number; miny: number; maxx: number; maxy: number; tags: string; geom: Uint8Array | null; nodes: Uint8Array | null; ways: Uint8Array | null }
 type Line = LngLat[];
 
 /** geom の BLOB を部品ごとの折れ線にする */
@@ -29,6 +31,8 @@ function parts(blob: Uint8Array): Line[] {
   }
   return out;
 }
+/** 点や way の番号の BLOB（Float64） */
+const f64 = (blob: Uint8Array) => [...new Float64Array(blob.buffer.slice(blob.byteOffset, blob.byteOffset + blob.byteLength))];
 
 // ===== 形の判定（その場の平面近似、m） =====
 const kxOf = (lat: number) => M_PER_DEG * Math.cos((lat * Math.PI) / 180);
@@ -51,13 +55,17 @@ function distTo(fparts: Line[], poly: Line, kx: number): number {
   }
   return d;
 }
-/** Overpass の bbox の判定：頂点が中にあるか、線が枠を横切る。形を持たない要素（名前だけの way と relation）は範囲の重なり（少し広い） */
-function inBox(r: Row, [w, s, e, n]: BBox): boolean {
+/**
+ * Overpass の bbox の判定：頂点が中にあるか、線が枠を横切る。relation は部品の点か部品の way のどれかがそうなら当たる
+ * （範囲が重なるだけでは当たらない。閉じた way や multipolygon の内側だけの枠も当たらない。11/6 に自社の Overpass で確認）。
+ * shape は範囲が枠に収まりきらないときだけ呼ぶ
+ */
+function inBox(r: Row, [w, s, e, n]: BBox, shape: (r: Row) => Line[]): boolean {
   if (r.maxx < w || r.minx > e || r.maxy < s || r.miny > n) return false;
-  if (r.type === 0 || !r.geom || (r.minx >= w && r.maxx <= e && r.miny >= s && r.maxy <= n)) return true;
+  if (r.minx >= w && r.maxx <= e && r.miny >= s && r.maxy <= n) return true; // node はここまでで決まる
   const inside = ([x, y]: LngLat) => x >= w && x <= e && y >= s && y <= n;
   const edges: [LngLat, LngLat][] = [[[w, s], [e, s]], [[e, s], [e, n]], [[e, n], [w, n]], [[w, n], [w, s]]];
-  return parts(r.geom).some((part) => part.some(inside) || segs(part).some(([a, b]) => edges.some(([c, d]) => segsCross(a, b, c, d))));
+  return shape(r).some((part) => part.some(inside) || segs(part).some(([a, b]) => edges.some(([c, d]) => segsCross(a, b, c, d))));
 }
 
 /** Overpass の JSON の形。geom：way の形（out geom）、nodes：way の点の番号（out body） */
@@ -65,7 +73,7 @@ function element(r: Row, geom: boolean, nodes: boolean): OsmElement {
   const e: OsmElement = { type: TYPES[r.type], id: r.osm_id };
   if (r.type === 0) Object.assign(e, { lat: r.miny, lon: r.minx });
   else e.bounds = { minlat: r.miny, minlon: r.minx, maxlat: r.maxy, maxlon: r.maxx };
-  if (r.type === 1 && nodes && r.nodes) e.nodes = [...new Float64Array(r.nodes.buffer.slice(r.nodes.byteOffset, r.nodes.byteOffset + r.nodes.byteLength))];
+  if (r.type === 1 && nodes && r.nodes) e.nodes = f64(r.nodes);
   if (r.type === 1 && geom && r.geom) e.geometry = parts(r.geom)[0].map(([lon, lat]) => ({ lat, lon }));
   e.tags = JSON.parse(r.tags);
   return e;
@@ -85,7 +93,7 @@ export function openOsmIndex(path: string) {
   const meta = (k: string) => (db.prepare('SELECT v FROM meta WHERE k = ?').get(k) as { v: string } | undefined)?.v;
   if (meta('dict') !== dictSignature()) {
     db.close();
-    throw new OpError('service', '検索データが今の辞書と合いません。npm run setup で作り直してください');
+    throw new OpError('service', '検索データが古い形か、今の辞書と合いません。npm run setup で作り直してください');
   }
   const words = Object.fromEntries(db.prepare('SELECT word, i FROM words').all().map((r) => [r.word as string, r.i as number]));
   const q = {
@@ -96,8 +104,16 @@ export function openOsmIndex(path: string) {
     fts: db.prepare('SELECT rowid AS fid FROM name_fts WHERE name_fts MATCH ?'),
     like: db.prepare('SELECT rowid AS fid FROM name_fts WHERE name LIKE ? OR name_ja LIKE ?'),
     hw: db.prepare('SELECT id, t FROM hw WHERE id IN (SELECT value FROM json_each(?))'),
+    wgeom: db.prepare('SELECT geom FROM wgeom WHERE id = ?'),
   };
   const row = (fid: number) => q.feat.get(fid) as unknown as Row;
+  /** Overpass の bbox と around が見る形：node は点、way は線、relation は部品の点（geom）と部品の way の線（ways → wgeom） */
+  function shape(r: Row): Line[] {
+    if (r.type === 0) return [[[r.minx, r.miny]]];
+    const out = r.geom ? parts(r.geom) : [];
+    if (r.ways) for (const id of f64(r.ways)) out.push(...parts((q.wgeom.get(id) as { geom: Uint8Array }).geom));
+    return out;
+  }
   const fids = (rs: unknown[]) => rs.map((r) => (r as { fid: number }).fid);
 
   /** 言葉に当たる地物のうち、どれかの枠に範囲が重なるもの（重なりは1回だけ） */
@@ -116,16 +132,13 @@ export function openOsmIndex(path: string) {
     const kx = kxOf(points[0][1]);
     const dx = R / kx, dy = R / M_PER_DEG;
     const boxes = segs(points).map(([a, b]): BBox => [Math.min(a[0], b[0]) - dx, Math.min(a[1], b[1]) - dy, Math.max(a[0], b[0]) + dx, Math.max(a[1], b[1]) + dy]);
-    return wordRows(word, boxes).filter((r) => {
-      const fp: Line[] = r.type === 0 ? [[[r.minx, r.miny]]] : r.geom ? parts(r.geom) : [[[r.minx, r.miny], [r.maxx, r.maxy]]];
-      return distTo(fp, points, kx) <= R;
-    });
+    return wordRows(word, boxes).filter((r) => distTo(shape(r), points, kx) <= R);
   }
 
   return {
     /** 辞書の言葉（overpass.ts の featureQuery と同じ。geom なら out body geom、でなければ out bb tags） */
     features(word: DictKey, area: Area, geom: boolean, limit: number): { elements: OsmElement[] } {
-      const rows = 'bbox' in area ? wordRows(word, [area.bbox]).filter((r) => inBox(r, area.bbox)) : around(word, area.around.points, area.around.radius_m);
+      const rows = 'bbox' in area ? wordRows(word, [area.bbox]).filter((r) => inBox(r, area.bbox, shape)) : around(word, area.around.points, area.around.radius_m);
       return { elements: finish(rows, limit, geom, geom) };
     },
     /** 名前（osm.ts の nameQuery と同じ）。exact は4つの名前のキーの完全一致と「〜駅」の駅。でなければ name / name:ja の部分一致（大文字小文字を区別しない） */
@@ -138,7 +151,7 @@ export function openOsmIndex(path: string) {
           const t = JSON.parse(row(fid).tags);
           if (!ids.has(fid) && t.name === st[1] && t.railway === 'station') { ids.add(fid); rows.push(row(fid)); }
         }
-        return { elements: finish(rows.filter((r) => inBox(r, bbox)), limit) };
+        return { elements: finish(rows.filter((r) => inBox(r, bbox, shape)), limit) };
       }
       // 名前は SQL にパラメータで渡す。3文字以上は trigram の索引（"…" の句。中の " は "" にする）、2文字以下は全部を見る。
       // どちらも候補を広めに取り、下の includes で絞る（LIKE の % と _ も、ここで文字どおりに比べ直す）
@@ -146,7 +159,7 @@ export function openOsmIndex(path: string) {
       const cand = [...name].length >= 3 ? q.fts.all(`"${name.replace(/"/g, '""')}"`) : q.like.all(`%${name}%`, `%${name}%`);
       const rows = fids(cand).map(row).filter((r) => {
         const t = JSON.parse(r.tags);
-        return [t.name, t['name:ja']].some((v) => v != null && v.toLowerCase().includes(lower)) && inBox(r, bbox);
+        return [t.name, t['name:ja']].some((v) => v != null && v.toLowerCase().includes(lower)) && inBox(r, bbox, shape);
       });
       return { elements: finish(rows, limit) };
     },

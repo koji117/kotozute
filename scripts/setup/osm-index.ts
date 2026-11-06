@@ -109,7 +109,7 @@ export async function buildOsmIndex(o: { pbf: string; out: string; osmium: Osmiu
   const asOf = await run(osmium, ['fileinfo', '-e', '-g', 'data.timestamp.last', pbf]);
   lap(`抜き出し（${exprs.length} 個の条件）`);
 
-  // 2. relation の部品：範囲を出すのに要る way と点を覚える
+  // 2. relation の部品：範囲と形（bbox の判定）に要る way と点を覚える
   const relWays = new Set<number>(), relNodes = new Set<number>();
   const named = (t: Tags) => NAME_KEYS.some((k) => k in t);
   for await (const line of lines(osmium, ['cat', sel, '-t', 'relation', '-f', 'opl,add_metadata=false'])) {
@@ -129,8 +129,11 @@ export async function buildOsmIndex(o: { pbf: string; out: string; osmium: Osmiu
     PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF;
     CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT);
     CREATE TABLE words(i INTEGER PRIMARY KEY, word TEXT);
-    -- type：0 node、1 way、2 relation。geom：経度・緯度の 1e-7 の Int32 の組。部品の区切りは (SEP, SEP)。nodes：点の番号（Float64、トンネルの way だけ）
-    CREATE TABLE feat(fid INTEGER PRIMARY KEY, type INT, osm_id INT, minx REAL, miny REAL, maxx REAL, maxy REAL, tags TEXT, geom BLOB, nodes BLOB);
+    -- type：0 node、1 way、2 relation。geom：経度・緯度の 1e-7 の Int32 の組。部品の区切りは (SEP, SEP)。
+    -- way の geom はその線、relation の geom は部品の点（1点ずつ区切る）。ways：relation の部品の way の番号（Float64。形は wgeom）。
+    -- nodes：点の番号（Float64、トンネルの way だけ）
+    CREATE TABLE feat(fid INTEGER PRIMARY KEY, type INT, osm_id INT, minx REAL, miny REAL, maxx REAL, maxy REAL, tags TEXT, geom BLOB, nodes BLOB, ways BLOB);
+    CREATE TABLE wgeom(id INTEGER PRIMARY KEY, geom BLOB); -- relation の部品の way の形（relation どうしで1つを共有する）
     CREATE VIRTUAL TABLE word_rtree USING rtree(id, minx, maxx, miny, maxy); -- id = fid*32 + 言葉の番号
     CREATE TABLE name_exact(v TEXT, fid INT, PRIMARY KEY(v, fid)) WITHOUT ROWID;
     CREATE VIRTUAL TABLE name_fts USING fts5(name, name_ja, tokenize='trigram');
@@ -138,7 +141,8 @@ export async function buildOsmIndex(o: { pbf: string; out: string; osmium: Osmiu
   `);
   const insWord = db.prepare('INSERT INTO words VALUES (?, ?)');
   WORDS.forEach((w, i) => insWord.run(i, w));
-  const insFeat = db.prepare('INSERT INTO feat(type, osm_id, minx, miny, maxx, maxy, tags, geom, nodes) VALUES (?,?,?,?,?,?,?,?,?)');
+  const insFeat = db.prepare('INSERT INTO feat(type, osm_id, minx, miny, maxx, maxy, tags, geom, nodes, ways) VALUES (?,?,?,?,?,?,?,?,?,?)');
+  const insWgeom = db.prepare('INSERT INTO wgeom VALUES (?, ?)');
   const insRt = db.prepare('INSERT INTO word_rtree VALUES (?,?,?,?,?)');
   const insExact = db.prepare('INSERT OR IGNORE INTO name_exact VALUES (?, ?)');
   const insFts = db.prepare('INSERT INTO name_fts(rowid, name, name_ja) VALUES (?,?,?)');
@@ -147,13 +151,15 @@ export async function buildOsmIndex(o: { pbf: string; out: string; osmium: Osmiu
   const rows = { feat: 0, word_rows: 0, named: 0, hw: 0, rel_no_bounds: 0 };
   const TYPE = { n: 0, w: 1, r: 2 };
   const enc = (coords: number[]) => new Uint8Array(Int32Array.from(coords, (c) => Math.round(c * 1e7)).buffer);
+  const f64 = (ids: number[]) => new Uint8Array(Float64Array.from(ids).buffer);
   const pick = (t: Tags, keys: string[]) => { const o: Tags = {}; for (const k of keys) if (k in t) o[k] = t[k]; return o; };
   type Box = [number, number, number, number];
-  function addFeat(type: T, id: number, b: Box, tags: Tags, words: number[], geom: number[] | null, nodes: number[] | null) {
+  // 名前だけの way と relation にも形を持つ。名前の検索の bbox も Overpass と同じく形で判定する（範囲の重なりでは広すぎる）
+  function addFeat(type: T, id: number, b: Box, tags: Tags, words: number[], geom: number[] | null, nodes: number[] | null, ways: number[] | null = null) {
     const isNamed = named(tags);
     if (!isNamed && !words.length) return;
     const keep = pick(tags, type === 'w' && tags.highway ? FEAT_HW_KEYS : FEAT_KEYS);
-    const { lastInsertRowid } = insFeat.run(TYPE[type], id, b[0], b[1], b[2], b[3], JSON.stringify(keep), words.length && geom ? enc(geom) : null, nodes ? new Uint8Array(Float64Array.from(nodes).buffer) : null);
+    const { lastInsertRowid } = insFeat.run(TYPE[type], id, b[0], b[1], b[2], b[3], JSON.stringify(keep), geom?.length ? enc(geom) : null, nodes ? f64(nodes) : null, ways?.length ? f64(ways) : null);
     const fid = Number(lastInsertRowid);
     rows.feat++;
     for (const w of words) { insRt.run(fid * 32 + w, b[0], b[2], b[1], b[3]); rows.word_rows++; }
@@ -165,7 +171,7 @@ export async function buildOsmIndex(o: { pbf: string; out: string; osmium: Osmiu
   }
 
   // 3. 点、線（点の位置つき）、relation を順に入れる
-  const nodeLoc = new Map<number, [number, number]>(), wayBox = new Map<number, Box>(), wayGeom = new Map<number, number[]>();
+  const nodeLoc = new Map<number, [number, number]>(), wayBox = new Map<number, Box>();
   for await (const line of lines(osmium, ['add-locations-to-ways', sel, '-n', '-f', 'opl,add_metadata=false', '-o', '-'])) {
     const f = fields(line);
     if (line[0] === 'n') {
@@ -188,7 +194,7 @@ export async function buildOsmIndex(o: { pbf: string; out: string; osmium: Osmiu
         coords.push(x, y);
         b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], y); b[2] = Math.max(b[2], x); b[3] = Math.max(b[3], y);
       }
-      if (relWays.has(id)) { wayBox.set(id, b); wayGeom.set(id, coords); }
+      if (relWays.has(id)) { wayBox.set(id, b); if (coords.length) insWgeom.run(id, enc(coords)); }
       if (!coords.length) continue;
       const tunnel = tags.tunnel === 'yes' && TUNNEL_HW.test(tags.highway ?? '');
       addFeat('w', id, b, tags, wordsOf('w', tags), coords, tunnel ? ids : null);
@@ -197,9 +203,9 @@ export async function buildOsmIndex(o: { pbf: string; out: string; osmium: Osmiu
       const tags = parseTags(f.T);
       const words = wordsOf('r', tags);
       if (!named(tags) && !words.length) continue;
-      // Overpass の relation の範囲（out bb）：部品の点と way から（部品の relation は見ない）
+      // Overpass の relation の範囲（out bb）と bbox・around の判定：部品の点と way から（部品の relation は見ない）
       const b: Box = [Infinity, Infinity, -Infinity, -Infinity];
-      const geom: number[] = [];
+      const geom: number[] = [], ways = new Set<number>();
       for (const m of (f.M ?? 'M').slice(1).split(',')) {
         if (!m) continue;
         const mid = Number(m.slice(1, m.indexOf('@')));
@@ -207,11 +213,12 @@ export async function buildOsmIndex(o: { pbf: string; out: string; osmium: Osmiu
         const mb = m[0] === 'w' ? wayBox.get(mid) : p ? [p[0], p[1], p[0], p[1]] : undefined;
         if (!mb || !Number.isFinite(mb[0])) continue;
         b[0] = Math.min(b[0], mb[0]); b[1] = Math.min(b[1], mb[1]); b[2] = Math.max(b[2], mb[2]); b[3] = Math.max(b[3], mb[3]);
-        if (words.length) { if (geom.length) geom.push(SEP / 1e7, SEP / 1e7); geom.push(...(m[0] === 'w' ? wayGeom.get(mid)! : p!)); }
+        if (m[0] === 'w') ways.add(mid);
+        else { if (geom.length) geom.push(SEP / 1e7, SEP / 1e7); geom.push(...p!); }
       }
       // 部品が relation だけのもの（route_master など）は範囲がないので入れない
       if (!Number.isFinite(b[0])) { rows.rel_no_bounds++; continue; }
-      addFeat('r', id, b, tags, words, geom, null);
+      addFeat('r', id, b, tags, words, geom, null, [...ways]);
     }
   }
   lap(`地物 ${rows.feat}（名前つき ${rows.named}、言葉 ${rows.word_rows}）`);
