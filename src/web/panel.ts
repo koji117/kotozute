@@ -92,10 +92,13 @@ function inVal(k: string, v: unknown): string {
   if (v && typeof v === 'object') return pairs(v, '、');
   return String(v);
 }
-/** 入力の「名前：値」。null（使わない項目）と空の配列は出さない */
-const pairs = (o: object, sep: string) => Object.entries(o)
-  .filter(([, v]) => v != null && !(Array.isArray(v) && !v.length))
-  .map(([k, v]) => `${KEY[k] ?? k}：${inVal(k, v)}`).join(sep);
+/** 出す項目：null（使わない項目）、空の配列、「いいえ」（頼まれていない条件）は出さない */
+const shown = (o: object) => Object.entries(o).filter(([, v]) => v != null && v !== false && !(Array.isArray(v) && !v.length));
+/** 入力の「名前：値」。項目が1つだけなら値だけ（例：寄り先の「種類：郵便局」は「郵便局」、住所は住所だけ） */
+const pairs = (o: object, sep: string) => {
+  const e = shown(o);
+  return e.length === 1 ? inVal(e[0][0], e[0][1]) : e.map(([k, v]) => `${KEY[k] ?? k}：${inVal(k, v)}`).join(sep);
+};
 /** 検証に落ちた入力（bad_input）は LLM が書いたままなので出さない。座標や結果にない言葉が入りうる */
 const shownInput = (s: OpResult) => {
   if (!s.ok && s.error.code === 'bad_input') return '（入力が正しくないため表示しません）';
@@ -124,13 +127,14 @@ function features(o: FindFeaturesOutput) {
   return card(html`<div class="card">
     <div class="od">範囲：${o.area.label}${o.area.radius_m != null ? `（半径${o.area.radius_m}m）` : ''}</div>
     ${o.groups.map((g) => html`
-      <div class="sec"><span class="sw" style="background:${COLOR[g.word]}"></span>${g.label} ${g.count}${g.word === 'tunnel' ? '本' : '件'}${g.truncated ? '以上' : ''}</div>
+      <div class="sec"><span class="sw" style="background:${COLOR[g.word]}"></span>${g.label} ${g.count}${g.word === 'tunnel' ? '本' : g.points != null ? 'か所' : '件'}${g.truncated ? '以上' : ''}</div>
       ${g.count === 0 ? html`<div class="zero">OSM上で0件（現地にないとは限らない）</div>` : html`
         ${g.truncated ? html`<div class="note">上限の${g.items.length}件で切りました（全部ではありません）</div>` : ''}
         <details ${g.count <= 8 ? 'open' : ''}><summary>名前の一覧</summary>
           <ol class="names">${g.items.map((p) => html`<li>${nm(p)}</li>`)}</ol></details>`}`)}
   </div>`,
-  html`${o.groups.map((g) => html`<div class="note">${g.interpretation}</div>`)}`);
+  html`${o.groups.map((g) => html`<div class="note">${g.interpretation}</div>
+    ${g.points != null && g.points !== g.count ? html`<div class="note">${g.label}：OSM の点 ${g.points}個を、40m以内か同じ名前（200m以内）の点どうしでまとめて ${g.count}か所</div>` : ''}`)}`);
 }
 
 function search(o: SearchPlaceOutput) {
@@ -356,7 +360,7 @@ const foot = raw(`<div class="foot">
 /** 操作ごとの「名前：入力」 */
 const opsList = (steps: OpResult[], h2: string, od: string) => steps.length
   ? html`<div class="ph-h" style="margin-top:10px"><h2>${h2}</h2><span class="od">${od}</span></div>
-    <div class="kv">${steps.map((s) => html`<div><b>${s.title}</b><span>${shownInput(s)}</span></div>`)}</div>` : '';
+    <div class="kv">${steps.map((s, i) => html`<div><b><span class="dotn sm">${i + 1}</span>${s.title}</b><span>${shownInput(s)}</span></div>`)}</div>` : '';
 
 /** 「詳細」の欄（技術的な情報と外部通信の記録）。閉じておく。中身がなければ CSS で隠す。開いたかどうかは main.ts が覚える */
 const advSection = (items: (Raw | undefined)[], net?: NetLog) =>

@@ -83,6 +83,7 @@ ol.names { margin: 4px 0 0; padding-left: 2.2em; font-size: var(--fs-body); }
 ol.names li { padding: 1px 0; }
 .dotn { width: 22px; height: 22px; border-radius: 50%; background: var(--sumi-700); color: var(--white); display: grid; place-items: center; font-size: var(--fs-label); font-weight: 800; flex: none; }
 .dotn.pin { background: var(--ng-700); }
+.dotn.sm { display: inline-grid; width: 18px; height: 18px; margin-right: 6px; vertical-align: -3px; font-size: 11px; } /* 解釈の操作の番号 */
 .note.warn { color: var(--unk-700); font-weight: 700; }
 .dot.here { width: 18px; height: 18px; margin: 0 2px; border-radius: 50%; background: var(--teal-600); box-shadow: 0 0 0 4px rgba(11,110,120,.18); flex: none; }
 

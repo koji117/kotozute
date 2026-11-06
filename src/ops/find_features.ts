@@ -34,15 +34,15 @@ export const findFeatures = defineOp({
     const fetched: { word: DictKey; elements: OsmElement[] }[] = [];
     for (const word of [...new Set(input.words)]) fetched.push({ word, elements: (await overpass(featureQuery(word, area, word === 'tunnel'))).elements });
     for (const { word, elements } of fetched) {
-      const tunnel = word === 'tunnel';
-      const items = (tunnel ? mergeTunnels(elements) : elements.map((e) => toPlace(e, word)))
+      const tunnel = word === 'tunnel', crossing = CROSSINGS.has(word);
+      const items = (tunnel ? mergeTunnels(elements) : crossing ? mergeCrossings(elements, word) : elements.map((e) => toPlace(e, word)))
         .filter((p) => inTokyo(p.coord))
         .sort((a, b) => distM(a.coord, place.coord) - distM(b.coord, place.coord))
         .slice(0, LIMITS.max_items)
         .map((p) => addResult(session, p));
       session.layers[word] = { word, refs: items.map((p) => p.ref), visible: true };
       const d = DICT[word];
-      groups.push({ word, label: d.label, interpretation: d.interpretation, count: items.length, items, truncated: elements.length > LIMITS.max_items });
+      groups.push({ word, label: d.label, interpretation: d.interpretation, count: items.length, items, truncated: elements.length > LIMITS.max_items, ...(crossing ? { points: elements.length } : {}) });
     }
     return { area: { ref: input.area, label: place.name ?? '名前のない場所', bbox: bbox ?? circle, radius_m: bbox ? null : input.radius_m }, groups };
   },
@@ -57,7 +57,8 @@ export const findFeatures = defineOp({
 
 /**
  * トンネルの way を、点を共有するものどうし（続きの way、合流する way）で1本にまとめる。50m 未満は数えない。
- * 点を共有しない上下線は、真ん中どうしが 100m 未満で、名前が同じか片方が名前なしなら1本にする（合否表の数え方と同じ近さ）。
+ * 点を共有しない上下線は1本にする（合否表の数え方と同じ近さ 100m）。名前が同じなら、どこかが 100m 未満まで近づけば1本
+ * （山手トンネルのような長いトンネルは、上下線の真ん中どうしが離れるため）。片方が名前なしなら、真ん中どうしが 100m 未満で1本。
  * 名前は tunnel:name か name（いちばん長い way から）、位置はいちばん長い way の真ん中
  */
 export function mergeTunnels(ways: OsmElement[]): Omit<Place, 'ref'>[] {
@@ -77,10 +78,18 @@ export function mergeTunnels(ways: OsmElement[]): Omit<Place, 'ref'>[] {
     const name = t.map((x) => x['tunnel:name']).find(Boolean) ?? t.map((x) => x['name:ja'] ?? x.name).find(Boolean) ?? null;
     return { g, lines, name, mid: midOf(lines[0].line).coord, m: lines.reduce((s, x) => s + x.m, 0) };
   };
-  const merged: ReturnType<typeof tunnel>[] = [];
+  type T = ReturnType<typeof tunnel>;
+  // ponytail: 頂点どうしの総当たり。範囲の中のトンネルは数十本までなので足りる。遅ければ bbox で先にふるう
+  const closest = (a: T, b: T) => {
+    let d = Infinity;
+    for (const { line: la } of a.lines) for (const p of la) for (const { line: lb } of b.lines) for (const q of lb) d = Math.min(d, distM(p, q));
+    return d;
+  };
+  const same = (x: T, y: T) => (x.name && x.name === y.name ? closest(x, y) : (!x.name || !y.name) ? distM(y.mid, x.mid) : Infinity) < SAME_TUNNEL_M;
+  const merged: T[] = [];
   for (const x of [...groups].map(tunnel)) {
     if (x.m < MIN_TUNNEL_M) continue;
-    const i = merged.findIndex((y) => distM(y.mid, x.mid) < SAME_TUNNEL_M && (!x.name || !y.name || x.name === y.name));
+    const i = merged.findIndex((y) => same(x, y));
     if (i < 0) merged.push(x);
     else merged[i] = tunnel([...merged[i].g, ...x.g]);
   }
@@ -91,6 +100,31 @@ export function mergeTunnels(ways: OsmElement[]): Omit<Place, 'ref'>[] {
       bbox: [r6(Math.min(...b.map((c) => c[0]))), r6(Math.min(...b.map((c) => c[1]))), r6(Math.max(...b.map((c) => c[0]))), r6(Math.max(...b.map((c) => c[1])))] as BBox,
     };
   });
+}
+
+const CROSSINGS = new Set<DictKey>(['level_crossing', 'foot_crossing']);
+/** 同じ踏切とみなす近さ（m）。名前が同じなら少し離れていても（複線の幅）1か所 */
+export const SAME_CROSSING_M = 40, SAME_NAME_CROSSING_M = 200;
+
+/**
+ * 踏切：1つの踏切が、線路や車線の数だけ OSM の点に分かれている。
+ * 40m 以内（名前が同じか、片方が名前なし）か、同じ名前で 200m 以内の点を1か所にまとめる。位置は点の平均、ID は最初の点
+ */
+export function mergeCrossings(nodes: OsmElement[], kind: Place['kind']): Omit<Place, 'ref'>[] {
+  const same = (a: Omit<Place, 'ref'>, b: Omit<Place, 'ref'>) => {
+    const d = distM(a.coord, b.coord);
+    return (d < SAME_CROSSING_M && (!a.name || !b.name || a.name === b.name)) || (!!a.name && a.name === b.name && d < SAME_NAME_CROSSING_M);
+  };
+  let groups: Omit<Place, 'ref'>[][] = [];
+  for (const p of nodes.map((e) => toPlace(e, kind))) {
+    const hit = groups.filter((g) => g.some((q) => same(p, q))); // 2つのまとまりをつなぐ点なら、まとまりどうしも1つにする
+    groups = [...groups.filter((g) => !hit.includes(g)), [...hit.flat(), p]];
+  }
+  return groups.map((g) => ({
+    ...g[0],
+    name: g.find((p) => p.name)?.name ?? null,
+    coord: [r6(g.reduce((s, p) => s + p.coord[0], 0) / g.length), r6(g.reduce((s, p) => s + p.coord[1], 0) / g.length)] as LngLat,
+  }));
 }
 
 /** 点と半径を囲む bbox（平面近似） */

@@ -243,7 +243,7 @@ try {
     await page2.press('#q', 'Enter');
     await page2.locator('#panel .steps').waitFor();
     const t = await text(page2, '#panel');
-    check('依頼：解釈に操作と入力', t.includes('解釈') && t.includes('住所：東京都港区芝公園4-2-8') && t.includes('名前：東京タワー') && t.includes('出発：現在地'), t.slice(0, 200));
+    check('依頼：解釈に操作と入力', t.includes('解釈') && /1\s?住所\s?東京都港区芝公園4-2-8/.test(t) && t.includes('名前：東京タワー') && t.includes('出発：現在地') && t.includes('寄り先：郵便局') && !t.includes('種類：') && !t.includes('高速を使わない：いいえ'), t.slice(0, 200));
     check('依頼：住所の精度', t.includes('座標の精度：'));
     check('依頼：ルートの時間と寄り道', /車\s?[\d.]+分\s?[\d.]+km/.test(t) && /寄り道で \+[\d.]+分/.test(t), t.match(/車.{0,40}/)?.[0]);
     check('依頼：入力欄を空にする', (await page2.inputValue('#q')) === '');

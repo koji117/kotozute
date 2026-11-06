@@ -98,7 +98,8 @@ export interface GeocodeOutput {
 }
 /** capped：Overpass の件数の上限で切れた（total は本当の件数ではなく「以上」）。widened：画面の中になかったので東京都全体から探した */
 export interface SearchPlaceOutput { query: string; items: Place[]; total: number; truncated: boolean; capped: boolean; widened: boolean }
-export interface FeatureGroup { word: DictKey; label: string; interpretation: string; count: number; items: Place[]; truncated: boolean }
+/** points：まとめる前の OSM の点の数（踏切だけ。1つの踏切が線路や車線ごとの点に分かれているため） */
+export interface FeatureGroup { word: DictKey; label: string; interpretation: string; count: number; items: Place[]; truncated: boolean; points?: number }
 /** area.radius_m：場所の周りを探したときの半径。範囲（画面や公園）で探したときは null */
 export interface FindFeaturesOutput { area: { ref: string; label: string; bbox: BBox; radius_m: number | null }; groups: FeatureGroup[] }
 export interface Step { type: number; text: string; street: string | null; km: number }

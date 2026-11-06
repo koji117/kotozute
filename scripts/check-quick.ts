@@ -2,9 +2,12 @@
 //   1. 評価セット（eval/set.jsonl）の形が eval/README.md の決まりどおりか
 //   2. 書き出し（画像、GPX、GeoJSON）をするファイルが、出典とデータ時点の定数（src/attribution.ts）を使っているか
 //   3. 辞書の言葉ごとに印の色（src/web/panel.ts の COLOR）があるか
+//   4. 踏切の点とトンネルの上下線のまとめ方（src/ops/find_features.ts の mergeCrossings、mergeTunnels）
 // 実行：npx tsx scripts/check-quick.ts。問題があれば一覧を出して終了コード 1。
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { DICT, DICT_KEYS } from '../src/ops/dict';
+import { mergeCrossings, mergeTunnels } from '../src/ops/find_features';
+import type { OsmElement } from '../src/services/overpass';
 import { COLOR } from '../src/web/panel';
 
 const bad: string[] = [];
@@ -67,6 +70,28 @@ for (const f of readdirSync('src', { recursive: true, encoding: 'utf8' })) {
 for (const k of DICT_KEYS) {
   if (!/^#[0-9A-Fa-f]{6}$/.test((COLOR as Record<string, string>)[k] ?? '')) bad.push(`辞書の言葉 ${k} に印の色（src/web/panel.ts の COLOR）がない`);
   if (!DICT[k].interpretation.trim()) bad.push(`辞書の言葉 ${k} に解釈（interpretation）がない`);
+}
+
+// ===== 4. 踏切のまとめ方 =====
+// 北緯35.62度で経度 0.0001度 ≒ 9m。1・2 は同じ名前で18m、3・4 は名前なしで18m、5 は 4 から18m（名前なしとは合う）で 2 と同じ名前で90m なので、1〜5 が1か所になる。
+// 6 は同じ名前でも900m離れているので別。7・8 は14mでも名前が違うので別。全部で4か所
+{
+  const node = (id: number, lon: number, name?: string): OsmElement => ({ type: 'node', id, lon, lat: 35.62, tags: { railway: 'level_crossing', ...(name ? { name } : {}) } });
+  const got = mergeCrossings([node(1, 139.74, '北品川踏切'), node(2, 139.7402, '北品川踏切'), node(3, 139.7408), node(4, 139.741), node(5, 139.7412, '北品川踏切'),
+    node(6, 139.75, '北品川踏切'), node(7, 139.76, '甲踏切'), node(8, 139.76015, '乙踏切')], 'level_crossing');
+  const first = got.find((p) => p.osm === 'node/1');
+  if (got.length !== 4 || first?.name !== '北品川踏切') bad.push(`踏切のまとめ方が違う：${got.length}か所（4か所のはず）、${JSON.stringify(got.map((p) => [p.osm, p.name]))}`);
+}
+
+// 同じ名前の長いトンネルの上下線（点を共有しない。30m 離れて平行、半分ずれている）は1本。名前の違うトンネルは近くても別
+{
+  let id = 0;
+  const way = (name: string, lon0: number, lat: number): OsmElement => {
+    const geometry = Array.from({ length: 21 }, (_, i) => ({ lon: lon0 + i * 0.001, lat }));
+    return { type: 'way', id: ++id, nodes: geometry.map(() => ++id), geometry, tags: { highway: 'motorway', tunnel: 'yes', name } };
+  };
+  const got = mergeTunnels([way('山手トンネル', 139.74, 35.62), way('山手トンネル', 139.75, 35.62027), way('別トンネル', 139.74, 35.6205)]);
+  if (got.length !== 2) bad.push(`トンネルのまとめ方が違う：${got.length}本（2本のはず）、${JSON.stringify(got.map((p) => p.name))}`);
 }
 
 if (bad.length) {
