@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+  <title>Claude API のキー</title>
+  <style>
+    /* 色と角丸は src/web/style.css の :root と同じ値 */
+    :root { --teal-600: #0B6E78; --teal-700: #085862; --text: #161B1F; --text-2: #434C53; --line-2: #C7CED3; --surface: #FFFFFF; --map-bg: #F2F1EE; --ng-700: #B3261E; --r-sm: 8px; --r-lg: 14px; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 28px 32px; font: 14px/1.6 "Hiragino Sans", sans-serif; color: var(--text); background: var(--map-bg); line-break: strict; }
+    h1 { margin: 0 0 12px; font-size: 18px; }
+    p { margin: 0 0 10px; color: var(--text-2); }
+    label { display: block; margin: 18px 0 6px; font-weight: 600; }
+    input { width: 100%; padding: 10px 12px; font: 16px ui-monospace, monospace; border: 1px solid var(--line-2); border-radius: var(--r-sm); background: var(--surface); }
+    :focus-visible { outline: 3px solid var(--teal-600); outline-offset: 2px; }
+    .msg { min-height: 1.6em; margin: 6px 0 0; color: var(--ng-700); }
+    .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+    button { padding: 9px 18px; font: 600 15px "Hiragino Sans", sans-serif; border-radius: var(--r-lg); border: 1px solid var(--line-2); background: var(--surface); color: var(--text); cursor: pointer; }
+    button.primary { background: var(--teal-600); border-color: var(--teal-600); color: #fff; }
+    button.primary:hover { background: var(--teal-700); }
+  </style>
+</head>
+<body>
+  <h1>Claude API のキー</h1>
+  <p>日本語の依頼（例：「芝公園のあたりを大きく」）を読むのに、Claude API を使います。</p>
+  <p>キーは、この Mac の中に暗号化して保存します。画面と記録には出しません。あとから、メニューの「API キーを変える」で変えられます。</p>
+  <p>キーがなくても、地図・札・ボタンは使えます（日本語の依頼は使えません）。</p>
+  <form id="f">
+    <label for="key">キー</label>
+    <input id="key" type="password" autocomplete="off" spellcheck="false" autofocus>
+    <p class="msg" id="msg" role="alert"></p>
+    <div class="row">
+      <button type="button" id="skip">キーなしで使う</button>
+      <button type="submit" class="primary">保存して始める</button>
+    </div>
+  </form>
+  <script>
+    const msg = document.getElementById('msg');
+    const send = async (key) => {
+      msg.textContent = '';
+      if (!(await window.kotozute.setKey(key))) msg.textContent = 'キーの形が正しくありません。空白を入れずに貼り付けてください';
+    };
+    document.getElementById('f').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const key = document.getElementById('key').value.trim();
+      if (!key) { msg.textContent = 'キーを入れてください'; return; }
+      send(key);
+    });
+    document.getElementById('skip').addEventListener('click', () => send(null));
+  </script>
+</body>
+</html>

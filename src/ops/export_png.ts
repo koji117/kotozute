@@ -10,9 +10,10 @@ import { z } from 'zod';
 import { defineOp, OpError, type ExportPngOutput } from './types';
 import { makeShareLink } from './share';
 
-/** MCP で書き出したファイルを置くフォルダ（画面がないので、ファイルにしてパスを返す） */
+/** MCP で書き出したファイルを置くフォルダ（画面がないので、ファイルにしてパスを返す）。KOTOZUTE_DATA_DIR があればその exports/ */
 export function exportDir(): string {
-  const dir = process.env.EXPORT_DIR ?? join(homedir(), 'kotozute-exports');
+  const data = process.env.KOTOZUTE_DATA_DIR;
+  const dir = process.env.EXPORT_DIR ?? (data ? join(data, 'exports') : join(homedir(), 'kotozute-exports'));
   mkdirSync(dir, { recursive: true });
   return dir;
 }

@@ -36,3 +36,6 @@ docs/storyboard/maps/
 docs/storyboard/*.mp4
 logs/ops.jsonl
 .claude/worktrees/
+
+# Mac のアプリの出力（npm run app:dist）
+release/
