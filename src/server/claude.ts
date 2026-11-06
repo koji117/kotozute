@@ -16,7 +16,7 @@ const DEADLINE_MS = 150_000; // 依頼1件にかける時間の上限
 const MAX_RECENT = 30;
 
 // system と tools は毎回同じ中身にする（キャッシュのため）。依頼ごとの状態は user の文に入れる
-const SYSTEM = [
+export const SYSTEM = [
   `あなたは「ことづて」の操作係です。地図に詳しくない社員が日本語で頼んだことを、${REGION_LABEL}の地図の操作に変えます。地図のデータは OpenStreetMap です。`,
   '',
   '守ること：',
@@ -97,7 +97,7 @@ function quoted(input: unknown, text: string): unknown {
 }
 
 /** 依頼ごとに渡す画面の状態。座標は入れず、参照と名前と件数だけ */
-function contextBlock(s: Session): string {
+export function contextBlock(s: Session): string {
   const layers = Object.values(s.layers).map((l) => `${DICT[l!.word].label}（${l!.word}）${l!.refs.length}件・${l!.visible ? '表示中' : '非表示'}`);
   const recent = [...s.places].filter(([k]) => /^(result|abr):/.test(k)).slice(-MAX_RECENT).map(([k, p]) => `${k} ${p.name ?? '（名前なし）'}`);
   return [

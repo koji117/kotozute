@@ -3,12 +3,14 @@
 //   2. 書き出し（画像、GPX、GeoJSON）をするファイルが、出典とデータ時点の定数（src/attribution.ts）を使っているか
 //   3. 辞書の言葉ごとに印の色（src/web/panel.ts の COLOR）があるか
 //   4. 踏切の点とトンネルの上下線のまとめ方（src/ops/find_features.ts の mergeCrossings、mergeTunnels）
+//   5. Claude に渡る文が、記録した東京の文（scripts/fixtures/claude-text-tokyo.txt）と1バイトも違わないか
 // 実行：npx tsx scripts/check-quick.ts。問題があれば一覧を出して終了コード 1。
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { DICT, DICT_KEYS } from '../src/ops/dict';
 import { mergeCrossings, mergeTunnels } from '../src/ops/find_features';
 import type { OsmElement } from '../src/services/overpass';
 import { COLOR } from '../src/web/panel';
+import { renderClaudeText } from './claude-text';
 
 const bad: string[] = [];
 const isWord = (w: unknown) => typeof w === 'string' && Object.hasOwn(DICT, w);
@@ -92,6 +94,16 @@ for (const k of DICT_KEYS) {
   };
   const got = mergeTunnels([way('山手トンネル', 139.74, 35.62), way('山手トンネル', 139.75, 35.62027), way('別トンネル', 139.74, 35.6205)]);
   if (got.length !== 2) bad.push(`トンネルのまとめ方が違う：${got.length}本（2本のはず）、${JSON.stringify(got.map((p) => p.name))}`);
+}
+
+// ===== 5. Claude に渡る文（東京では1バイトも変えない。評価は回し直せないため） =====
+{
+  const want = readFileSync('scripts/fixtures/claude-text-tokyo.txt', 'utf8'), got = renderClaudeText();
+  if (got !== want) {
+    const a = want.split('\n'), b = got.split('\n');
+    const i = a.findIndex((l, k) => l !== b[k]);
+    bad.push(`Claude に渡る文が記録と違います（${i + 1}行目）\n  記録：${a[i] ?? '（なし）'}\n  今　：${b[i] ?? '（なし）'}`);
+  }
 }
 
 if (bad.length) {
