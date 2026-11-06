@@ -3,7 +3,7 @@
 // （lane_count は lanes タグがなくても値が入る）。
 import { z } from 'zod';
 import { defineOp, OpError, type CheckOutput, type CheckRouteOutput, type CheckRow, type CourseConditions, type LngLat, type TunnelRun, type Verdict } from './types';
-import { wayTags } from '../services/overpass';
+import { wayTags } from '../services/osm';
 import { distM, midOf } from '../services/region';
 import { valhallaTrace } from '../services/valhalla';
 

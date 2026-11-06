@@ -5,7 +5,8 @@ import { judge, llmCheck, MIN_TUNNEL_M, TUNNEL_NAME } from './check_route';
 import { toSteps } from './steps';
 import { defineOp, OpError, Ref, type CourseAttempt, type CourseOutput, type LngLat, type Place, type RouteOutput } from './types';
 import { resolveRef } from '../server/session';
-import { COURSE_RADIUS_M, LIMITS, overpass } from '../services/overpass';
+import { courseTunnels } from '../services/osm';
+import { COURSE_RADIUS_M, LIMITS } from '../services/overpass';
 import { distM, inTokyo, lineM, midOf, REGION_LABEL } from '../services/region';
 import { valhallaRoute, type VRoute } from '../services/valhalla';
 
@@ -28,10 +29,7 @@ function excluded(t: Record<string, string>): boolean {
 
 /** 出発地から 6km 以内の、東京都の中の、名前があり 50m 以上の道路トンネル。順番はトンネルの名前がある → 出発地に近い（真ん中まで）。同じ名前（反対車線や続きの way）は1つだけ */
 async function candidates(start: LngLat): Promise<{ cands: Cand[]; excluded: number }> {
-  const [lng, lat] = start;
-  const { elements } = await overpass(
-    `[out:json][timeout:${LIMITS.timeout_s}];way(around:${COURSE_RADIUS_M},${lat.toFixed(6)},${lng.toFixed(6)})[tunnel=yes][highway~"^(${ROADS})$"];out tags geom ${LIMITS.max_items + 1};`,
-  );
+  const { elements } = await courseTunnels(start, COURSE_RADIUS_M, ROADS);
   // 切った残りで選ぶと、候補が id の順で抜け落ちる。上限を超えたら止める
   if (elements.length > LIMITS.max_items) throw new OpError('limit', '出発地のまわりのトンネルが多すぎて、候補を選べません');
   let ex = 0;
