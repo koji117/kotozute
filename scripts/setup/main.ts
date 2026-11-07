@@ -14,6 +14,7 @@ import { buildBoundary, mapBBox } from './boundary';
 import { buildAbrData, buildAbrg } from './abr';
 import { download, head } from './download';
 import { buildOsmIndex } from './osm-index';
+import { readPbfHeader } from './pbf';
 import { DEFAULT, fmtBytes, parseSetupArgs, regionConfig, resolveRegion, SetupError, sizes, type Args, type Region, type StepName } from './plan';
 import { prereq } from './prereq';
 import { ensureEnv, lock, Marks, mask, openLog, sameFile, writeAtomic } from './steps';
@@ -110,10 +111,11 @@ async function main(argv: string[]): Promise<void> {
       outputs: () => (result('index') ? [abs(result('index')!.out)] : []),
       run: async () => {
         const pbf = await ensurePbf();
-        const ts = await osmiumOut(['fileinfo', '-g', 'header.option.osmosis_replication_timestamp', pbf]);
-        const day = /^\d\d(\d\d)-(\d\d)-(\d\d)/.exec(ts);
-        const out = join(DATA, 'osm', `${region.data.key}-${day ? day.slice(1).join('') : 'local'}`, 'osm.db');
-        const r = await buildOsmIndex({ pbf, out, osmium: osmium!, log });
+        // フォルダの名前は pbf のヘッダの日付（Geofabrik の replication の時刻。例：kanto-261103）
+        const ts = readPbfHeader(pbf).replicationTimestamp;
+        const day = ts ? new Date(ts * 1000).toISOString().slice(2, 10).replaceAll('-', '') : 'local';
+        const out = join(DATA, 'osm', `${region.data.key}-${day}`, 'osm.db');
+        const r = await buildOsmIndex({ pbf, out, log });
         const { DatabaseSync } = await import('node:sqlite');
         const db = new DatabaseSync(out, { readOnly: true });
         const asOf = (db.prepare("SELECT v FROM meta WHERE k = 'osm_as_of'").get() as { v: string }).v;
@@ -246,7 +248,7 @@ async function main(argv: string[]): Promise<void> {
     docker: todo.has('abr'), dockerMemGiB: size.dockerMemGiB, dockerDiskGiB: size.dockerDiskGiB,
     go: todo.has('abr') || todo.has('abrg'),
     goAvoid: [...(todo.has('abr') ? ['--abr-cache=<abrg.duckdb>'] : []), ...(todo.has('abrg') ? ['--abrg-bin=<abrg>'] : [])],
-    python: todo.has('valhalla'), osmium: todo.has('index') || todo.has('boundary') ? args.osmium : null,
+    python: todo.has('valhalla'), osmium: todo.has('boundary') ? args.osmium : null, // osmium は境界だけ（検索データは pbf.ts で読む）
     pmtiles: todo.has('tiles'), port: todo.has('verify') ? args.portApp : null, diskBytes: disk, dir: DATA,
   });
   if (pre.found.osmium === 'container' && pbfOutside) pre.problems.push(`コンテナの osmium は data/setup の中のファイルしか読めません。--pbf のファイルを ${rel(join(DATA, 'pbf'))}/ に置くか、osmium を入れてください`);
@@ -259,13 +261,6 @@ async function main(argv: string[]): Promise<void> {
   // コンテナの osmium のイメージは、セットアップが取ってきたときだけ最後に消す（前からあるものは消さない）。
   // 取ってくる前に印を残す（途中で止まった回のあとも、次に最後まで回ったときに消すため）
   if (found.osmium === 'container' && spawnSync('docker', ['image', 'inspect', OSMIUM_IMAGE], { stdio: 'ignore' }).status !== 0) marks.set('osmium-image', { image: OSMIUM_IMAGE });
-  const osmiumOut = (a: string[]) => new Promise<string>((res, rej) => {
-    const p = osmium!(a);
-    let out = '';
-    p.stdout!.on('data', (d) => (out += d));
-    p.on('error', rej);
-    p.on('close', (c) => (c === 0 ? res(out.trim()) : rej(new Error(`osmium ${a[0]} が失敗しました（終了コード ${c}）`))));
-  });
 
   // ===== 回す（重い手順は1つずつ） =====
   const t0 = Date.now();

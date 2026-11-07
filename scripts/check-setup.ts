@@ -5,6 +5,7 @@
 //   4. ダウンロード：途中で切れたら .part から続ける、md5 が違えば捨てる、取り終えた .part は取り直さずに確かめる（手元の HTTP サーバ）
 //   5. 確認の手順：Docker なし、docker.sock の権限なし、Docker が止まっている、Docker の置き場の空き、osmium なし、Go と C のコンパイラ、ポートが使用中、ディスク不足（偽の docker を PATH に置く）
 //   6. Geofabrik の .poly、地図の範囲（境界＋2km）
+//   7. pbf の読み方（scripts/setup/pbf.ts）と検索データ：テストの中で書いた小さな pbf（zlib と無圧縮、DenseNodes と Node、粒度とずれ）を読む
 //   SETUP_PBF=<関東の pbf> があれば、東京の境界を作り直して、今の tokyo-boundary.json と 2000点で比べる（手元の osmium が要る。数秒）
 // 実行：npx tsx scripts/check-setup.ts
 import assert from 'node:assert/strict';
@@ -14,8 +15,12 @@ import { createServer as httpServer } from 'node:http';
 import { createServer as tcpServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { deflateSync } from 'node:zlib';
 import { mapBBox, buildBoundary, inRings } from './setup/boundary';
 import { download } from './setup/download';
+import { buildOsmIndex } from './setup/osm-index';
+import { ALL, Pbf, WAY, type Member } from './setup/pbf';
 import { DEFAULT, parseSetupArgs, regionConfig, resolveRegion, SetupError } from './setup/plan';
 import { prereq, type Needs } from './setup/prereq';
 import { ensureEnv, Marks, mask, sameFile } from './setup/steps';
@@ -238,6 +243,84 @@ await t('Geofabrik の .poly', () => {
 });
 await t('地図の範囲（境界＋2km、0.01度で外へ）', () => {
   assert.deepEqual(mapBBox([133.5, 34.1, 134.4, 34.5]), [133.47, 34.08, 134.43, 34.52]);
+});
+
+// ===== 7. pbf の読み方と検索データ（小さな pbf をここで書く） =====
+const uv = (n: number): number[] => { const o: number[] = []; for (; n >= 128; n = Math.floor(n / 128)) o.push((n % 128) | 128); return [...o, n]; };
+const zz = (n: number) => (n < 0 ? -2 * n - 1 : 2 * n);
+const fv = (f: number, n: number) => [...uv(f << 3), ...uv(n)];
+const fb = (f: number, b: number[]) => [...uv((f << 3) | 2), ...uv(b.length), ...b];
+const pk = (f: number, ns: number[]) => fb(f, ns.flatMap(uv));
+const dz = (ns: number[]) => ns.map((x, i) => zz(x - (i ? ns[i - 1] : 0))); // 差分と zigzag
+const utf8 = (x: string) => [...Buffer.from(x)];
+/** blob を1つ書く。how：raw、zlib、lzma（lzma は中身を読めないことの確認だけ） */
+function blob(type: string, data: number[], how: 'raw' | 'zlib' | 'lzma') {
+  const body = how === 'zlib' ? fb(3, [...deflateSync(Buffer.from(data))]) : fb(how === 'raw' ? 1 : 4, data);
+  const b = [...fv(2, data.length), ...body];
+  const h = [...fb(1, utf8(type)), ...fv(3, b.length)];
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(h.length);
+  return Buffer.concat([len, Buffer.from([...h, ...b])]);
+}
+const S = ['', 'name', '東京タワー', 'amenity', 'post_office', 'highway', 'primary', 'tunnel', 'yes', 'outer', 'type', 'multipolygon', 'cafe', '北のトンネル', 'R'];
+const table = fb(1, S.flatMap((x) => fb(1, utf8(x))));
+const header = blob('OSMHeader', [...fb(4, utf8('OsmSchema-V0.6')), ...fb(4, utf8('DenseNodes')), ...fb(5, utf8('Sort.Type_then_ID')), ...fv(32, 1793741063)], 'zlib');
+// 1つ目：DenseNodes（点 1、2、3。粒度は既定の 100、時刻は DenseInfo）
+const dense = [...pk(1, dz([1, 2, 3])), ...fb(5, pk(2, dz([1000, 2000, 1793740000]))), ...pk(8, dz([356000000, 356100000, 356200000])), ...pk(9, dz([1397000000, 1397100000, 1397200000])), ...pk(10, [1, 2, 0, 3, 4, 0, 0])];
+const b1 = blob('OSMData', [...table, ...fb(2, fb(2, dense))], 'zlib');
+// 2つ目（無圧縮）：Node 4（粒度 1000、経度のずれ 1 度）と Way 10 を別の group に。時刻は Info
+const n4 = [...fv(1, zz(4)), ...pk(2, [3]), ...pk(3, [12]), ...fv(8, zz(35650000)), ...fv(9, zz(138750000))];
+const w10 = [...fv(1, 10), ...pk(2, [5, 7, 1]), ...pk(3, [6, 8, 13]), ...fb(4, fv(2, 1793741000)), ...pk(8, dz([1, 2, 3]))];
+const b2 = blob('OSMData', [...table, ...fb(2, fb(1, n4)), ...fb(2, fb(3, w10)), ...fv(17, 1000), ...fv(20, 1e9)], 'raw');
+// 3つ目：Relation 20（部品：点 2、way 10、ファイルにない relation 99）
+const r20 = [...fv(1, 20), ...pk(2, [10, 1]), ...pk(3, [11, 14]), ...fb(4, fv(2, 5)), ...pk(8, [0, 9, 0]), ...pk(9, dz([2, 10, 99])), ...pk(10, [0, 1, 2])];
+const b3 = blob('OSMData', [...table, ...fb(2, fb(4, r20))], 'zlib');
+const tiny = join(tmp, 'tiny.osm.pbf');
+writeFileSync(tiny, Buffer.concat([header, b1, b2, b3]));
+await t('pbf：ヘッダ、点・線・relation、粒度とずれ、時刻', async () => {
+  const f = new Pbf(tiny);
+  assert.deepEqual(f.header, { replicationTimestamp: 1793741063, required: ['OsmSchema-V0.6', 'DenseNodes'], optional: ['Sort.Type_then_ID'] });
+  const got: unknown[] = [];
+  const maxTs = await f.read(ALL, {
+    node: (id, lon, lat, tags) => got.push(['n', id, lon, lat, tags]),
+    way: (id, refs, tags) => got.push(['w', id, refs, tags]),
+    relation: (id, members: Member[], tags) => got.push(['r', id, members, tags]),
+  });
+  assert.equal(maxTs, 1793741000, 'いちばん新しい時刻（Info と DenseInfo）');
+  assert.deepEqual(got, [
+    ['n', 1, 1397000000, 356000000, { name: '東京タワー' }], ['n', 2, 1397100000, 356100000, { amenity: 'post_office' }], ['n', 3, 1397200000, 356200000, null],
+    ['n', 4, 1397500000, 356500000, { amenity: 'cafe' }],
+    ['w', 10, [1, 2, 3], { highway: 'primary', tunnel: 'yes', name: '北のトンネル' }],
+    ['r', 20, [{ type: 'n', ref: 2, role: '' }, { type: 'w', ref: 10, role: 'outer' }, { type: 'r', ref: 99, role: '' }], { type: 'multipolygon', name: 'R' }],
+  ]);
+  // 2回目からは種類を覚えている：点だけの blob は展開しない（点 4 は way と同じ blob にある）
+  const nodes: number[] = [];
+  await f.read(WAY, { node: (id) => nodes.push(id) });
+  assert.deepEqual(nodes, [4]);
+  f.close();
+  const lz = join(tmp, 'lzma.osm.pbf');
+  writeFileSync(lz, Buffer.concat([header, blob('OSMData', [...table], 'lzma')]));
+  const g = new Pbf(lz);
+  await assert.rejects(g.read(ALL, {}), /lzma で圧縮されていて読めません/);
+  g.close();
+});
+await t('検索データ：小さな pbf から作る（点→線→relation の順、トンネルの点、relation の範囲）', async () => {
+  const out = join(tmp, 'osm', 'osm.db');
+  const r = await buildOsmIndex({ pbf: tiny, out, log: () => {} });
+  assert.deepEqual(r.rows, { feat: 5, word_rows: 3, named: 3, hw: 1, rel_no_bounds: 0 });
+  const db = new DatabaseSync(out, { readOnly: true });
+  const all = (q: string) => db.prepare(q).all().map((x) => Object.values(x));
+  assert.deepEqual(all('SELECT fid, type, osm_id FROM feat ORDER BY fid'), [[1, 0, 1], [2, 0, 2], [3, 0, 4], [4, 1, 10], [5, 2, 20]]);
+  assert.deepEqual(all("SELECT v FROM meta WHERE k = 'osm_as_of'"), [['2026-11-03T21:23:20Z']]);
+  assert.deepEqual(all('SELECT minx, miny, maxx, maxy FROM feat WHERE fid IN (3, 5) ORDER BY fid'), [[139.75, 35.65, 139.75, 35.65], [139.7, 35.6, 139.72, 35.62]]);
+  const f64 = (b: Uint8Array) => [...new Float64Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength))];
+  const w = db.prepare('SELECT nodes FROM feat WHERE fid = 4').get() as { nodes: Uint8Array };
+  assert.deepEqual(f64(w.nodes), [1, 2, 3], 'トンネルの way は点の番号を残す');
+  const rel = db.prepare('SELECT ways FROM feat WHERE fid = 5').get() as { ways: Uint8Array };
+  assert.deepEqual(f64(rel.ways), [10]);
+  assert.deepEqual(all('SELECT id, t FROM hw'), [[10, JSON.stringify({ highway: 'primary', tunnel: 'yes', name: '北のトンネル' })]]);
+  assert.deepEqual(all('SELECT id FROM wgeom'), [[10]]);
+  db.close();
 });
 
 // 関東の pbf があれば：東京の境界を作り直して、今の tokyo-boundary.json と比べる（2000点）
