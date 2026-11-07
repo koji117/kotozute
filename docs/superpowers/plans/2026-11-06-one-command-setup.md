@@ -249,3 +249,27 @@ Task 4 のうち、Valhalla と ABR を Docker で動かす部分は Task 4b に
 - [x] 比べる確認（golden）をアプリと同じ組み合わせ（SQLite、組み込みの Valhalla、Mac の abrg）で回す。
 - [ ] `.dmg` を入れるところから試す（この Mac の別の場所、MacBook Air）。
 - [ ] README（Mac のアプリの入れ方と開き方、確かめた環境、Apple Silicon だけ、署名なし、使ったOSS）。
+
+## 追加 2（2026-11-07。設計書 §17：データはアプリに入れず、あとから取って作る。機能の凍結は 11/8 19:00）
+
+Task 13〜15 は別々の worktree で同時に進め、私が setup に合わせる。固定の pbf は `~/kotozute-backup/kanto-latest.osm.pbf`（kanto-261103、523821119 バイト）。比べる相手は `data/setup/osm/kanto-261103/osm.db`（osmium で作ったもの）と `~/kotozute-parity/golden-app.json`。
+
+### Task 13: OSM の pbf を TypeScript で読む（osmium をやめる）
+- 作る：`scripts/setup/pbf.ts`（依存なし。`node:zlib` と自前の protobuf の読み方。zlib と raw の blob、DenseNodes と Nodes、Way、Relation、ヘッダの osmosis_replication_timestamp、要素の時刻の最大）。
+- 直す：`buildOsmIndex(o: { pbf: string; out: string; log: Log })`（osmium の引数をなくす）。表と行と入れる順（点→線→relation、番号順）は今と同じ。`scripts/setup/main.ts` の index の手順から osmium をなくす（境界の手順は osmium のまま。東京は境界を作らない）。
+- 確かめる：固定の pbf から作った osm.db と今の osm.db の、すべての表の行が同じ（比べるスクリプト `scripts/check-osm-db.ts`）。時間と最大メモリを測る（目安：3分、2GB）。
+
+### Task 14: ルートのデータを Python なしで作る
+- 直す：`buildValhalla(o: { pbf; dir; jobs; log })` は `<dir>/valhalla_tiles/`（フォルダ）と `<dir>/valhalla.json`（tile_dir は `valhalla_tiles`、tile_extract は空）を作る。設定は今の build_config の出力を元にした JSON（Git に入れる）から JS で作る。python3 の確認をなくす。`src/services/valhalla.ts` は tile_extract が空なら tile_dir を確かめる。
+- 確かめる：固定の pbf から作り、SQLite と組み込みの Valhalla と手元の abrg で golden を回し、`golden-app.json` との違いが 0/107。時間、最大メモリ、フォルダの大きさを測る。
+
+### Task 15: アプリがデータを取って作る、地図のデータの画面
+- 作る：`scripts/setup/app-data-build.ts`（Electron の Node で tsx で動かす。手順：空きの確認 → 関東の pbf（続きから、md5）→ 検索データ → ルート → 地図（最新のビルド、アプリに入れた pmtiles）→ 住所（GitHub Releases、sha256）→ `region.json`。進み具合は1行1つの JSON で stdout に出す）。試すための差し替え：`KOTOZUTE_PBF_URL`、`KOTOZUTE_TILES_FILE`、`KOTOZUTE_ABR_URL`。
+- `desktop/data.html` と preload：取るもの・大きさ・通信先の説明、「ダウンロードして作る」、進み具合、止める、エラーの文。メニュー「地図のデータ…」：OSM と地図の時点、「最新にする」。
+- `desktop/main.mjs`：データは `<userData>/data/<日時>/`。今のデータは `<userData>/data/current.json`。サーバと abrg に `REGION_FILE` を渡す。更新ができたら切り替えて、サーバと abrg を起こし直し、窓を読み直し、古いものを消す。
+- サーバ：画面を返すときに今のデータ時点を渡す（build で埋め込んだ値を上書き）。地図ファイルは絶対パスでも配る。
+- `.dmg`：データを入れない。`valhalla_build_tiles` と、固定した版の pmtiles（sha256 を確かめる）とそのライセンスの文を入れる。
+- 確かめる：`KOTOZUTE_USER_DATA` を空にして、データの画面 → 作る（差し替えで手元のファイル）→ 地図が出る。止めて続きから。更新で切り替わる。
+
+### Task 16: 合わせて通しで確かめる（私がする）
+- 3つを setup に合わせる。check-setup、check-quick、tsc。固定の pbf で通しで作り、golden 0/107。`.dmg` を作り、空の userData から入れて試す。住所の DuckDB を Releases に置くのは、リポジトリを公開するとき（ユーザーの確認のあと）。
