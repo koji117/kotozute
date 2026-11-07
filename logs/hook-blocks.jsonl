@@ -4,3 +4,4 @@
 {"at":"2026-11-04T15:27:44.476Z","tool":"Bash","host":"fonts.googleapis.com","reason":"Google の公開API（地図・フォント）"}
 {"at":"2026-11-04T15:27:50.248Z","tool":"Write","file":"(outside)/palt.html","host":"fonts.googleapis.com","reason":"Google の公開API（地図・フォント）"}
 {"at":"2026-11-05T12:08:39.021Z","tool":"Write","file":"src/public-hosts.ts","host":"google.com","reason":"Google の公開サービス"}
+{"at":"2026-11-06T08:33:41.831Z","tool":"Write","file":".claude/worktrees/wf_30189d00-6b4-2/docs/storyboard/demo.html","host":"fonts.googleapis.com","reason":"Google の公開API（地図・フォント）"}
