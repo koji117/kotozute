@@ -3,6 +3,7 @@
 # 実行（リポジトリのどこからでも）：sh scripts/video/make.sh            全部録り直す
 #                                    sh scripts/video/make.sh --no-record   今の events.json のまま作る
 #                                    sh scripts/video/make.sh ex2           指定した組だけ録り直す（record.mjs の組の名前）
+#                                    INTRO=a sh scripts/video/make.sh ...   冒頭を案 A で作る（既定は B。docs/storyboard/demo.html の「冒頭の案」）
 # 要るもの：kotozute のサーバ（http://127.0.0.1:8787。Claude のキーはサーバの環境にだけある）、Playwright、ffmpeg、.env の ELEVENLABS_API_KEY（TTS=say なら say）。
 # 出力は Git の外（~/kotozute-video）。3分（180秒）を超えたら失敗で終わる。
 set -eu

@@ -42,8 +42,9 @@ async function open(browser) {
   };
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1.5 });
   page.on('pageerror', (e) => console.error('page error:', e.message));
-  await page.addInitScript(({ events, repo, dir }) => { window.EVENTS = events; window.REPO = repo; window.VIDEO_DIR = dir; },
-    { events, repo, dir: pathToFileURL(path.dirname(EVENTS)).href + '/' });
+  // INTRO=a|b で冒頭の案を選ぶ（demo.html の「冒頭の案」。既定は b）
+  await page.addInitScript(({ events, repo, dir, intro }) => { window.EVENTS = events; window.REPO = repo; window.VIDEO_DIR = dir; window.INTRO = intro; },
+    { events, repo, dir: pathToFileURL(path.dirname(EVENTS)).href + '/', intro: process.env.INTRO ?? 'b' });
   await page.goto(pathToFileURL(path.join(__dirname, 'demo.html')).href);
   await page.evaluate(() => window.ready);
   // フォントは使う文字の分だけ読まれるので、ページの全部の文字で先に読ませる
