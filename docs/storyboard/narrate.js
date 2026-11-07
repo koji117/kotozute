@@ -17,6 +17,8 @@ const { launch, open, OUT } = require('./render.js');
 const TTS = process.env.TTS ?? 'say';
 const VOICE = 'Kyoko', BASE_RATE = 200, MAX_RATE = 240; // 240 を超えると聞き取りにくい。OVER が出たら字幕を短くするか時間を足す
 const MAX_TEMPO = 1.2; // ElevenLabs の音を速めるのはここまで
+// 字幕の切り替わりの前後に空ける間（秒）。ElevenLabs はゆっくり読むので短めにする
+const GAP = TTS === 'elevenlabs' ? 0.25 : 0.4;
 // 読み上げ用の読み（字幕の文字は変えない）
 const READ = [
   ['Claude Code', 'クロードコード'], ['Claude', 'クロード'], ['Googleマップ', 'グーグルマップ'], ['Google', 'グーグル'],
@@ -91,7 +93,7 @@ async function voices() {
   let over = 0;
   for (const [i, l] of lines.entries()) {
     const spoken = spokenOf(l.text);
-    const slot = l.b - l.a - 0.4; // 字幕の切り替わりの前後に少し間を空ける
+    const slot = l.b - l.a - GAP; // 字幕の切り替わりの前後に少し間を空ける
     let f, d, note;
     if (TTS === 'elevenlabs') {
       const raw = await eleven(spoken, lines[i - 1] && spokenOf(lines[i - 1].text), lines[i + 1] && spokenOf(lines[i + 1].text));
@@ -112,7 +114,7 @@ async function voices() {
     if (d > slot) over++;
     console.log(`${d > slot ? 'OVER' : 'ok  '} ${l.a}s ${d.toFixed(1)}/${slot.toFixed(1)}s ${note} ${l.text}`);
     inputs.push('-i', f);
-    const ms = Math.round((l.a + 0.2) * 1000);
+    const ms = Math.round((l.a + GAP / 2) * 1000);
     filters.push(`[${i + 1}:a]adelay=${ms}|${ms}[v${i}]`);
   }
   console.log(`${lines.length}行${over ? `（OVER ${over}行）` : ''}（声：${TTS === 'elevenlabs' ? `ElevenLabs ${EL.model}` : `say ${VOICE}`}）`);

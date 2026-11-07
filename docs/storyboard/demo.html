@@ -367,8 +367,8 @@ out geom;</div>
 <div class="abs cap">
   <span class="scene" id="sceneLabel">冒頭</span>
   <div class="captext" data-fill>
-    <div data-show="0-4">明日、Googleマップの商用利用が禁止されたら？</div>
-    <div data-show="4-8.2">業務で使ってよい範囲は、ガイドラインに例で書かれているだけ。</div>
+    <div data-show="0-4.15">明日、Googleマップの商用利用が禁止されたら？</div>
+    <div data-show="4.15-8.2">業務で使ってよい範囲は、ガイドラインに例で書かれているだけ。</div>
     <div data-show="8.2-12">境目はあいまいで、線を引き直すのもGoogleです。</div>
     <div data-show="12-15.8">OSMなら自分で動かせるけど、検索文が要る。</div>
     <div data-show="15.8-19">地図の業界に長くいる私が作りました。</div>
@@ -498,7 +498,7 @@ const V = {
   auditAt: () => audit().at.slice(0, 16) + 'Z',
   auditBase: () => audit().osm_base.slice(0, 10),
   auditZeroN: () => audit().rows.filter((r) => r.kanto === 0).length,
-  auditZero: () => audit().rows.some((r) => r.kanto === 0) ? undefined : '0件の言葉はなく、辞書は変えていません。',
+  auditZero: () => audit().rows.some((r) => r.kanto === 0) ? undefined : '0件の言葉はありませんでした。',
 };
 const val = (k) => {
   let v; try { v = V[k](); } catch { v = undefined; }
