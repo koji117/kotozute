@@ -85,13 +85,13 @@ node dummy-events.js && EVENTS=~/kotozute-video/dummy/events.json node render.js
 - `demo-storyboard.mp4`：書き出した動画（1280×720、30コマ/秒、約4分18秒、字幕あり、音声なし）
 - `demo-storyboard-narrated.mp4`：上の動画に仮のナレーションを重ねたもの
 - 動画2本と `maps/` は Git に入れない（大きく、作り直すたびに履歴が増えるため）。下の手順で作り直す
-- `demo-poster.jpg`：表紙画像
+- `demo-poster.jpg`：表紙画像（11/5 の版。文は前の冒頭の問いのままで、今の動画の冒頭とは違う）
 - `storyboard.html`：動画の元ページ。`window.render(t)` で任意の時刻（秒）の画面を描く。要素の表示時間は `data-show="開始-終了"`、文字の打ち込みは `data-type="開始:1秒あたりの文字数"`、線の描画は `data-draw="開始-終了"`、地図の画像を左から出すのは `data-wipe="開始-終了"`、地図の寄り引きは `data-cam="時刻:倍率:tx:ty,…"`、地図の上の札の位置は `data-at="場面:点"`（`maps/pos.js` から）。`class="rise"` は下から浮き上がり、`class="slide"` はシートが下から上がり、`class="pop"` は印が押されるように出る。字幕の行に `data-silent` を付けると読み上げない
 - `data/build-ex1.js`・`data/build-ex2.js`：例1・例2のデータを、自前の Overpass・Valhalla・ABR から取り直す（`data/ex1.json`・`data/ex2.json`）
 - `data/build-nl.js`：例1の前の場面（札で出す郵便局と手土産の店、芝公園の範囲）を自前の Overpass から取る（`data/nl.json`）
 - `scenes.js`：`data/` から地図の場面を描く（`maps/*.png` と、札の位置 `maps/pos.js`）
 - `mapshot.js`：自前の地図（tokyo.pmtiles）を MapLibre で描き、PNG にする。`scenes.js` から呼ばれる
-- `design/`：画面デザインの検討（案A〜F と操作パネルの一覧）。色・角丸・文字は案E（`design/option-e.html` の `:root`）。配置はその後、地図アプリでおなじみの形に変えた（`storyboard.html`）
+- `design/`：画面デザインの検討（案A〜F と操作パネルの一覧）。色・角丸・文字は案E（`design/option-e.html` の `:root`）。配置はその後、地図アプリでおなじみの形に変えた（`storyboard.html`）。11/4〜5 の初めのころの案なので、画面の言葉（「合否表」「判定不能」、前の3つの約束など）は今のアプリと違う。地図の画像は自前の tokyo.pmtiles から `mapshot.js` で描いたもので、出典は © OpenStreetMap contributors（https://www.openstreetmap.org/copyright）と Protomaps
 - `render.js`・`narrate.js`：今は `demo.html` 用。`storyboard.html` 用の版は git の履歴（3751219）にある
 - `package.json`：ルートが ES module なので、ここのスクリプトを CommonJS として動かすために置いている
 
