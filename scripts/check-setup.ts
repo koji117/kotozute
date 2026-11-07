@@ -253,9 +253,9 @@ const fb = (f: number, b: number[]) => [...uv((f << 3) | 2), ...uv(b.length), ..
 const pk = (f: number, ns: number[]) => fb(f, ns.flatMap(uv));
 const dz = (ns: number[]) => ns.map((x, i) => zz(x - (i ? ns[i - 1] : 0))); // 差分と zigzag
 const utf8 = (x: string) => [...Buffer.from(x)];
-/** blob を1つ書く。how：raw、zlib、lzma（lzma は中身を読めないことの確認だけ） */
-function blob(type: string, data: number[], how: 'raw' | 'zlib' | 'lzma') {
-  const body = how === 'zlib' ? fb(3, [...deflateSync(Buffer.from(data))]) : fb(how === 'raw' ? 1 : 4, data);
+/** blob を1つ書く。how：raw、zlib、lzma（lzma は中身を読めないことの確認だけ）、badzlib（zlib の欄に圧縮していない中身。展開に失敗する） */
+function blob(type: string, data: number[], how: 'raw' | 'zlib' | 'lzma' | 'badzlib') {
+  const body = how === 'zlib' ? fb(3, [...deflateSync(Buffer.from(data))]) : fb({ raw: 1, lzma: 4, badzlib: 3 }[how], data);
   const b = [...fv(2, data.length), ...body];
   const h = [...fb(1, utf8(type)), ...fv(3, b.length)];
   const len = Buffer.alloc(4);
@@ -303,6 +303,19 @@ await t('pbf：ヘッダ、点・線・relation、粒度とずれ、時刻', asy
   const g = new Pbf(lz);
   await assert.rejects(g.read(ALL, {}), /lzma で圧縮されていて読めません/);
   g.close();
+  // 壊れた zlib：先に展開を始めた blob が失敗しても、read が reject する（プロセスが落ちない）
+  const bz = join(tmp, 'badzlib.osm.pbf');
+  writeFileSync(bz, Buffer.concat([header, b1, blob('OSMData', [...table], 'badzlib')]));
+  const h = new Pbf(bz);
+  await assert.rejects(h.read(ALL, {}), /zlib の展開に失敗/);
+  h.close();
+  // 前の blob で止まったときも、後ろで展開に失敗した blob が unhandledRejection にならない
+  const r21 = [...fv(1, 21), ...pk(8, [0]), ...pk(9, dz([2])), ...pk(10, [5])]; // 部品の種類 5 は読めない
+  writeFileSync(bz, Buffer.concat([header, blob('OSMData', [...table, ...fb(2, fb(4, r21))], 'raw'), blob('OSMData', [...table], 'badzlib')]));
+  const k = new Pbf(bz);
+  await assert.rejects(k.read(ALL, { relation: () => {} }), /部品の種類 5/);
+  k.close();
+  await new Promise((ok) => setTimeout(ok, 100)); // 後ろの展開が終わるのを待つ（落ちるならここで落ちる）
 });
 await t('検索データ：小さな pbf から作る（点→線→relation の順、トンネルの点、relation の範囲）', async () => {
   const out = join(tmp, 'osm', 'osm.db');

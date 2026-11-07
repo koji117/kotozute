@@ -238,6 +238,7 @@ export function decodeBlock(data: Buffer, v: Visitor): { kinds: number; maxTs: n
 }
 
 const COMPRESSION: Record<number, string> = { 4: 'lzma', 5: 'bzip2', 6: 'lz4', 7: 'zstd' };
+const zlibError = (e: Error) => new Error(`pbf を読めません（zlib の展開に失敗：${e.message}）。ファイルが壊れているかもしれません`);
 /** Blob から中身を取り出す（無圧縮と zlib だけ） */
 function unpack(blob: Buffer, sync = false): Buffer | Promise<Buffer> {
   const r = new Pb(blob);
@@ -245,7 +246,9 @@ function unpack(blob: Buffer, sync = false): Buffer | Promise<Buffer> {
     const tag = r.uint(), f = tag >>> 3, wt = tag & 7;
     if ((f === 1 || f === 3) && wt === 2) {
       const n = r.uint(), body = blob.subarray(r.p, r.p + n);
-      return f === 1 ? body : sync ? inflateSync(body) : inflateAsync(body);
+      if (f === 1) return body;
+      if (!sync) return inflateAsync(body).catch((e: Error) => { throw zlibError(e); });
+      try { return inflateSync(body); } catch (e) { throw zlibError(e as Error); }
     }
     if (COMPRESSION[f]) throw new Error(`この pbf は ${COMPRESSION[f]} で圧縮されていて読めません。zlib か無圧縮の pbf を使ってください（Geofabrik の pbf は zlib です）`);
     r.skip(wt);
@@ -306,7 +309,13 @@ export class Pbf {
     const todo = this.blobs.filter((b) => !b.kinds || b.kinds & kinds);
     const q: { b: BlobRef; data: Buffer | Promise<Buffer> }[] = [];
     let next = 0, maxTs = 0;
-    const more = () => { if (next < todo.length) { const b = todo[next++]; q.push({ b, data: unpack(this.bytes(b.pos, b.size)) }); } };
+    const more = () => {
+      if (next >= todo.length) return;
+      const b = todo[next++], data = unpack(this.bytes(b.pos, b.size));
+      // 先に展開を始めた分は、ループが待つまで受け手がいない。失敗しても unhandledRejection で落ちないよう、受け手を先に付ける（エラーは await で受け取る）
+      if (data instanceof Promise) data.catch(() => {});
+      q.push({ b, data });
+    };
     for (let i = 0; i < AHEAD; i++) more();
     while (q.length) {
       const { b, data } = q.shift()!;
