@@ -32,7 +32,7 @@ const READ = [
 const DIRECTION = [
   [/^あなたの組織では/, '[curious, direct, engaging]'],
   [/^無料のGoogleマップには/, '[serious, matter-of-fact]'],
-  [/^明日、商用利用が禁止されても/, '[pointed]', (t) => t.replace('知っていましたか？', '[curious] 知っていましたか？')],
+  [/^規約を決めるのも/, '[serious, pointed]'],
   [/^これまでも/, '[serious, measured]'],
   [/^OSMは自分で/, '[thoughtful]'],
   [/^書ける人は/, '[curious, a little playful]'],
