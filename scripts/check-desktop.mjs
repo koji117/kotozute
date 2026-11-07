@@ -276,7 +276,7 @@ try {
       const dataWin = await app.firstWindow();
       await dataWin.waitForSelector('#first:not([hidden])');
       const text = (await dataWin.textContent('#first')) ?? '';
-      const want = ['Geofabrik', 'download.geofabrik.de', 'Protomaps', 'build.protomaps.com', 'GitHub', 'github.com', '約 500MB', '約 190MB', '約 22MB', '約 4GB', '約 1.7GB', '数分から十数分', '押したときだけ'];
+      const want = ['Geofabrik', 'download.geofabrik.de', 'Protomaps', 'build.protomaps.com', 'GitHub', 'github.com', '約 500MB', '約 190MB', '約 22MB', '約 5GB', '約 1.6GB', '数分から十数分', '押したときだけ'];
       check('データの画面（初めて）：取るもの・大きさ・通信先・要る空き・時間', want.every((s) => text.includes(s)), want.filter((s) => !text.includes(s)).join('、'));
       check('データの画面（初めて）：「ダウンロードして作る」と「終了」', (await dataWin.textContent('#start')) === 'ダウンロードして作る' && await dataWin.isVisible('#quit'));
       const pid = app.process().pid;

@@ -33,8 +33,8 @@ export const ABR_TOKYO = {
   sha256: '58e2c515a63e00f21d4fa793fffada7e201edd8870769535e32bfe6e4c69ece9',
   bytes: 22294528,
 };
-/** 作るあいだに要る空きと、作ったあとに残る量（設計書 §17 の見積もり。ponytail: 測ってから直す） */
-const NEED = { build: 4 * GiB, after: 1.7 * GiB };
+/** 作るあいだに要る空きと、作ったあとに残る量（測った値に余裕を足したもの） */
+const NEED = { build: 5 * GiB, after: 1.6 * GiB }; // 11/7 にこの Mac で測った値：作るあいだの最大 4.16GiB（ルートの手順）、作ったあと 1.51GiB
 export const STEPS = [
   { id: 'disk', title: '空きディスクの確認' },
   { id: 'abr', title: '住所のデータを取る' },
