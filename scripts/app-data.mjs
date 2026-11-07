@@ -27,6 +27,7 @@ export default async function afterPack(ctx) {
   const abrg = devAbrg(ROOT);
   if (!abrg) throw new Error('住所の道具（abrg）がありません。先に「npm run setup -- --region=tokyo」を回して data/setup/abr/abrg を作ってください');
   put(abrg, join(bin, 'abrg'));
+  put(join(ROOT, 'scripts/abrg-LICENSE'), join(bin, 'abrg-LICENSE')); // abr-geocoder の MIT（commit 8215e09 の LICENSE）
 
   // アプリは Apple Silicon の Mac だけなので、作る機械にかかわらず darwin-arm64 の版を入れる
   const { pmtilesBin } = await tsImport('./setup/tiles.ts', import.meta.url);

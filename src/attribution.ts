@@ -8,7 +8,7 @@ export const ATTRIBUTION = {
   osm: { text: '© OpenStreetMap contributors', url: 'https://www.openstreetmap.org/copyright' },
   protomaps: { text: 'Protomaps', url: 'https://protomaps.com' },
   valhalla: { text: '経路: Valhalla', url: 'https://github.com/valhalla/valhalla' },
-  // 文言はデジタル庁の利用規約の記載例で確かめてから確定する [未確認]
+  // デジタル庁「アドレス・ベース・レジストリの利用規約」（PDL1.0。各データセットのライセンス欄は CC BY 4.0）の、加工したときの記載例の形（2026-11-08 に確かめた）
   abr: { text: '出典：デジタル庁「アドレス・ベース・レジストリ」を加工して作成', url: 'https://www.digital.go.jp/policies/base_registry_address' },
 } as const;
 
