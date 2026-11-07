@@ -16,8 +16,6 @@ export interface Needs {
   go: boolean;
   /** Go が要る理由のうち、作ってあるものを渡して避けられるオプション */
   goAvoid: string[];
-  /** valhallajs の build_config と build_extract */
-  python: boolean;
   osmium: 'auto' | 'host' | 'container' | null;
   pmtiles: boolean;
   /** 動作確認でアプリを起こすポート */
@@ -102,21 +100,14 @@ export async function prereq(n: Needs, env: NodeJS.ProcessEnv = process.env): Pr
     }
   }
 
-  // 5. python3（valhallajs のルートのデータを作る道具）
-  if (n.python) {
-    const p = sh('python3', ['--version']);
-    if (p.ok) ok.push(p.out || 'python3');
-    else problems.push('python3 がありません。ルートのデータ（Valhalla）を作る道具が使います。Mac は「xcode-select --install」で入ります。作ってあるデータがあれば --valhalla-dir=<フォルダ> で渡してください');
-  }
-
-  // 6. pmtiles：手元になければ、固定した版を GitHub のリリースから取る（約16MB）
+  // 5. pmtiles：手元になければ、固定した版を GitHub のリリースから取る（約16MB）
   if (n.pmtiles) {
     if (sh('pmtiles', ['version']).ok) { found.pmtiles = 'host'; ok.push('pmtiles（手元）'); }
     else if (pmtilesAsset()) { found.pmtiles = 'download'; ok.push(`pmtiles は手元にないので、${PMTILES.version} を GitHub から取ります`); }
     else problems.push(`pmtiles がありません。この機械（${process.platform} ${process.arch}）用の版を用意していません。https://github.com/protomaps/go-pmtiles から入れてください`);
   }
 
-  // 7. 空きディスク
+  // 6. 空きディスク
   let d = n.dir;
   while (!existsSync(d)) d = dirname(d);
   const s = statfsSync(d);
@@ -124,7 +115,7 @@ export async function prereq(n: Needs, env: NodeJS.ProcessEnv = process.env): Pr
   if (free < n.diskBytes) problems.push(`空きディスクが足りません。${d} の空きは ${GiB(free)} GiB で、この地域には約 ${GiB(n.diskBytes)} GiB 要ります（見積もり）。ファイルを消して空きを作ってから、もう一度回してください`);
   else ok.push(`空きディスク ${GiB(free)} GiB（要るのは約 ${GiB(n.diskBytes)} GiB）`);
 
-  // 8. ポート（つないでみる。Mac では Docker が *:port を持っていても 127.0.0.1 の listen が通ってしまうため）
+  // 7. ポート（つないでみる。Mac では Docker が *:port を持っていても 127.0.0.1 の listen が通ってしまうため）
   if (n.port != null && !(await portFree(n.port))) {
     problems.push(`ポート ${n.port} はほかのプログラムが使っています。止めるか、--port-app=<番号> で別の番号にしてください`);
   }

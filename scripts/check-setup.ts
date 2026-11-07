@@ -5,15 +5,18 @@
 //   4. ダウンロード：途中で切れたら .part から続ける、md5 が違えば捨てる、取り終えた .part は取り直さずに確かめる（手元の HTTP サーバ）
 //   5. 確認の手順：Docker なし、docker.sock の権限なし、Docker が止まっている、Docker の置き場の空き、osmium なし、Go と C のコンパイラ、ポートが使用中、ディスク不足（偽の docker を PATH に置く）
 //   6. Geofabrik の .poly、地図の範囲（境界＋2km）
+//   7. ルートのデータの設定：JS で作るものが valhallajs の build_config（Python）の出力と同じ（python3 3.8 以上がなければ飛ばす）
 //   SETUP_PBF=<関東の pbf> があれば、東京の境界を作り直して、今の tokyo-boundary.json と 2000点で比べる（手元の osmium が要る。数秒）
 // 実行：npx tsx scripts/check-setup.ts
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createServer as httpServer } from 'node:http';
 import { createServer as tcpServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { mapBBox, buildBoundary, inRings } from './setup/boundary';
 import { download } from './setup/download';
 import { DEFAULT, parseSetupArgs, regionConfig, resolveRegion, SetupError } from './setup/plan';
@@ -21,6 +24,7 @@ import { prereq, type Needs } from './setup/prereq';
 import { ensureEnv, Marks, mask, sameFile } from './setup/steps';
 import { poly2geojson } from './setup/tiles';
 import { osmiumFor } from './setup/tools';
+import { buildConfig } from './setup/valhalla';
 
 const tmp = mkdtempSync(join(tmpdir(), 'check-setup-'));
 const bad: string[] = [];
@@ -177,7 +181,7 @@ srv.close();
 const bin = join(tmp, 'bin');
 mkdirSync(bin);
 const stub = (name: string, script: string) => { writeFileSync(join(bin, name), `#!/bin/sh\n${script}\n`); chmodSync(join(bin, name), 0o755); };
-const none: Needs = { docker: false, dockerMemGiB: 2, dockerDiskGiB: 1, go: false, goAvoid: [], python: false, osmium: null, pmtiles: false, port: null, diskBytes: 0, dir: tmp };
+const none: Needs = { docker: false, dockerMemGiB: 2, dockerDiskGiB: 1, go: false, goAvoid: [], osmium: null, pmtiles: false, port: null, diskBytes: 0, dir: tmp };
 const env = { PATH: bin };
 const problems = async (n: Partial<Needs>) => (await prereq({ ...none, ...n }, env)).problems.join('\n');
 await t('確認：何も要らなければ問題なし', async () => assert.equal(await problems({}), ''));
@@ -211,11 +215,10 @@ await t('確認：osmium がなければコンテナの osmium', async () => {
   stub('osmium', 'echo osmium version 1.19.1');
   assert.deepEqual((await prereq({ ...none, osmium: 'auto' }, env)).found.osmium, 'host');
 });
-await t('確認：Go と C のコンパイラと python3 がない', async () => {
-  const p = await problems({ go: true, goAvoid: ['--abrg-bin=<abrg>'], python: true });
+await t('確認：Go と C のコンパイラがない', async () => {
+  const p = await problems({ go: true, goAvoid: ['--abrg-bin=<abrg>'] });
   assert.match(p, /Go がありません。.*go\.dev\/dl.*--abrg-bin=<abrg> で Go なしで進めます/);
   assert.match(p, /C のコンパイラがありません。.*xcode-select --install.*--abrg-bin=<abrg> で進めます/);
-  assert.match(p, /python3 がありません。.*--valhalla-dir/);
   stub('go', 'echo go version go1.25.0');
   stub(process.platform === 'darwin' ? 'xcode-select' : 'cc', 'echo ok');
   assert.equal(await problems({ go: true }), '');
@@ -239,6 +242,22 @@ await t('Geofabrik の .poly', () => {
 await t('地図の範囲（境界＋2km、0.01度で外へ）', () => {
   assert.deepEqual(mapBBox([133.5, 34.1, 134.4, 34.5]), [133.47, 34.08, 134.43, 34.52]);
 });
+
+// ===== 7. ルートのデータの設定 =====
+// build_config は Python 3.10 の書き方（list[str] | None）を含み、Mac に入っている Python 3.9 では読めない。
+// 注釈を評価しない指定（from __future__ import annotations と同じ）で読んで回す
+const PY_FUTURE = 'import sys,__future__; p=sys.argv[1]; sys.argv=sys.argv[1:]; exec(compile(open(p).read(), p, "exec", __future__.annotations.compiler_flag, dont_inherit=True), {"__name__": "__main__"})';
+if (spawnSync('python3', ['-I', '-c', 'import sys; sys.exit(sys.version_info < (3, 8))']).status === 0) {
+  await t('ルートの設定（JS）は build_config（Python）の出力と同じ', () => {
+    const o = { tileDir: '/w/tiles', admin: '/w/none/admins.sqlite', timezone: '/w/none/timezones.sqlite', speeds: '/w/default_speeds.json', jobs: 3 };
+    const r = spawnSync('python3', ['-I', '-c', PY_FUTURE, join(dirname(createRequire(import.meta.url).resolve('@valhallajs/valhallajs')), 'valhalla_build_config'),
+      '--mjolnir-tile-dir', o.tileDir, '--mjolnir-tile-extract', '', '--mjolnir-admin', o.admin, '--mjolnir-timezone', o.timezone,
+      '--mjolnir-concurrency', String(o.jobs), '--mjolnir-default-speeds-config', o.speeds,
+      '--service-limits-allow-hard-exclusions', 'True', '--additional-data-elevation', ''], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(buildConfig(o), JSON.parse(r.stdout));
+  });
+} else console.log('check-setup: python3（3.8 以上）がないので、ルートの設定を build_config（Python）と比べる確認は飛ばします');
 
 // 関東の pbf があれば：東京の境界を作り直して、今の tokyo-boundary.json と比べる（2000点）
 if (process.env.SETUP_PBF) {
