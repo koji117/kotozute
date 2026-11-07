@@ -273,3 +273,4 @@ Task 13〜15 は別々の worktree で同時に進め、私が setup に合わ�
 
 ### Task 16: 合わせて通しで確かめる（私がする）
 - 3つを setup に合わせる。check-setup、check-quick、tsc。固定の pbf で通しで作り、golden 0/107。`.dmg` を作り、空の userData から入れて試す。住所の DuckDB を Releases に置くのは、リポジトリを公開するとき（ユーザーの確認のあと）。
+- 合わせる順：Task 15 は Task 14 と同じときか、先に入れる。今の `scripts/app-data.mjs` は tile_extract（tar）を探す。Task 14 だけを入れてルートのデータを作り直すと、tar が消えて tile_extract が空になり、`npm run app:dist` の afterPack が止まって `.dmg` が作れない（Task 14 のレビューの指摘）。Task 15 を入れるまで、setup で `--redo=valhalla` や作り直しを回さない。§17 で `.dmg` にデータを入れないので、app-data.mjs に valhalla_tiles/ を写す処理は足さない。
