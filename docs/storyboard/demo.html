@@ -139,26 +139,26 @@ svg{display:block;flex:none}
 <!-- 約束の欄（アプリの場面だけ） -->
 <div data-show="25.5-72.31,79.1-113.41,148.5-163.8" class="abs pill tracker">
   <span class="lab">約束</span>
-  <span class="step"><span class="num">1</span>ローカルファースト<span data-show="27.1-116.4,148.5-163.8" class="on"><span class="num">1</span>ローカルファースト</span></span>
-  <span class="step"><span class="num">2</span>数秒で地図に<span data-show="32.7-116.4,148.5-163.8" class="on"><span class="num">2</span>数秒で地図に</span></span>
+  <span class="step"><span class="num">1</span>数秒で地図に<span data-show="32.7-116.4,148.5-163.8" class="on"><span class="num">1</span>数秒で地図に</span></span>
+  <span class="step"><span class="num">2</span>ローカルファースト<span data-show="27.1-116.4,148.5-163.8" class="on"><span class="num">2</span>ローカルファースト</span></span>
   <span class="step"><span class="num">3</span>日本ファースト<span data-show="42.3-116.4,148.5-163.8" class="on"><span class="num">3</span>日本ファースト</span></span>
 </div>
 
 <!-- 約束を守った場面の印 -->
-<div data-show="27.1-30.5" class="abs stamp pop"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">札は AI を通さない</div><div class="s">地図も検索も自分のマシンで。回数ごとの料金はない</div><div class="back">↩ 冒頭の問い：2018 無料枠の縮小</div></div></div>
-<div data-show="32.7-35.5" class="abs stamp pop"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">地図の表示も、日本語で動かせる</div><div class="s">拡大・移動・表示の切り替え</div></div></div>
-<div data-show="51.6-56.1" class="abs stamp pop"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">日本語ひとことで頼める</div><div class="s">検索文もタグも書かない</div></div></div>
+<div data-show="27.1-30.5" class="abs stamp pop"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">札は AI を通さない</div><div class="s">地図も検索も自分のマシンで。回数ごとの料金はない</div><div class="back">↩ 冒頭の問い：2018 無料枠の縮小</div></div></div>
+<div data-show="32.7-35.5" class="abs stamp pop"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">地図の表示も、日本語で動かせる</div><div class="s">拡大・移動・表示の切り替え</div></div></div>
+<div data-show="51.6-56.1" class="abs stamp pop"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">日本語ひとことで頼める</div><div class="s">検索文もタグも書かない</div></div></div>
 <div data-show="42.3-46" class="abs stamp pop"><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">座標を貼るだけで、その場所へ</div><div class="s">平面直角座標・地域メッシュ・度分秒。AI を通さない</div></div></div>
-<div data-show="57.3-61.7" class="abs stamp pop" data-fill><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">{ex1sec}で、ルートと共有リンク</div><div class="s">送ってから答えが届くまで（Claude の時間も含む）</div></div></div>
+<div data-show="57.3-61.7" class="abs stamp pop" data-fill><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">{ex1sec}で、ルートと共有リンク</div><div class="s">送ってから答えが届くまで（Claude の時間も含む）</div></div></div>
 <div data-show="62.7-67.5" class="abs stamp pop" data-fill><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">住所は、日本の住居表示で</div><div class="s">丁目・番・号の書き方を読む。引けた所と精度をそのまま出す</div></div></div>
-<div data-show="75.6-78.82" class="abs stamp pop" style="z-index:55"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">出典とデータ時点が、いつも出る</div><div class="s">地図のデータは、自分で入れ替えるまで変わらない</div><div class="back">↩ 冒頭の問い：2019 地図の作り替え</div></div></div>
+<div data-show="75.6-78.82" class="abs stamp pop" style="z-index:55"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">出典とデータ時点が、いつも出る</div><div class="s">地図のデータは、自分で入れ替えるまで変わらない</div><div class="back">↩ 冒頭の問い：2019 地図の作り替え</div></div></div>
 <!-- 例2の③：「品川駅」で探して、出発地が OSM の駅（名前は「品川」）になったときだけ出す（下の script で、そうでなければ消す。2026-11-07 にユーザーが決定） -->
 <div id="stamp-station" data-show="94.7-99.5" class="abs stamp pop" data-fill><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">「{ex2q}」は、OSM の駅「{ex2st}」</div><div class="s">「駅」を外して、駅として探す</div></div></div>
 <div data-show="105.7-110.9" class="abs stamp pop"><div class="tag"><span class="n" style="font-size:13px">しくみ</span></div><div><div class="t">合うかどうかは、通った道の OSM のタグで</div><div class="s">プログラムが数えて確かめる</div></div></div>
-<div data-show="113.85-116.1" class="abs stamp pop" style="z-index:55"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">出典とデータ時点を、画像に焼き込む</div><div class="s">OSM の地図なので、出典を入れて社外の資料に使える</div><div class="back">↩ 冒頭の問い：Google Earth の画像</div></div></div>
-<div data-show="151.1-155.5" class="abs stamp pop" data-fill><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">外に出たのは Claude への依頼だけ{advOtherZero}</div><div class="s">地図・検索・ルート・住所は自分のマシンで</div></div></div>
-<div data-show="158.5-163.3" class="abs stamp pop" data-fill><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">Claude を使わずに再実行</div><div class="s">このときの Claude への通信は {recA}</div></div></div>
-<div data-show="165.5-171.3" class="abs stamp pop" style="z-index:65;left:60px;right:auto;top:430px"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">ローカルファースト</div><div class="s">地図のデータは、初めて開いたときに取って手元で作る</div><div class="back">↩ 冒頭の問い：2026 Earth Pro の配布終了</div></div></div>
+<div data-show="113.85-116.1" class="abs stamp pop" style="z-index:55"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">出典とデータ時点を、画像に焼き込む</div><div class="s">OSM の地図なので、出典を入れて社外の資料に使える</div><div class="back">↩ 冒頭の問い：Google Earth の画像</div></div></div>
+<div data-show="151.1-155.5" class="abs stamp pop" data-fill><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">外に出たのは Claude への依頼だけ{advOtherZero}</div><div class="s">地図・検索・ルート・住所は自分のマシンで</div></div></div>
+<div data-show="158.5-163.3" class="abs stamp pop" data-fill><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">Claude を使わずに再実行</div><div class="s">このときの Claude への通信は {recA}</div></div></div>
+<div data-show="165.5-171.3" class="abs stamp pop" style="z-index:65;left:60px;right:auto;top:430px"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">ローカルファースト</div><div class="s">地図のデータは、初めて開いたときに取って手元で作る</div><div class="back">↩ 冒頭の問い：2026 Earth Pro の配布終了</div></div></div>
 
 <!-- ③：解釈（Claudeが読んだ）と結果の値（地図のデータが答えた）。中身は events.json の結果から作る -->
 <div class="abs callouts">
@@ -233,8 +233,8 @@ out geom;</div>
   <div data-show="18.9-25.8" class="abs" style="left:90px;top:120px;width:1100px">
     <div class="h3" style="margin-bottom:22px">3つの約束</div>
     <div style="display:flex;gap:26px">
-      <div data-show="19.2-25.8" class="promise rise"><div class="no">1</div><h4>ローカルファースト</h4><div>地図・検索・ルート・住所は、お使いの PC の上で動く。データも手元に置く</div></div>
-      <div data-show="20.9-25.8" class="promise rise"><div class="no">2</div><h4>言葉から地図へ</h4><div>作りたい地図を、言葉で伝えるだけ。はじめてでも、数秒で地図ができる。検索文もタグも知らなくてよい。インストールも簡単</div></div>
+      <div data-show="19.2-25.8" class="promise rise"><div class="no">1</div><h4>言葉から地図へ</h4><div>作りたい地図を、言葉で伝えるだけ。はじめてでも、数秒で地図ができる。検索文もタグも知らなくてよい。インストールも簡単</div></div>
+      <div data-show="20.9-25.8" class="promise rise"><div class="no">2</div><h4>ローカルファースト</h4><div>地図・検索・ルート・住所は、お使いの PC の上で動く。データも手元に置く</div></div>
       <div data-show="22.7-25.8" class="promise rise"><div class="no">3</div><h4>日本ファースト</h4><div>住所（丁目・番・号）、駅の名前、平面直角座標、地域メッシュ、度分秒に、追加の設定なしで</div></div>
     </div>
   </div>
@@ -326,7 +326,7 @@ out geom;</div>
       </div>
     </div>
   </div>
-  <div data-show="123.6-130.7" class="abs stamp pop" style="right:70px;top:360px"><div class="tag"><span class="n">①</span><span class="w">印</span></div><div><div class="t">開発中から、公開サービスを止める</div><div class="s">hook はホスト名で判定する</div></div></div>
+  <div data-show="123.6-130.7" class="abs stamp pop" style="right:70px;top:360px"><div class="tag"><span class="n">②</span><span class="w">印</span></div><div><div class="t">開発中から、公開サービスを止める</div><div class="s">hook はホスト名で判定する</div></div></div>
   <div data-show="141.1-146.1" class="abs stamp pop" style="right:70px;top:160px"><div class="tag"><span class="n">記録</span></div><div><div class="t">評価セットを先にコミットしてから、直す</div><div class="s">git の履歴で順番を示す</div></div></div>
 </div>
 
@@ -349,8 +349,8 @@ out geom;</div>
 <!-- ============ おわり（170-178） ============ -->
 <div data-show="171.5-179.5" class="abs full dark">
   <div data-show="171.7-179.5" class="abs rise" style="left:0;width:1280px;top:110px;display:flex;justify-content:center;gap:14px">
-    <span class="badge" style="background:var(--sumi-800);color:var(--teal-300);height:34px;font-size:16px">① ローカルファースト</span>
-    <span class="badge" style="background:var(--sumi-800);color:var(--teal-300);height:34px;font-size:16px">② 言葉から、数秒で地図に</span>
+    <span class="badge" style="background:var(--sumi-800);color:var(--teal-300);height:34px;font-size:16px">① 言葉から、数秒で地図に</span>
+    <span class="badge" style="background:var(--sumi-800);color:var(--teal-300);height:34px;font-size:16px">② ローカルファースト</span>
     <span class="badge" style="background:var(--sumi-800);color:var(--teal-300);height:34px;font-size:16px">③ 日本ファースト</span>
   </div>
   <div data-show="172-179.5" class="abs hero rise" style="top:210px;font-size:44px">明日、Googleマップの規約が変わっても。</div>
@@ -372,7 +372,7 @@ out geom;</div>
     <div data-show="8.2-12">境目はあいまいで、線を引き直すのもGoogleです。</div>
     <div data-show="12-15.8">OSMなら自分で動かせるけど、検索文が要る。</div>
     <div data-show="15.8-19">地図の業界に長くいる私が作りました。</div>
-    <div data-show="19-25.5">ローカルファースト。言葉から、数秒で地図に。日本ファースト。</div>
+    <div data-show="19-25.5">言葉から、数秒で地図に。ローカルファースト。日本ファースト。</div>
     <div data-show="25.5-30.5">札を押すと、AIを通さずに地図に出ます。郵便局は{po}。</div>
     <div data-show="30.5-35.5">表示も日本語で。芝公園のあたりを大きく、郵便局だけ残して。</div>
     <div data-show="35.5-41.8">日本の住所は、書き方がいろいろ。4-2-8も、四丁目2番8号も、同じ場所です。</div>
