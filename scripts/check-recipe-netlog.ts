@@ -40,6 +40,7 @@ const STEPS: [string, unknown][] = [
   ['set_view', { target: 'result:1', show: ['post_office'], hide: ['convenience'] }],
   ['find_features', { words: ['cafe'], area: 'view:', radius_m: 500 }], // set_view で動いた後の画面
   ['add_pin', { target: 'here:' }],
+  ['add_pin', { target: 'click:1' }], // レシピには、手順が使ったクリック（click:1 まで）だけが入る
 ];
 const orig: any[] = [];
 {

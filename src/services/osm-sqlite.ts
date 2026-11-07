@@ -88,12 +88,14 @@ export type OsmIndex = ReturnType<typeof openOsmIndex>;
 
 export function openOsmIndex(path: string) {
   // セットアップの前の clone や、別のフォルダから起こした MCP でも、最初に使ったときにこう出す
-  if (!existsSync(path)) throw new OpError('service', '検索データがありません。npm run setup を回してください');
+  // Mac のアプリ（KOTOZUTE_DATA_DIR がある）では npm run setup を回せないので、メニューから作り直してもらう
+  const app = process.env.KOTOZUTE_DATA_DIR ? 'メニューの「地図のデータ…」で「最新にする」を押して、作り直してください' : null;
+  if (!existsSync(path)) throw new OpError('service', `検索データがありません。${app ?? 'npm run setup を回してください'}`);
   const db = new DatabaseSync(path, { readOnly: true });
   const meta = (k: string) => (db.prepare('SELECT v FROM meta WHERE k = ?').get(k) as { v: string } | undefined)?.v;
   if (meta('dict') !== dictSignature()) {
     db.close();
-    throw new OpError('service', '検索データが古い形か、今の辞書と合いません。npm run setup で作り直してください');
+    throw new OpError('service', `検索データが古い形か、今の辞書と合いません。${app ?? 'npm run setup で作り直してください'}`);
   }
   const words = Object.fromEntries(db.prepare('SELECT word, i FROM words').all().map((r) => [r.word as string, r.i as number]));
   const q = {

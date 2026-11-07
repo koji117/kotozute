@@ -7,7 +7,7 @@
 //   ダウンロードは --cache に置き、止めても次は続きから取る。作り終えたら pbf は消す。
 //   取り終えた pbf が残っていても（前の回が途中で止まった）、Geofabrik の今のファイルと同じとき（ETag）だけ使う。「最新にする」で古いものを使わないため。
 //   ネットにつながらないときは、取る先の名前を入れた日本語の文にする（download.ts の netError）。
-// 通信する先は download.geofabrik.de、build.protomaps.com、github.com（と raw.githubusercontent.com。ルートの速度表）だけ。
+// 通信する先は download.geofabrik.de、build.protomaps.com、github.com（と raw.githubusercontent.com。ルートの速度表。release-assets.githubusercontent.com。GitHub Releases が転送する先）だけ。
 // 試すための差し替え（環境変数）：KOTOZUTE_PBF_URL（手元のパスか URL）、KOTOZUTE_TILES_FILE（手元の .pmtiles）、KOTOZUTE_ABR_URL（手元のパスか URL）。
 // KOTOZUTE_BUILD_FAKE=1（か、地域の設定のパス）：本当には作らず、進み具合だけを出して、開発用のデータ（data/region.json）を指す region.json を書く（画面の確認用）。
 import { spawnSync } from 'node:child_process';
@@ -108,10 +108,12 @@ async function build(out: string, cache: string, jobs: number): Promise<string> 
   // pmtiles：アプリには入っている（bin/pmtiles）。開発中は手元のもの、なければ固定した版を GitHub から取る
   const bin = existsSync(join(ROOT, 'bin/pmtiles')) ? join(ROOT, 'bin/pmtiles')
     : await pmtilesBin(spawnSync('pmtiles', ['version']).status === 0 ? 'host' : 'download', join(cache, 'bin'), log);
-  const src = process.env.KOTOZUTE_TILES_FILE ?? await latestBuild(log);
+  const src = process.env.KOTOZUTE_TILES_FILE ?? await latestBuild(log, 'Protomaps（build.protomaps.com）に、この8日の地図のビルドが見つかりません。時間をおいてから、もう一度押してください');
   const tiles = join(out, 'tokyo.pmtiles');
   // pmtiles は取る量を「fetching chunks 45% |…| (81/181 MB, …)」の形で出す。それを進み具合にする
+  // 進み具合の棒は \r で描き直すので、空の行が出る。それは出さない
   const tilesLog: Log = (m) => {
+    if (!m.trim()) return;
     const p = /\((\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?) MB/.exec(m);
     if (p) progress(Number(p[1]) * 2 ** 20, Number(p[2]) * 2 ** 20); else log(m);
   };

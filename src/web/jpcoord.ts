@@ -88,15 +88,19 @@ const inJapan = ([lng, lat]: LngLat) => lat >= 20 && lat <= 46 && lng >= 122 && 
 export type Parsed = { at: LngLat; how: string } | { error: string };
 const NUM = String.raw`(-?\d+(?:\.\d+)?)`;
 const SEP = String.raw`\s*[,、/\s]\s*`;
-const DMS_ONE = String.raw`(北緯|南緯|東経|西経|[NSEW])?\s*(\d{1,3}(?:\.\d+)?)\s*(?:°|度)\s*(?:(\d{1,2}(?:\.\d+)?)\s*(?:′|'|分))?\s*(?:(\d{1,2}(?:\.\d+)?)\s*(?:″|′′|"|''|秒))?\s*([NSEW])?`;
+// 度の印（°、度）は書かなくてもよい。そのときは北緯・N などがあるものだけを読む（parseCoord）
+const DMS_ONE = String.raw`(北緯|南緯|東経|西経|[NSEW])?\s*(\d{1,3}(?:\.\d+)?)\s*(?:°|度)?\s*(?:(\d{1,2}(?:\.\d+)?)\s*(?:′|'|分))?\s*(?:(\d{1,2}(?:\.\d+)?)\s*(?:″|′′|"|''|秒))?\s*([NSEW])?`;
+/** ローマ数字の系（「第Ⅸ系」は NFKC で「第IX系」になる） */
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX'];
 
 /**
  * 検索の欄に貼られた座標を読む。座標でなければ null（Claude に送る）。
- * 読めるもの：緯度経度（10進、どちらの順でもよい）、度分秒、平面直角（「9系 X=… Y=…」。系を書かなければ zone）、地域メッシュ（4・6・8桁）
+ * 読めるもの：緯度経度（10進、どちらの順でもよい。「北緯35.68 東経139.76」も）、度分秒、平面直角（「9系 X=… Y=…」。系はローマ数字でもよい。系を書かなければ zone）、地域メッシュ（4・6・8桁）
  */
 export function parseCoord(text: string, zone?: number): Parsed | null {
   // ー（長音。日本語の入力でマイナスのつもりで打たれる）と ― もマイナス・ハイフンとして読む
-  const s = text.normalize('NFKC').replace(/[−‐‑–—―ー]/g, '-').trim();
+  // 空白の並びは1つにまとめる（となりあう \s* が多い正規表現で、長い空白に時間がかからないように）
+  const s = text.normalize('NFKC').replace(/[−‐‑–—―ー]/g, '-').replace(/\s+/g, ' ').trim();
   // 地域メッシュ（数字だけ。日本の外の番号は座標とみなさない）
   const mesh = /^(\d{4})(?:-?(\d{2}))?(?:-?(\d{2}))?$/.exec(s);
   if (mesh) {
@@ -105,27 +109,38 @@ export function parseCoord(text: string, zone?: number): Parsed | null {
   }
   // 度分秒
   const two = new RegExp(String.raw`^${DMS_ONE}\s*[,、/]?\s*${DMS_ONE}$`, 'i').exec(s);
-  if (two) {
+  const deg = /[°度]/.test(s), hemi = /[NSEW北南東西]/i.test(s), ns = s.match(/\d+(?:\.\d+)?/g) ?? [];
+  // 数が2つ以上あるときだけ（「北緯35度」は座標ではない）。印も北緯・N などもない「35.68 139.76」は下の10進で読む。
+  // 度の印がなければ、小数が2つのときだけ（「E20」「E20 E1」「N700」は座標ではない）
+  if (two && ns.length >= 2 && (deg || (hemi && ns.length === 2 && ns.every((n) => n.includes('.'))))) {
     const one = (g: string[]) => ({ hemi: (g[0] ?? g[4] ?? '').toUpperCase(), v: Number(g[1]) + Number(g[2] ?? 0) / 60 + Number(g[3] ?? 0) / 3600 });
     const c1 = one(two.slice(1, 6)), c2 = one(two.slice(6, 11));
-    if ([c1, c2].some((c) => /^(S|W|南緯|西経)$/.test(c.hemi))) return { error: '南緯・西経の座標は日本の外です' };
+    // 「N35 W139」の W は1つ目の後ろの印として読まれることがあるので、文字列全体で見る（座標の形に合った文字列なので、文字は印だけ）
+    if (/[SW南西]/i.test(s)) return { error: '南緯・西経の座標は日本の外です' };
     const latFirst = /^(N|北緯)$/.test(c1.hemi) || /^(E|東経)$/.test(c2.hemi) || (!c1.hemi && !c2.hemi && c1.v < c2.v);
     const at: LngLat = latFirst ? [c2.v, c1.v] : [c1.v, c2.v];
-    return inJapan(at) ? { at, how: '度分秒' } : { error: '日本の範囲の外の座標です' };
+    return inJapan(at) ? { at, how: /[°度′'分″"秒]/.test(s) ? '度分秒' : '緯度経度' } : { error: '日本の範囲の外の座標です' };
   }
   // 平面直角（系か X/Y の文字があるもの）と、10進の緯度経度
-  const pl = new RegExp(String.raw`^(?:第?(\d{1,2})系)?[\s,、:]*(X\s*[=:]?\s*)?${NUM}\s*m?${SEP}(?:Y\s*[=:]?\s*)?${NUM}\s*m?$`, 'i').exec(s);
+  const pl = new RegExp(String.raw`^(?:第?(\d{1,2}|[IVX]{1,5})系)?[\s,、:]*(X\s*[=:]?\s*)?${NUM}\s*m?${SEP}(?:Y\s*[=:]?\s*)?${NUM}\s*m?$`, 'i').exec(s);
   if (!pl) return null;
   const [, zs, xLabel, v1s, v2s] = pl;
   const v1 = Number(v1s), v2 = Number(v2s);
   if (!zs && !xLabel) {
     if (inJapan([v2, v1])) return { at: [v2, v1], how: '緯度経度' };
     if (inJapan([v1, v2])) return { at: [v1, v2], how: '緯度経度' };
+    // 小数どうしで緯度経度の形（どちらかの順で緯度 ±90、経度 ±180 の内）なら、日本の外の緯度経度として知らせる。整数だけは Claude に送る
+    const ll = (lat: number, lng: number) => Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+    if (v1s.includes('.') && v2s.includes('.') && (ll(v1, v2) || ll(v2, v1))) return { error: '日本の範囲の外の座標です。緯度・経度の順と符号を確かめてください' };
     if (Math.abs(v1) < 1000 && Math.abs(v2) < 1000) return null; // 座標とは言えない数（Claude に送る）
+    // 系も X= もない平面直角は、マイナスのある数だけ（東京は9系の原点より南なので X はマイナス。「2026/11」「1500 2000」は座標ではない）
+    if (Math.abs(v1) < 1000 || Math.abs(v2) < 1000 || (v1 >= 0 && v2 >= 0)) return null;
   }
-  const z = zs ? Number(zs) : zone;
+  const z = zs ? Number(zs) || ROMAN.indexOf(zs.toUpperCase()) + 1 || -1 : zone; // 読めない系は -1（下で断る）
   if (!z) return { error: '平面直角座標の系が分かりません。「9系 X=-35000 Y=-6000」のように系を書いてください' };
-  if (!ORIGIN[z]) return { error: `平面直角座標の系は1〜19です（${z}系）` };
+  if (!ORIGIN[z]) return { error: `平面直角座標の系は1〜19です（${zs ?? z}系）` };
   const at = fromPlane(v1, v2, z);
-  return inJapan(at) ? { at, how: `平面直角座標 ${z}系` } : { error: `${z}系では日本の範囲の外になります。系と、X（北）・Y（東）の順を確かめてください` };
+  // X=・Y= がなければ、北・東のどちらとして読んだかを見せる（東・北の順で貼られても、東京の中の別の場所に着いてしまうため）
+  const how = xLabel ? `平面直角座標 ${z}系` : `平面直角座標 ${z}系。X=北 ${v1.toFixed(1)}、Y=東 ${v2.toFixed(1)} として読んだ`;
+  return inJapan(at) ? { at, how } : { error: `${z}系では日本の範囲の外になります。系と、X（北）・Y（東）の順を確かめてください` };
 }

@@ -47,14 +47,15 @@
     <table>
       <tr><th>OSM のデータ（関東）</th><td class="n">約 500MB</td><td>Geofabrik<div class="src">download.geofabrik.de</div></td></tr>
       <tr><th>地図の絵</th><td class="n">約 190MB</td><td>Protomaps<div class="src">build.protomaps.com</div></td></tr>
-      <tr><th>住所のデータ（東京）、ルートの速度表</th><td class="n">約 22MB</td><td>GitHub<div class="src">github.com、raw.githubusercontent.com</div></td></tr>
+      <tr><th>住所のデータ（東京）、ルートの速度表</th><td class="n">約 22MB</td><td>GitHub<div class="src">github.com、release-assets.githubusercontent.com、raw.githubusercontent.com</div></td></tr>
     </table>
     <h2>この Mac に要るもの</h2>
     <p>空きディスク：作るあいだ約 5GB。作ったあとに残るのは約 1.6GB です。</p>
+    <p>メモリ：作るあいだ最大で約 4GB を使います。</p>
     <p>時間：数分から十数分（ネットの速さと、この Mac によります。開発した Mac Studio では約4分でした）。</p>
     <h2>通信について</h2>
     <p>このアプリが上の場所と通信するのは、「ダウンロードして作る」と「最新にする」を押したときだけです。地図を使っているあいだに外に出るのは、日本語の依頼を読む Claude API だけです。</p>
-    <p>途中で止めても、次はダウンロードの続きから取ります。</p>
+    <p>途中で止めても、OSM のデータ（約 500MB）は次に続きから取ります。</p>
   </section>
 
   <section id="update" hidden>
@@ -126,7 +127,7 @@
       msg.setAttribute('role', job?.status === 'error' ? 'alert' : 'status');
       msg.textContent = !job ? ''
         : running ? `作っています（手順 ${Math.max(1, job.steps.findIndex((x) => x.id === job.step) + 1)} / ${job.steps.length || '…'}）。この Mac を眠らせないでください`
-        : job.status === 'stopped' ? '止めました。ダウンロードした分は残してあり、次は続きから取ります'
+        : job.status === 'stopped' ? '止めました。OSM のデータ（約 500MB）は、ダウンロードした分を残してあり、次は続きから取ります'
         : job.status === 'error' ? job.error
         : mode === 'update' ? '最新にしました。地図の画面を新しいデータで読み直しました' : 'できました。地図を開きます';
 

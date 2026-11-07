@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Hono, type Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -117,7 +117,7 @@ app.post('/api/recipe/:id/run', async (c) => {
   return c.json({ steps, recipe, net } satisfies RecipeRunResponse);
 });
 
-// OSM ノートの下書きに入れてはいけない語。.env の NOTE_BLOCK_WORDS（社名など）も使う。見つかった語だけ返す
+// OSM ノートの下書きに入れてはいけない語。NOTE_BLOCK_WORDS（社名など。.env か、Mac のアプリでは note-block-words.txt）も使う。見つかった語だけ返す
 app.post('/api/note/check', async (c) => {
   const { text } = await body(c, z.object({ text: z.string().max(2000, 'ノートは2000文字までにしてください') }));
   return c.json({ blocked: blockedWords(text, envBlockWords()) });
@@ -164,5 +164,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const port = Number(process.env.PORT ?? 8787);
   serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }); // 手元だけ。外から使うときは tailscale serve を前に置く
   console.log(`kotozute server http://localhost:${port}`);
-  if (!envBlockWords().length) console.warn('NOTE_BLOCK_WORDS が .env にありません。社名はOSMノートの確認で止まりません');
+  // Mac のアプリ（KOTOZUTE_DATA_DIR）は止める語を note-block-words.txt から渡す（desktop/main.mjs）。語そのものは出さない
+  const dataDir = process.env.KOTOZUTE_DATA_DIR;
+  if (!envBlockWords().length) {
+    console.warn(dataDir ? `OSM ノートで止める語が ${join(dataDir, 'note-block-words.txt')} にありません（メニュー「OSM ノートで止める語…」）。社名はOSMノートの確認で止まりません`
+      : 'NOTE_BLOCK_WORDS が .env にありません。社名はOSMノートの確認で止まりません');
+  }
+  // Mac のアプリから起こされたときは、標準入力が閉じたら（アプリが強制終了で止まったときも）終わる。子として残らない
+  if (dataDir) process.stdin.on('end', () => process.exit(0)).resume();
 }

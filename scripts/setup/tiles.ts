@@ -35,8 +35,9 @@ export async function tilesInfo(file: string): Promise<{ asOf: string | null; ve
   return { asOf: s('planetiler:osm:osmosisreplicationtime'), version: s('version'), maxZoom: h.maxZoom };
 }
 
-/** 最新のビルド：一覧はないので、今日から8日前まで日付ごとに HEAD で聞き、最初にあったもの（ビルドは約6日で消える）。版が 4. か確かめる */
-export async function latestBuild(log: Log, now = new Date()): Promise<string> {
+/** 最新のビルド：一覧はないので、今日から8日前まで日付ごとに HEAD で聞き、最初にあったもの（ビルドは約6日で消える）。版が 4. か確かめる。
+ *  notFound は見つからないときの文（Mac のアプリは --tiles-file を渡せないので、アプリ向けの文を渡す） */
+export async function latestBuild(log: Log, notFound = 'build.protomaps.com に、この8日の地図のビルドが見つかりません。少し待ってからもう一度回すか、--tiles-file=<手元の .pmtiles> を渡してください', now = new Date()): Promise<string> {
   for (let d = 0; d <= 8; d++) {
     const day = new Date(now.getTime() - d * 86_400_000).toISOString().slice(0, 10).replaceAll('-', '');
     const url = `https://build.protomaps.com/${day}.pmtiles`;
@@ -46,7 +47,7 @@ export async function latestBuild(log: Log, now = new Date()): Promise<string> {
     log(`地図のビルド：${day}（版 ${version}）`);
     return url;
   }
-  throw new Error('build.protomaps.com に、この8日の地図のビルドが見つかりません。少し待ってからもう一度回すか、--tiles-file=<手元の .pmtiles> を渡してください');
+  throw new Error(notFound);
 }
 
 /** pmtiles extract。<out> の横に .part で作ってから rename（途中で止まっても壊れたファイルを使わない） */

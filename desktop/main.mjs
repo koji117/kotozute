@@ -9,10 +9,11 @@
 //   メニュー「地図のデータ…」の「最新にする」：作るあいだは前のデータで使える。できたら切り替えて、abrg とサーバを起こし直し、画面を読み直し、前のデータを消す。
 //   失敗したら前のデータのまま。
 // 環境変数（OSM_BACKEND、OSM_INDEX、VALHALLA_MODE、VALHALLA_CONFIG、ABRG_BIN、ABRG_CACHE_PATH、ABR_URL）があればそちら（開発用）。
-// 書き込む場所（共有リンク、レシピ、操作の記録、書き出し、キー、ポート、地図のデータ）は ~/Library/Application Support/kotozute/。
+// 書き込む場所（共有リンク、レシピ、操作の記録、書き出し、キー、ポート、地図のデータ、OSM ノートで止める語）は ~/Library/Application Support/kotozute/。
+// 強制終了で止まったとき：サーバは標準入力が閉じたのを見て自分で終わる。abrg は abrg.pid に書いておき、次に開いたときに止める。
 // Claude API のキーは safeStorage（キーチェーンの鍵）で暗号化して保存し、サーバには環境変数で渡す。画面とログには出さない。
 import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, session, shell } from 'electron';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { isAbsolute, join } from 'node:path';
@@ -29,6 +30,8 @@ const MAP_DATA = join(DATA, 'data');
 const CURRENT_FILE = join(MAP_DATA, 'current.json');
 const CACHE = join(MAP_DATA, 'cache');
 const STAMP = /^\d{8}-\d{6}$/; // データのフォルダの名前（作った日時、UTC）
+const ABRG_PID = join(DATA, 'abrg.pid'); // 動いている abrg の pid とコマンド（強制終了で残ったものを、次に開いたときに止める）
+const NOTE_WORDS = join(DATA, 'note-block-words.txt'); // OSM ノートの下書きで止める語（社名など）。サーバに NOTE_BLOCK_WORDS で渡す
 // アプリの中の abrg（scripts/app-data.mjs が入れる）。開発中は bin/ がないので、npm run setup が作ったもの
 const ABRG_BIN = process.env.ABRG_BIN || (existsSync(join(ROOT, 'bin/abrg')) ? join(ROOT, 'bin/abrg') : devAbrg(ROOT));
 const PRELOAD = join(ROOT, 'desktop/preload.cjs'); // sandbox と contextIsolation は既定（有効）のまま
@@ -96,11 +99,20 @@ function askKey() {
 
 // ===== 地図のデータ =====
 
+/** current.json の中身 { dir, built_at }。ない、読めない、名前の形が違えば null */
+function readCurrent() {
+  try {
+    const c = JSON.parse(readFileSync(CURRENT_FILE, 'utf8'));
+    return typeof c?.dir === 'string' && STAMP.test(c.dir) ? c : null;
+  } catch {
+    return null;
+  }
+}
+
 /** 今のデータ { dir, built_at, file, region }。ない、読めない、ファイルが欠けていれば null */
 function currentData() {
   try {
-    const { dir, built_at } = JSON.parse(readFileSync(CURRENT_FILE, 'utf8'));
-    if (typeof dir !== 'string' || !STAMP.test(dir)) return null;
+    const { dir, built_at } = readCurrent();
     const file = join(MAP_DATA, dir, 'region.json');
     const region = JSON.parse(readFileSync(file, 'utf8'));
     const files = [region.tiles, region.osm_index, region.valhalla_config, region.abr_cache];
@@ -118,9 +130,12 @@ function writeCurrent(c) {
   renameSync(`${CURRENT_FILE}.tmp`, CURRENT_FILE);
 }
 
-/** 前に止まった回の残り（作りかけ、消しきれなかった前のデータ）を消す。作っている子がいないときだけ呼ぶ */
+/**
+ * 前に止まった回の残り（作りかけ、消しきれなかった前のデータ）を消す。作っている子がいないときだけ呼ぶ。
+ * current.json が名指すフォルダは、中のパスが今は使えなくても消さない（ホームのパスが変わったときなど）
+ */
 function cleanStale() {
-  const cur = currentData()?.dir;
+  const cur = readCurrent()?.dir;
   try {
     for (const d of readdirSync(MAP_DATA)) if (STAMP.test(d) && d !== cur) rmSync(join(MAP_DATA, d), { recursive: true, force: true });
   } catch {}
@@ -130,21 +145,24 @@ function cleanStale() {
 function dataState() {
   const c = currentData();
   return {
-    mode: c ? 'update' : 'first',
+    mode: c && !firstRun ? 'update' : 'first', // 起動を待っているあいだ（起動に失敗した窓も）は「終了」を出す。閉じるとアプリが終わるため
     current: c && { osm_as_of: c.region.osm_as_of, tiles_as_of: c.region.tiles_as_of, built_at: c.built_at },
     job,
   };
 }
+/** データの画面を閉じる。閉じ終わるのを待たずに「今の窓」から外す */
+const closeData = () => { const w = dataWin; dataWin = undefined; w?.close(); };
 const pushState = () => { if (dataWin && !dataWin.webContents.isDestroyed()) dataWin.webContents.send('data:state', dataState()); };
 
 function openDataWindow() {
   if (dataWin) return dataWin.focus(); // 1つだけ
-  const w = dataWin = new BrowserWindow({ width: 640, height: 700, resizable: false, title: '地図のデータ', parent: win, webPreferences: { preload: PRELOAD } });
+  const w = dataWin = new BrowserWindow({ width: 640, height: 760, resizable: false, title: '地図のデータ', parent: win, webPreferences: { preload: PRELOAD } });
   w.setMenuBarVisibility(false);
   w.webContents.on('will-navigate', (e) => e.preventDefault()); // この画面はリンクを持たない
   w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   // 初めてのときに閉じたら、アプリを終わる（作っている途中なら止める）。メニューから開いたときは、閉じても作り続ける
-  w.on('closed', () => { dataWin = undefined; firstRun?.(false); });
+  // 自分で閉じた窓（closeData）は、もう今の窓ではないので、ここでは何もしない（閉じるのは非同期で、そのあいだに次の窓を開くことがある）
+  w.on('closed', () => { if (dataWin === w) { dataWin = undefined; firstRun?.(false); } });
   w.loadFile(join(ROOT, 'desktop/data.html'));
 }
 
@@ -215,8 +233,8 @@ function startBuild() {
 }
 
 /** 作ったデータ（stamp）に切り替える。初めてのときは待っている起動に返すだけ。失敗したら前のデータに戻して、作ったものを消す */
-async function useData(stamp) {
-  const old = currentData();
+const useData = (stamp) => serial(async () => {
+  const old = readCurrent(); // 中のパスが今は使えなくても、失敗したら元に戻す
   writeCurrent({ dir: stamp, built_at: new Date().toISOString() });
   let restarted = false;
   try {
@@ -224,7 +242,7 @@ async function useData(stamp) {
     if (firstRun) return firstRun(true); // サーバは起動の続きで起こす
     restarted = true;
     await stopServices();
-    await startServices();
+    await startServices(); // 新しい abrg かサーバが起こすあいだに止まれば、ここで失敗する（アプリは終わらない）
   } catch (e) {
     if (old) writeCurrent({ dir: old.dir, built_at: old.built_at });
     else rmSync(CURRENT_FILE, { force: true });
@@ -234,7 +252,7 @@ async function useData(stamp) {
   }
   win?.reload();
   if (old && old.dir !== stamp) rmSync(join(MAP_DATA, old.dir), { recursive: true, force: true }); // abrg を止めたあとで消す（DuckDB を開いていたため）
-}
+});
 
 // 地図のデータの画面からの呼び出し。どれも引数なしで、送り主がその画面のときだけ受ける
 const fromData = (e, args) => !!dataWin && e.sender === dataWin.webContents && args.length === 0;
@@ -264,12 +282,22 @@ const freePort = (p = 0) => new Promise((resolve, reject) => {
   });
 });
 
+/**
+ * 子のプロセスを起こす。p.dead は、止まったときに失敗する。起こしているあいだ（p.starting）に止まっても、アプリは終わらない
+ * （startServices が失敗し、呼んだ側が前のデータに戻すか、地図のデータの画面を出す）。起こしたあとで止まれば、アプリを終わる
+ */
 function start(name, cmd, args, env) {
-  const p = spawn(cmd, args, { cwd: ROOT, env, stdio: ['ignore', 'inherit', 'inherit'] });
+  // 標準入力はつないでおく。アプリが強制終了で止まると閉じるので、サーバはそれを見て終わる（src/server/main.ts）
+  const p = spawn(cmd, args, { cwd: ROOT, env, stdio: ['pipe', 'inherit', 'inherit'] });
   children.add(p);
+  p.starting = true;
+  let dead;
+  p.dead = new Promise((_, reject) => { dead = reject; });
+  p.dead.catch(() => {}); // 待つ人がいないときに「処理されない失敗」にしない
   const down = (msg) => {
     children.delete(p);
-    if (quitting || p.stopping || p.down) return;
+    dead(new Error(msg));
+    if (quitting || p.stopping || p.starting || p.down) return;
     p.down = true;
     dialog.showErrorBox('ことづて', `${msg}。アプリを終了します。`);
     app.quit();
@@ -302,7 +330,43 @@ async function appPort() {
   return p;
 }
 
-/** 今のデータで abrg とサーバを起こす（サーバのポートはいつも同じ） */
+let queue = Promise.resolve();
+/** 起動と起こし直し（キーを変える、データを切り替える）を1つずつ回す。重なると、同じポートにサーバを2つ起こしかねない */
+function serial(fn) {
+  const r = queue.then(fn);
+  queue = r.catch(() => {});
+  return r;
+}
+
+/** url が 200 を返すまで待つ。ps のどれかが先に止まれば失敗する */
+const ready = (url, ...ps) => Promise.race([waitHttp(url, 15_000), ...ps.map((p) => p.dead)]);
+
+/** OSM ノートで止める語（note-block-words.txt。1行に1語、# で始まる行は読まない）をカンマでつないだもの。なければ空 */
+function noteWords() {
+  try {
+    return readFileSync(NOTE_WORDS, 'utf8').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#')).join(',');
+  } catch {
+    return '';
+  }
+}
+
+const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+
+/** 前に強制終了で止まったアプリの abrg が残っていれば止める。pid のコマンドが同じで、親がない（launchd が引き取った）ときだけ */
+async function killStaleAbrg() {
+  try {
+    const { pid, command } = JSON.parse(readFileSync(ABRG_PID, 'utf8'));
+    if (!Number.isInteger(pid) || pid <= 0) throw new Error('pid の形が違います');
+    const [, ppid, now] = execFileSync('ps', ['-o', 'ppid=,command=', '-p', String(pid)], { env: { ...process.env, LC_ALL: 'en_US.UTF-8' } }).toString().match(/^\s*(\d+)\s+(.*?)\s*$/) ?? []; // LC_ALL：日本語のパスを ps が逃がさないように
+    if (ppid === '1' && now === command) {
+      process.kill(pid, 'SIGTERM');
+      for (let i = 0; i < 30 && alive(pid); i++) await new Promise((r) => setTimeout(r, 100)); // ポートと DuckDB を放すのを待つ
+    }
+  } catch {} // ファイルがない、もう止まっている（ps が失敗する）
+  rmSync(ABRG_PID, { force: true });
+}
+
+/** 今のデータで abrg とサーバを起こす（サーバのポートはいつも同じ）。どちらかが起こすあいだに止まれば失敗する */
 async function startServices() {
   const c = currentData();
   if (!c) throw new Error('地図のデータがありません');
@@ -313,21 +377,26 @@ async function startServices() {
     const p = Number(process.env.ABRG_PORT) || await freePort();
     const a = abrgServe({ ...launch.abrg, port: p });
     abrg = start('住所の検索（abrg）', a.cmd, a.args, a.env);
+    if (abrg.pid) writeFileSync(ABRG_PID, JSON.stringify({ pid: abrg.pid, command: [a.cmd, ...a.args].join(' ') }));
     abrUrl = `http://127.0.0.1:${p}`;
-    await waitHttp(`${abrUrl}/health`, 15_000);
+    await ready(`${abrUrl}/health`, abrg);
   }
   const env = { ...process.env, ...launch.env, REGION_FILE: c.file, ELECTRON_RUN_AS_NODE: '1', PORT: String(port), KOTOZUTE_DATA_DIR: DATA };
   // 「キーなしで使う」なら空の文字列にする（起動した環境のキーを渡さない）。消すだけだと、サーバが ROOT の .env を読んでキーが戻る。
   // process.loadEnvFile は、空でも決まっている変数を上書きしない。サーバは空のキーを「キーがない」として Claude を呼ばない
   env.ANTHROPIC_API_KEY = key ?? '';
   if (abrUrl) env.ABR_URL = abrUrl;
+  const words = noteWords();
+  if (words) env.NOTE_BLOCK_WORDS = words; // 語はログに出さない
   server = start('アプリのサーバ', process.execPath, ['--import', 'tsx', join(ROOT, 'src/server/main.ts')], env);
-  await waitHttp(`http://127.0.0.1:${port}/`, 15_000);
+  await ready(`http://127.0.0.1:${port}/`, server, ...(abrg ? [abrg] : []));
+  for (const p of [abrg, server]) if (p) p.starting = false; // ここからあとで止まれば、アプリを終わる
 }
 
 async function stopServices() {
   await Promise.all([stop(server), stop(abrg)]);
   server = abrg = undefined;
+  rmSync(ABRG_PID, { force: true });
 }
 
 // ===== 窓とメニュー =====
@@ -353,15 +422,29 @@ async function changeKey() {
   if (k === undefined) return;
   saveKey(k);
   key = k;
-  if (!server) return; // 初めてのデータを作っているあいだ：サーバはこのあと起こすときにキーを読む
-  await stopServices(); // サーバはキーを起動のときに読むので、同じポートで起こし直す
-  await startServices();
-  win?.reload();
+  const restarted = await serial(async () => {
+    if (!server) return false; // 初めてのデータを作っているあいだ：サーバはこのあと起こすときにキーを読む
+    await stopServices(); // サーバはキーを起動のときに読むので、同じポートで起こし直す
+    await startServices();
+    return true;
+  });
+  if (restarted) win?.reload();
+}
+
+/** OSM ノートで止める語のファイルを開く（なければ説明だけのものを作る）。変えたら、アプリを開き直すと使う */
+async function openNoteWords() {
+  if (!existsSync(NOTE_WORDS)) {
+    mkdirSync(DATA, { recursive: true });
+    writeFileSync(NOTE_WORDS, '# OSM ノートの下書きに入っていたら止める語（社名など）。1行に1語。# で始まる行は読みません。\n# 変えたら、アプリを開き直してください。開き直すと使います。\n', { mode: 0o600 });
+  }
+  const err = await shell.openPath(NOTE_WORDS);
+  if (err) dialog.showErrorBox('ことづて', `ファイルを開けませんでした（${err}）：${NOTE_WORDS}`);
 }
 
 Menu.setApplicationMenu(Menu.buildFromTemplate([
   { label: 'ことづて', submenu: [
     { id: 'change-key', label: 'API キーを変える…', click: () => changeKey().catch(fail) },
+    { id: 'note-words', label: 'OSM ノートで止める語…', click: () => openNoteWords() },
     { id: 'map-data', label: '地図のデータ…', click: () => openDataWindow() },
     { type: 'separator' },
     { label: '終了', accelerator: 'Command+Q', click: () => app.quit() },
@@ -379,9 +462,11 @@ app.on('window-all-closed', () => {}); // 終わるのは地図の窓を閉じ�
 app.on('before-quit', () => {
   quitting = true;
   for (const p of children) kill(p);
+  rmSync(ABRG_PID, { force: true });
 });
 
 app.whenReady().then(async () => {
+  await killStaleAbrg(); // 残った abrg が前のデータの DuckDB とポートを放してから、残りを消す
   cleanStale();
   key = loadKey();
   if (key === undefined) {
@@ -390,9 +475,22 @@ app.whenReady().then(async () => {
     saveKey(key);
   }
   if (!currentData() && !(await waitFirstData())) return app.quit(); // 地図のデータの画面を閉じたか「終了」を押した
-  dataWin?.close();
+  closeData();
   job = null; // 次にメニューから開いたときは、初めての様子を出さない
   port = await appPort();
-  await startServices();
+  // 今のデータで起こせなければ（データが壊れたなど）、終わらずに地図のデータの画面を出して、作り直してもらう
+  for (;;) {
+    try {
+      await serial(startServices);
+      break;
+    } catch (e) {
+      if (quitting) return;
+      await serial(stopServices);
+      job = { status: 'error', steps: [], step: null, got: 0, total: 0, error: `今の地図のデータで起動できませんでした（${e.message}）。「もう一度」を押して、作り直してください` };
+      if (!(await waitFirstData())) return app.quit(); // 閉じたか「終了」を押した
+      closeData();
+      job = null;
+    }
+  }
   openWindow();
 }).catch(fail);

@@ -16,11 +16,13 @@ export function saveRecipe(s: Session): RecipeSaved {
   if (!s.history.length) throw new OpError('bad_input', 'まだ操作がありません。地図で探したり動かしたりしてから保存してください');
   if (s.history.length > MAX_STEPS) throw new OpError('limit', `レシピにできる操作は${MAX_STEPS}回までです。画面を読み込み直してから操作してください`);
   const usesHere = s.history.some((h) => JSON.stringify(h.input).includes('"here:"'));
+  // クリックした点は、手順が使う click:N の一番大きい N までだけ入れる（番号は変えない。座標を貼っただけ・カードを見ただけの点は、ほかの人に見せない）
+  const lastClick = Math.max(0, ...[...JSON.stringify(s.history.map((h) => h.input)).matchAll(/"click:(\d+)"/g)].map((m) => Number(m[1])));
   const recipe: Recipe = {
     id: newId(),
     created_at: new Date().toISOString(),
     osm_as_of: OSM_DATA_AS_OF,
-    context: { here: usesHere ? (s.here ?? null) : null, clicks: s.clicks },
+    context: { here: usesHere ? (s.here ?? null) : null, clicks: s.clicks.slice(0, lastClick) },
     steps: [...s.history],
   };
   mkdirSync(DIR, { recursive: true });
