@@ -53,19 +53,25 @@ export const searchPlace = defineOp({
         elements = [...elements, ...more];
       }
       if (!elements.length) ({ elements } = await names(name, b, false));
-      const picked = wantStation && elements.some(isStation) ? elements.filter(isStation) : elements;
+      const station = wantStation && elements.some(isStation);
+      const picked = station ? elements.filter(isStation) : elements;
       // ponytail: Overpass は上限 +1 件で切るので、それより多いと近い順が全体の近い順とは限らない。total も上限で止まる
       const found = picked
         .map((e) => toPlace(e, 'place'))
         .filter((p) => inTokyo(p.coord))
         .sort((a, b) => distM(a.coord, center.coord) - distM(b.coord, center.coord))
         .slice(0, LIMITS.max_items);
-      return { found, capped: elements.length > LIMITS.max_items };
+      return { found, capped: elements.length > LIMITS.max_items, station };
     };
-    let { found, capped } = await search(bbox);
-    // 画面の中に1件もなければ、地域全体から画面の中心に近い順に探す（画面の外の駅や名所を、地図を動かさずに探せるように）
-    const widened = !!v && found.length === 0;
-    if (widened) ({ found, capped } = await search(TOKYO_BBOX));
+    let r = await search(bbox);
+    // 画面の中に1件もなければ、地域全体から画面の中心に近い順に探す（画面の外の駅や名所を、地図を動かさずに探せるように）。
+    // 「〜駅」で画面の中に駅がないときも、地域全体に駅があればそちらにする（画面の中の「品川駅港南口」のようなバスの系統を選ばないように）
+    let widened = false;
+    if (v && (r.found.length === 0 || (wantStation && !r.station))) {
+      const w = await search(TOKYO_BBOX);
+      if (r.found.length === 0 || w.station) { r = w; widened = true; }
+    }
+    const { found, capped } = r;
     const items = found.slice(0, MAX).map((p) => addResult(session, p));
     return { query: name, items, total: found.length, truncated: found.length > items.length, capped, widened };
   },
