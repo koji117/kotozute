@@ -1,12 +1,15 @@
-// Mac のアプリの確認：Playwright の Electron でアプリを開き、キーの画面 → 地図 → 郵便局の札 → 窓を閉じる、を確かめる。
-// 実行：node scripts/check-desktop.mjs（npm run app と同じ desktop/main.mjs を開く。data/region.json のデータを使う。なければ Overpass・Valhalla・ABR が動いていること）
+// Mac のアプリの確認：Playwright の Electron でアプリを開き、キーの画面 → 地図のデータの画面 → 作る → 地図 → 郵便局の札 → 窓を閉じる、を確かめる。
+// 実行：node scripts/check-desktop.mjs（npm run app と同じ desktop/main.mjs を開く）。
+//   地図のデータは本当には作らない。KOTOZUTE_BUILD_FAKE（既定は data/region.json。npm run setup で作ったもの）をアプリに渡し、
+//   作る子のプロセスは進み具合だけを出して、その開発用のデータを指す region.json を書く（scripts/setup/app-data-build.ts）。
+//   データの画面では、失敗の文と「もう一度」、「止める」、「終了」も確かめる。2回目に開いたときは、メニュー「地図のデータ…」の「最新にする」で切り替わることを確かめる。
 //   APP=<kotozute.app/Contents/MacOS/kotozute> なら、作ったアプリ（npm run app:dist）を確かめる。作ったアプリは
 //   Node の -r を受け付けず Playwright の Electron がつながらないので、「キーなし」を保存してから直接起こし、
 //   アプリの窓に CDP（--remote-debugging-port、CDP_PORT 既定 18798）でつないで確かめ、終わりは窓を閉じて確かめる（キーの画面は開発中の確認で見る。同じファイル）。
 //   作ったアプリでは、ルート（組み込みの Valhalla）と住所（アプリの中の abrg）でデモの例1の数字が出ること、アプリのメモリ（全部のプロセスの RSS）、
-//   アプリ（と DMG=<.dmg> ならその中身）に .env とキーらしい文字列がないことも確かめる。
+//   アプリ（と DMG=<.dmg> ならその中身）に .env とキーらしい文字列と地図のデータがないことも確かめる。
 //   KOTOZUTE_PORT（既定 18797）は、開発中の確認では userData の port.json に書いて、アプリが覚えたポートとして使わせる（作ったアプリにはそのまま渡す）。
-//   ABRG_PORT はアプリに渡す（abrg のポート）。開発中の確認の abrg は地域の設定（data/region.json）から決まる（ABRG_BIN・ABRG_CACHE_PATH があればそちら）。
+//   ABRG_PORT はアプリに渡す（abrg のポート）。開発中の確認の abrg は KOTOZUTE_BUILD_FAKE の地域の設定の abrg_bin（ABRG_BIN があればそちら）。
 // キーには試しの文字列を使う（本物のキーは使わない）。Claude API は呼ばない。
 // キーとデータはふだんの場所（~/Library/Application Support/kotozute）ではなく、一時フォルダ（KOTOZUTE_USER_DATA）に置く。
 import { execSync, spawn } from 'node:child_process';
@@ -23,8 +26,15 @@ const PORT = process.env.KOTOZUTE_PORT ?? '18797';
 const BASE = `http://127.0.0.1:${PORT}`;
 const ABRG_PORT = process.env.ABRG_PORT ?? '18033';
 const CDP_PORT = process.env.CDP_PORT ?? '18798';
-/** abrg が子のプロセスで動くはずか（作ったアプリは必ず。開発中は地域の設定か ABRG_BIN があるとき） */
-const ABRG = !!process.env.APP || !!regionLaunch(ROOT).abrg;
+/** 試しのデータの元（開発用の地域の設定）。中の相対パスは、そのリポジトリの根から */
+const FAKE = path.resolve(process.env.KOTOZUTE_BUILD_FAKE ?? path.join(ROOT, 'data/region.json'));
+if (!fs.existsSync(FAKE)) {
+  console.error(`開発用の地域の設定（${FAKE}）がありません。npm run setup -- --region=tokyo で作るか、KOTOZUTE_BUILD_FAKE=<region.json> で渡してください`);
+  process.exit(1);
+}
+const DEV = regionLaunch(path.resolve(path.dirname(FAKE), '..'), process.env, FAKE);
+/** abrg が子のプロセスで動くはずか（作ったアプリは必ず。開発中は試しの地域の設定に abrg があるとき） */
+const ABRG = !!process.env.APP || !!DEV.abrg;
 const require = createRequire(import.meta.url);
 // Playwright は check-web.mjs と同じく、require('playwright') か、グローバルの @playwright/cli の中のものを使う
 function playwrightPath() {
@@ -44,7 +54,8 @@ const check = (name, ok, extra = '') => {
 
 /** アプリを開く。出力（stdout と stderr）は logs に集める。ポートは KOTOZUTE_PORT ではなく、アプリが覚えたポート（port.json）で決める */
 async function launch(userData) {
-  const env = { ...process.env, KOTOZUTE_USER_DATA: userData, ABRG_PORT };
+  const env = { ...process.env, KOTOZUTE_USER_DATA: userData, ABRG_PORT, KOTOZUTE_BUILD_FAKE: FAKE };
+  if (DEV.abrg) env.ABRG_BIN = DEV.abrg.bin;
   delete env.KOTOZUTE_PORT;
   fs.mkdirSync(userData, { recursive: true });
   if (!fs.existsSync(path.join(userData, 'port.json'))) fs.writeFileSync(path.join(userData, 'port.json'), JSON.stringify({ port: Number(PORT) }));
@@ -70,6 +81,36 @@ const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { retu
 
 async function waitMap(page) {
   await page.waitForFunction(() => window.map?.getSource('marks') && window.map.loaded() && window.map.areTilesLoaded(), null, { timeout: 30000 });
+}
+
+/** userData の今の地図のデータ（current.json と、それが指す region.json）。なければ null */
+function currentData(userData) {
+  try {
+    const { dir } = JSON.parse(fs.readFileSync(path.join(userData, 'data/current.json'), 'utf8'));
+    return { dir, region: JSON.parse(fs.readFileSync(path.join(userData, 'data', dir, 'region.json'), 'utf8')) };
+  } catch {
+    return null;
+  }
+}
+/** userData の地図のデータのフォルダ（作った日時の名前のもの） */
+const dataDirs = (userData) => { try { return fs.readdirSync(path.join(userData, 'data')).filter((d) => /^\d{8}-\d{6}$/.test(d)); } catch { return []; } };
+/** pid の子と孫のコマンド（地図のデータを作る子が残っていないかを見る） */
+const commands = (pid) => { try { return execSync(`ps -o command= -p ${[pid, ...descendants(pid)].join(',')}`).toString(); } catch { return ''; } };
+const msgIs = (w, re) => w.waitForFunction((s) => new RegExp(s).test(document.getElementById('msg').textContent), re.source, { timeout: 20000 });
+
+/** 地図のデータの画面（初めて）で「ダウンロードして作る」を押し、地図の窓を待つ */
+async function buildFirst(app, dataWin) {
+  await dataWin.waitForSelector('#start:not([hidden])');
+  const [page] = await Promise.all([app.waitForEvent('window', { timeout: 30000 }), dataWin.click('#start')]);
+  await waitMap(page);
+  return page;
+}
+
+/** 画面の出典のデータ時点が、今のデータの region.json の値（build で埋め込んだ値ではない。サーバが画面に入れる） */
+async function checkDates(page, userData, name) {
+  const osm = currentData(userData)?.region.osm_as_of.slice(0, 10);
+  const attr = (await page.textContent('#attr'))?.replace(/\s+/g, ' ') ?? '';
+  check(`${name}：画面の OSM のデータ時点は今のデータのもの`, !!osm && attr.includes(`OSM ${osm}`), `画面 ${attr.match(/OSM [\d-]+/)?.[0]}、データ ${osm}`);
 }
 
 /** 地図の画面と API：地図 → 郵便局の札 → キーがない → 書き込む場所 → 住所 */
@@ -159,22 +200,34 @@ async function checkPackaged() {
     execSync(`hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "${mnt}" "${process.env.DMG}"`, { stdio: 'ignore' });
     try { scanSecrets(mnt, 'dmg の中'); } finally { execSync(`hdiutil detach "${mnt}"`, { stdio: 'ignore' }); }
   }
+  // 地図のデータは入れない（初めて開いたときに作る）。作る道具は入れる
+  const data = execSync(`find "${appDir}" \\( -name '*.pmtiles' -o -name '*.osm.pbf' -o -name 'osm.db' -o -name '*.duckdb' -o -name 'valhalla_tiles*' -o -name region.json \\) -print`).toString().trim();
+  check('作ったアプリ：地図のデータが入っていない', data === '', data.split('\n').slice(0, 3).join('、').replaceAll(appDir, '<app>'));
+  const res = path.join(appDir, 'Contents/Resources/app');
+  const tools = ['bin/abrg', 'bin/pmtiles', 'bin/pmtiles-LICENSE', 'node_modules/@valhallajs/valhallajs/darwin/arm64/valhalla_build_tiles', 'node_modules/pmtiles/package.json', 'scripts/setup/app-data-build.ts'];
+  const missing = tools.filter((f) => !fs.existsSync(path.join(res, f)));
+  check('作ったアプリ：データを作る道具がある（abrg、pmtiles とライセンスの文、valhalla_build_tiles）', missing.length === 0, missing.join('、'));
   const userData = path.join(tmp, 'app');
   fs.mkdirSync(userData, { recursive: true });
   fs.writeFileSync(path.join(userData, 'key.json'), JSON.stringify({ key: null }));
   const t0 = Date.now();
-  const app = spawn(process.env.APP, [`--remote-debugging-port=${CDP_PORT}`], { env: { ...process.env, KOTOZUTE_USER_DATA: userData, KOTOZUTE_PORT: PORT, ABRG_PORT }, stdio: 'ignore' });
+  const app = spawn(process.env.APP, [`--remote-debugging-port=${CDP_PORT}`], {
+    env: { ...process.env, KOTOZUTE_USER_DATA: userData, KOTOZUTE_PORT: PORT, ABRG_PORT, KOTOZUTE_BUILD_FAKE: FAKE }, stdio: 'ignore',
+  });
   const exited = new Promise((r) => app.once('exit', (code, signal) => r(signal ?? code)));
-  for (; Date.now() - t0 < 30000; await new Promise((r) => setTimeout(r, 50))) {
-    if (await fetch(`${BASE}/`).then((r) => r.ok, () => false)) break;
+  const pages = (b) => b.contexts().flatMap((c) => c.pages());
+  let browser, dataPage, page;
+  for (; !dataPage && Date.now() - t0 < 30000; await new Promise((r) => setTimeout(r, 100))) {
+    browser ??= await chromium.connectOverCDP(`http://127.0.0.1:${CDP_PORT}`).catch(() => undefined);
+    dataPage = browser && pages(browser).find((p) => p.url().endsWith('/desktop/data.html'));
   }
-  check('作ったアプリ：起こしてからサーバが答えるまで5秒以内', Date.now() - t0 < 5000, `${Date.now() - t0} ms`);
-  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${CDP_PORT}`);
-  let page;
-  for (const t = Date.now(); !page && Date.now() - t < 15000; await new Promise((r) => setTimeout(r, 100))) {
-    page = browser.contexts().flatMap((c) => c.pages()).find((p) => p.url().startsWith(`${BASE}/`));
-  }
-  check('作ったアプリ：窓が開く（キーなしで使う。キーの画面は出ない）', !!page && browser.contexts().flatMap((c) => c.pages()).length === 1, page?.url());
+  check('作ったアプリ：地図のデータの画面が5秒以内に出る（キーなしで使う。キーの画面は出ない）', !!dataPage && Date.now() - t0 < 5000, `${Date.now() - t0} ms`);
+  if (!dataPage) throw new Error('地図のデータの画面が見つかりません');
+  await dataPage.waitForSelector('#start:not([hidden])');
+  const t1 = Date.now();
+  await dataPage.click('#start');
+  for (; !page && Date.now() - t1 < 30000; await new Promise((r) => setTimeout(r, 100))) page = pages(browser).find((p) => p.url().startsWith(`${BASE}/`));
+  check('作ったアプリ：作り終える（試し）と地図の窓が開く', !!page && !!currentData(userData), `${Date.now() - t1} ms`);
   if (!page) throw new Error('アプリの窓が見つかりません');
   await waitMap(page);
   await new Promise((r) => setTimeout(r, 3000));
@@ -183,6 +236,7 @@ async function checkPackaged() {
   const abrgCmd = execSync(`ps -o command= -p ${kids.join(',')}`).toString().split('\n').find((c) => /\/abrg serve$/.test(c.trim())) ?? '';
   check('作ったアプリ：abrg はアプリの中のもの', abrgCmd.trim().startsWith(path.join(appDir, 'Contents/Resources/app/')), abrgCmd.trim().replace(appDir, '<app>'));
   await checkMain(page, userData);
+  await checkDates(page, userData, '作ったアプリ');
   await checkExample1(page);
   console.log(`メモリ（アプリの全部のプロセスの RSS）：地図を出して3秒待つ ${idle}／確かめたあと ${memMiB(app.pid)}`);
   // 地図の窓を閉じる（画面の window.close()）→ アプリが終わり、子のプロセスも止まる
@@ -199,7 +253,7 @@ async function closeAndCheck(app, name) {
   const pid = app.process().pid;
   const kids = descendants(pid);
   const exited = new Promise((r) => app.process().once('exit', r));
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.getTitle() !== 'Claude API のキー')?.close()).catch(() => {});
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().startsWith('http'))?.close()).catch(() => {});
   await Promise.race([exited, new Promise((r) => setTimeout(r, 10000))]);
   await checkGone(pid, kids, name, '窓を閉じる');
 }
@@ -211,10 +265,32 @@ try {
   if (process.env.APP) {
     await checkPackaged();
   } else {
-    // ===== 1. 初めて開く → キーなしで使う → 地図と札 =====
+    // ===== 0. 地図のデータがない（キーは選んである）→ データの画面 →「終了」で終わる =====
+    {
+      const userData = path.join(tmp, 'quit');
+      fs.mkdirSync(userData, { recursive: true });
+      fs.writeFileSync(path.join(userData, 'key.json'), JSON.stringify({ key: null }));
+      open = await launch(userData);
+      const { app } = open;
+      const dataWin = await app.firstWindow();
+      await dataWin.waitForSelector('#first:not([hidden])');
+      const text = (await dataWin.textContent('#first')) ?? '';
+      const want = ['Geofabrik', 'download.geofabrik.de', 'Protomaps', 'build.protomaps.com', 'GitHub', 'github.com', '約 500MB', '約 190MB', '約 22MB', '約 4GB', '約 1.7GB', '数分から十数分', '押したときだけ'];
+      check('データの画面（初めて）：取るもの・大きさ・通信先・要る空き・時間', want.every((s) => text.includes(s)), want.filter((s) => !text.includes(s)).join('、'));
+      check('データの画面（初めて）：「ダウンロードして作る」と「終了」', (await dataWin.textContent('#start')) === 'ダウンロードして作る' && await dataWin.isVisible('#quit'));
+      const pid = app.process().pid;
+      const kids = descendants(pid);
+      const exited = new Promise((r) => app.process().once('exit', r));
+      await dataWin.click('#quit').catch(() => {});
+      await Promise.race([exited, new Promise((r) => setTimeout(r, 10000))]);
+      await checkGone(pid, kids, '初めてのデータの画面', '「終了」を押す');
+      check('「終了」：地図のデータを作っていない', dataDirs(userData).length === 0 && !currentData(userData));
+      open = undefined;
+    }
+
+    // ===== 1. 初めて開く → キーなしで使う → データの画面（失敗、止める、もう一度）→ 地図と札 =====
     {
       const userData = path.join(tmp, 'nokey');
-      const t0 = Date.now();
       open = await launch(userData);
       const { app } = open;
       const keyWin = await app.firstWindow();
@@ -222,14 +298,31 @@ try {
       check('キーの画面：見出し', (await keyWin.textContent('h1'))?.includes('Claude API のキー'));
       check('キーの画面：入力は伏せ字', await keyWin.getAttribute('#key', 'type') === 'password');
       check('キーの画面：キーなしで使う', (await keyWin.textContent('#skip')) === 'キーなしで使う');
-      const t1 = Date.now();
       // 押すとキーの画面が閉じるので、click の失敗（閉じた画面）は気にしない
-      const [page] = await Promise.all([app.waitForEvent('window'), keyWin.click('#skip').catch(() => {})]);
-      await page.waitForLoadState('load');
-      const startMs = Date.now() - t1;
-      check('起動：キーを選んでから窓まで5秒以内', startMs < 5000, `${startMs} ms、開いてから ${Date.now() - t0} ms`);
+      const [dataWin] = await Promise.all([app.waitForEvent('window'), keyWin.click('#skip').catch(() => {})]);
+      await dataWin.waitForSelector('#start:not([hidden])');
+      check('キーのあと：地図のデータの画面（初めて）が出る', await dataWin.isVisible('#first') && !(await app.windows()).some((w) => w.url().startsWith('http')));
+      // 失敗：試しのデータの元がない → 赤い文と「もう一度」
+      await app.evaluate(() => { process.env.KOTOZUTE_BUILD_FAKE = '/nonexistent/kotozute-check/region.json'; });
+      await dataWin.click('#start');
+      await dataWin.waitForSelector('#msg.ng', { timeout: 20000 });
+      const err = await dataWin.textContent('#msg');
+      check('データの画面：失敗の文と「もう一度」', /ありません/.test(err ?? '') && (await dataWin.textContent('#start')) === 'もう一度' && dataDirs(userData).length === 0, err);
+      // 止める：作る子とその作りかけが消え、「もう一度」
+      await app.evaluate((_e, f) => { process.env.KOTOZUTE_BUILD_FAKE = f; }, FAKE);
+      await dataWin.click('#start');
+      await dataWin.waitForSelector('#stop:not([hidden])');
+      await dataWin.click('#stop');
+      await msgIs(dataWin, /^止めました/);
+      check('データの画面：止める → 作る子と作りかけが残らず、「もう一度」', !commands(app.process().pid).includes('app-data-build') && dataDirs(userData).length === 0
+        && (await dataWin.textContent('#start')) === 'もう一度');
+      const t1 = Date.now();
+      const page = await buildFirst(app, dataWin);
+      check('作る（試し）：押してから地図が出るまで15秒以内', Date.now() - t1 < 15000, `${Date.now() - t1} ms`);
+      check('作る：今のデータが1つだけ（current.json）', !!currentData(userData) && dataDirs(userData).length === 1, dataDirs(userData).join('、'));
       check('地図の窓：前に使ったポート（port.json）で開く', page.url().startsWith(BASE), page.url());
       await checkMain(page, userData);
+      await checkDates(page, userData, '初めて');
       await closeAndCheck(app, 'キーなし');
       open = undefined;
     }
@@ -244,8 +337,8 @@ try {
       check('キーの画面：空なら止める', (await keyWin.textContent('#msg')) === 'キーを入れてください');
       await keyWin.fill('#key', DUMMY);
       check('キーの画面：入れたキーが文字として出ない', !(await keyWin.evaluate(() => document.body.innerText)).includes(DUMMY));
-      const [page] = await Promise.all([app.waitForEvent('window'), keyWin.click('button.primary').catch(() => {})]);
-      await waitMap(page);
+      const [dataWin] = await Promise.all([app.waitForEvent('window'), keyWin.click('button.primary').catch(() => {})]);
+      const page = await buildFirst(app, dataWin);
       const file = fs.readFileSync(path.join(userData, 'key.json'), 'utf8');
       check('キー：保存したファイルは暗号化（平文がない）', !!JSON.parse(file).key && !file.includes(DUMMY));
       check('キー：ファイルは本人だけ読める（600）', (fs.statSync(path.join(userData, 'key.json')).mode & 0o777) === 0o600);
@@ -263,7 +356,7 @@ try {
       open = undefined;
     }
 
-    // ===== 3. 2回目に開く → キーの画面を出さずに地図（保存したキーを読めた）→ メニューで「キーなし」に変える =====
+    // ===== 3. 2回目に開く → キーの画面とデータの画面を出さずに地図（保存したキーとデータを読めた）→ メニューで「キーなし」に変える → 地図のデータを最新にする =====
     {
       open = await launch(userData);
       const { app, logs } = open;
@@ -279,6 +372,24 @@ try {
       check('キーを変える：キーなしにすると key.json は null', JSON.parse(fs.readFileSync(path.join(userData, 'key.json'), 'utf8')).key === null);
       const chat = await fetch(`${BASE}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: 'check-desktop-0003', text: '郵便局' }) }).then((r) => r.json());
       check('キーを変える：起こし直したサーバにキーがない', /キー.*サーバにありません/.test(chat.error ?? ''), chat.error);
+      // メニューの「地図のデータ…」→ 今のデータ時点 →「最新にする」→ 切り替えて画面を読み直し、前のデータを消す
+      const before = currentData(userData);
+      const next2 = app.waitForEvent('window');
+      await app.evaluate(({ Menu }) => Menu.getApplicationMenu().getMenuItemById('map-data').click());
+      const dataWin = await next2;
+      await dataWin.waitForSelector('#update:not([hidden])');
+      check('地図のデータ…：今のデータ時点と「最新にする」', (await dataWin.textContent('#osm')) === before?.region.osm_as_of.slice(0, 10)
+        && (await dataWin.textContent('#tiles')) === before?.region.tiles_as_of.slice(0, 10) && (await dataWin.textContent('#start')) === '最新にする',
+        `${await dataWin.textContent('#osm')}、${await dataWin.textContent('#built')}`);
+      await Promise.all([page.waitForEvent('load', { timeout: 30000 }), dataWin.click('#start')]);
+      await waitMap(page);
+      await msgIs(dataWin, /^最新にしました/);
+      const after = currentData(userData);
+      check('最新にする：新しいデータに切り替え、前のデータを消す', !!after && after.dir !== before?.dir && !fs.existsSync(path.join(userData, 'data', before?.dir ?? 'x'))
+        && dataDirs(userData).length === 1, `${before?.dir} → ${after?.dir}、${dataDirs(userData).join('、')}`);
+      await checkDates(page, userData, '最新にする');
+      const geo = await page.evaluate(async () => (await fetch('/api/op/geocode_address', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: 'check-desktop-0005', input: { address: '東京都港区芝公園4-2-8' } }) })).json());
+      check('最新にする：起こし直した住所（abrg）が新しいデータで答える', geo.ok === true, geo.error?.message);
       await closeAndCheck(app, '2回目');
       check('2回目：出力にキーが出ない', !logs.join('').includes(DUMMY));
       open = undefined;

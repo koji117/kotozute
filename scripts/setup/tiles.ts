@@ -66,10 +66,9 @@ export async function extract(o: { bin: string; src: string; out: string; bbox?:
   renameSync(part, o.out);
 }
 
-/** pmtiles の CLI：手元のもの（'pmtiles'）か、固定した版を GitHub のリリースから dir に取る（sha256 を確かめる） */
-export async function pmtilesBin(found: 'host' | 'download', dir: string, log: Log): Promise<string> {
+/** pmtiles の CLI：手元のもの（'pmtiles'）か、固定した版を GitHub のリリースから dir に取る（sha256 を確かめる）。a は版（既定はこの機械用） */
+export async function pmtilesBin(found: 'host' | 'download', dir: string, log: Log, a = pmtilesAsset()): Promise<string> {
   if (found === 'host') return 'pmtiles';
-  const a = pmtilesAsset();
   if (!a) throw new Error(`この機械（${process.platform} ${process.arch}）用の pmtiles を用意していません`);
   mkdirSync(dir, { recursive: true });
   const archive = join(dir, a.name);

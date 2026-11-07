@@ -1,5 +1,6 @@
-// 地域の設定（data/region.json）から、住所の道具（abrg）とアプリのサーバの起こし方を決める。npm start（scripts/start.mjs）と Mac のアプリ（desktop/main.mjs）が使う。
-// パスは root（リポジトリの根。アプリでは Contents/Resources/app）からの相対。どちらも JS のまま動かすので TypeScript にしない。
+// 地域の設定（data/region.json か、アプリが作ったデータの region.json）から、住所の道具（abrg）とアプリのサーバの起こし方を決める。
+// npm start（scripts/start.mjs）と Mac のアプリ（desktop/main.mjs）が使う。
+// パスは root（リポジトリの根。アプリでは Contents/Resources/app）からの相対か、絶対パス。どちらも JS のまま動かすので TypeScript にしない。
 // 環境変数が決まっていればそちらを使う（開発用）：OSM_BACKEND、OSM_INDEX、VALHALLA_MODE、VALHALLA_CONFIG、ABRG_BIN、ABRG_CACHE_PATH。ABR_URL があれば abrg を起こさない。
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -10,11 +11,11 @@ export function abrgServe({ bin, cache, port }) {
 }
 
 /**
- * region：data/region.json の中身（なければ null）。env：サーバに足す環境変数（ABR_URL は abrg を起こしたあとで足す）。
- * abrg：起こす abrg の { bin, cache }（住所のデータがないか、ABR_URL が決まっていれば null）
+ * region：地域の設定（file。既定は data/region.json）の中身（なければ null）。env：サーバに足す環境変数（ABR_URL は abrg を起こしたあとで足す）。
+ * abrg：起こす abrg の { bin, cache }（住所のデータがないか、ABR_URL が決まっていれば null）。
+ * Mac のアプリは file に今のデータの region.json（中のパスは絶対パス）を、env の ABRG_BIN にアプリの中の abrg を渡す
  */
-export function regionLaunch(root, env = process.env) {
-  const file = resolve(root, 'data/region.json');
+export function regionLaunch(root, env = process.env, file = resolve(root, 'data/region.json')) {
   const region = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
   const abs = (p) => (p ? resolve(root, p) : undefined);
   const add = {};

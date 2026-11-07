@@ -2,7 +2,7 @@
 //   1. 引数の解釈（知らない地域・知らないオプションは日本語のエラーと地域の一覧）
 //   2. 地域の解決（tokyo・osaka・kanto・japan・hokkaido）と、data/region.json の中身（東京は既定と同じ＋作ったもの）
 //   3. 手順の印（入力が同じなら飛ばし、違えばやり直す）、記録で値を伏せる、.env を作るのは無いときだけ、同じファイルの判定
-//   4. ダウンロード：途中で切れたら .part から続ける、md5 が違えば捨てる、取り終えた .part は取り直さずに確かめる（手元の HTTP サーバ）
+//   4. ダウンロード：途中で切れたら .part から続ける、md5 か sha256 が違えば捨てる、取り終えた .part は取り直さずに確かめる、進み具合（手元の HTTP サーバ）
 //   5. 確認の手順：Docker なし、docker.sock の権限なし、Docker が止まっている、Docker の置き場の空き、osmium なし、Go と C のコンパイラ、ポートが使用中、ディスク不足（偽の docker を PATH に置く）
 //   6. Geofabrik の .poly、地図の範囲（境界＋2km）
 //   SETUP_PBF=<関東の pbf> があれば、東京の境界を作り直して、今の tokyo-boundary.json と 2000点で比べる（手元の osmium が要る。数秒）
@@ -170,6 +170,14 @@ await t('ダウンロード：md5 のファイルが取れなかった回のあ�
   const g = gets;
   await download({ url: `${base}/d`, dest, md5Url: true, log });
   assert.deepEqual([readFileSync(dest).equals(body), existsSync(`${dest}.part`), gets - g], [true, false, 0]);
+});
+await t('ダウンロード：sha256 が違えば捨てる、合えば通る。進み具合を呼ぶ（アプリの住所のデータ）', async () => {
+  const dest = join(tmp, 'dl', 'e.duckdb');
+  await assert.rejects(download({ url: `${base}/e`, dest, sha256: '0'.repeat(64), log }), /sha256 が固定した値と違います/);
+  assert.deepEqual([existsSync(dest), existsSync(`${dest}.part`)], [false, false]);
+  const seen: [number, number][] = [];
+  await download({ url: `${base}/e`, dest, sha256: createHash('sha256').update(body).digest('hex'), log, progress: (got, total) => seen.push([got, total]) });
+  assert.deepEqual([readFileSync(dest).equals(body), seen.at(-1)], [true, [body.length, body.length]]);
 });
 srv.close();
 

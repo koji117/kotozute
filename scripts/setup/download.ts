@@ -1,4 +1,4 @@
-// 途中で止まっても続きから取れるダウンロード（Range と If-Range）。md5 を確かめてから本当の名前にする。
+// 途中で止まっても続きから取れるダウンロード（Range と If-Range）。md5 か sha256 を確かめてから本当の名前にする。
 // 書きかけは <dest>.part。確かめ終わったものだけが dest になるので、もう一度回しても壊れたファイルを使わない。
 import { createHash } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, renameSync, rmSync, statSync, statfsSync } from 'node:fs';
@@ -13,17 +13,20 @@ export async function head(url: string): Promise<{ ok: boolean; status: number; 
   return { ok: r.ok, status: r.status, url: r.url, bytes: Number(r.headers.get('content-length') ?? NaN), etag: r.headers.get('etag') };
 }
 
-const md5Of = async (file: string) => {
-  const h = createHash('md5');
+const hashOf = async (file: string, alg: 'md5' | 'sha256') => {
+  const h = createHash(alg);
   for await (const c of createReadStream(file)) h.update(c);
   return h.digest('hex');
 };
 
 /**
- * url を dest に取る。dest がもうあれば何もしない。md5（16進）か md5Url（Geofabrik の .md5 のように1語目が値）があれば確かめる。
+ * url を dest に取る。dest がもうあれば何もしない。md5（16進）か md5Url（Geofabrik の .md5 のように1語目が値）か sha256 があれば確かめる。
+ * progress は取った量と全体（分からなければ 0）を、塊ごとに呼ぶ（間引くのは呼ぶ側）。
  * 戻り値の url は転送をたどった先（日付つきのファイル名が分かる）
  */
-export async function download(o: { url: string; dest: string; md5?: string; md5Url?: string | true; log: Log }): Promise<{ url: string; bytes: number }> {
+export async function download(o: {
+  url: string; dest: string; md5?: string; md5Url?: string | true; sha256?: string; log: Log; progress?: (got: number, total: number) => void;
+}): Promise<{ url: string; bytes: number }> {
   const { dest, log } = o;
   if (existsSync(dest)) return { url: o.url, bytes: statSync(dest).size };
   mkdirSync(dirname(dest), { recursive: true });
@@ -51,6 +54,7 @@ export async function download(o: { url: string; dest: string; md5?: string; md5
       for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
         if (!out.write(chunk)) await new Promise((r) => out.once('drain', r));
         got += chunk.length;
+        o.progress?.(got, Number.isFinite(h.bytes) ? h.bytes : 0);
       }
     } catch (e) {
       throw new Error(`ダウンロードが途中で切れました（${MiB(got)}）。もう一度回すと続きから取ります（${(e as Error).message}）`);
@@ -66,9 +70,13 @@ export async function download(o: { url: string; dest: string; md5?: string; md5
     if (!r.ok) throw new Error(`md5 のファイルを取れません（HTTP ${r.status}）。もう一度回してください：${r.url}`);
     want = (await r.text()).split(/\s+/)[0];
   }
-  if (want && (await md5Of(part)) !== want) {
+  if (want && (await hashOf(part, 'md5')) !== want) {
     rmSync(part); // 壊れたものを続きに使わない
     throw new Error(`ダウンロードしたファイルの md5 が合いません。消したので、もう一度回すと最初から取ります：${h.url}`);
+  }
+  if (o.sha256 && (await hashOf(part, 'sha256')) !== o.sha256) {
+    rmSync(part);
+    throw new Error(`ダウンロードしたファイルの sha256 が固定した値と違います。消したので、もう一度回すと最初から取ります：${h.url}`);
   }
   renameSync(part, dest);
   log(`取得しました：${dest}（${MiB(got)}）`);

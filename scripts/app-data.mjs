@@ -1,46 +1,44 @@
-// npm run app:dist の afterPack（electron-builder.yml）：地域の設定（data/region.json）が指すデータを、アプリの中のリポジトリと同じ場所に入れる。
-// 入れるのは設定が指すファイルだけ（検索データ、地図タイル、境界、ルートの設定と tar、住所のデータと abrg）。古い検索データや作業の残りは入れない。
-// リポジトリの外のファイル（--abr-cache などで渡したもの）は data/setup/app/<種類>/ に入れ、アプリの中の region.json はそこを指す（アプリの根からの相対）。
-// コピーは APFS の複製（clonefile。ディスクを使わない）。モード（abrg の実行の権限）も写す。
-import { chmodSync, constants, copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+// npm run app:dist の afterPack（electron-builder.yml）：アプリに道具を入れて、アプリ全体に ad-hoc の署名をする。
+// 地図のデータ（検索データ、地図タイル、ルート、住所）は入れない。アプリが初めて開いたときに取って作る（設計書 §17、scripts/setup/app-data-build.ts）。
+// 入れるもの（アプリの中の bin/）：
+//   abrg：住所の道具。data/region.json の abrg_bin か data/setup/abr/abrg（npm run setup が Go で作ったもの）
+//   pmtiles と pmtiles-LICENSE：地図を切り出す道具（固定した版。GitHub のリリースから取り、sha256 を確かめる）。
+//     BSD-3-Clause なのでライセンスの文も入れる。リリースの zip には入っていないので、同じ版（v1.31.2）の LICENSE を scripts/pmtiles-LICENSE に置いた
+// コピーは APFS の複製（clonefile。ディスクを使わない）。モード（実行の権限）も写す。
+import { chmodSync, constants, copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tsImport } from 'tsx/esm/api';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-export default function afterPack(ctx) {
-  const app = join(ctx.appOutDir, `${ctx.packager.appInfo.productFilename}.app`, 'Contents/Resources/app');
-  if (!existsSync(join(ROOT, 'data/region.json'))) throw new Error('地域の設定（data/region.json）がありません。先に「npm run setup -- --region=tokyo」を回してください');
-  const region = JSON.parse(readFileSync(join(ROOT, 'data/region.json'), 'utf8'));
-  /** 中のパス：リポジトリの中なら同じ相対パス、外なら data/setup/app/<種類>/<名前> */
-  const inApp = (kind, p) => {
-    const r = relative(ROOT, resolve(ROOT, p));
-    return r.startsWith('..') || isAbsolute(r) ? `data/setup/app/${kind}/${basename(p)}` : r.split(sep).join('/');
-  };
-  const put = (src, to) => {
-    const dest = join(app, to);
-    mkdirSync(dirname(dest), { recursive: true });
-    copyFileSync(src, dest, constants.COPYFILE_FICLONE);
-    chmodSync(dest, statSync(src).mode & 0o777);
-    return to;
-  };
-  for (const k of ['tiles', 'boundary', 'osm_index', 'abr_cache', 'abrg_bin']) {
-    if (region[k]) region[k] = put(resolve(ROOT, region[k]), inApp(k, region[k]));
-  }
-  if (region.valhalla_config) {
-    const cfg = resolve(ROOT, region.valhalla_config);
-    const tar = JSON.parse(readFileSync(cfg, 'utf8')).mjolnir.tile_extract; // 設定ファイルのフォルダからの相対（セットアップが書く形）
-    if (!tar || isAbsolute(tar)) throw new Error(`ルートの設定（${cfg}）の tile_extract が設定ファイルのフォルダからの相対ではありません：${tar}`);
-    region.valhalla_config = put(cfg, inApp('valhalla', region.valhalla_config));
-    put(resolve(dirname(cfg), tar), join(dirname(region.valhalla_config), tar));
-  }
-  mkdirSync(join(app, 'data'), { recursive: true });
-  writeFileSync(join(app, 'data/region.json'), JSON.stringify(region, null, 2) + '\n');
+const put = (src, dest) => {
+  mkdirSync(join(dest, '..'), { recursive: true });
+  copyFileSync(src, dest, constants.COPYFILE_FICLONE);
+  chmodSync(dest, statSync(src).mode & 0o777);
+};
+
+export default async function afterPack(ctx) {
+  const bundle = join(ctx.appOutDir, `${ctx.packager.appInfo.productFilename}.app`);
+  const bin = join(bundle, 'Contents/Resources/app/bin');
+
+  const region = existsSync(join(ROOT, 'data/region.json')) ? JSON.parse(readFileSync(join(ROOT, 'data/region.json'), 'utf8')) : {};
+  const abrg = [region.abrg_bin, 'data/setup/abr/abrg'].filter(Boolean).map((p) => resolve(ROOT, p)).find((p) => existsSync(p));
+  if (!abrg) throw new Error('住所の道具（abrg）がありません。先に「npm run setup -- --region=tokyo」を回して data/setup/abr/abrg を作ってください');
+  put(abrg, join(bin, 'abrg'));
+
+  // アプリは Apple Silicon の Mac だけなので、作る機械にかかわらず darwin-arm64 の版を入れる
+  const { pmtilesBin } = await tsImport('./setup/tiles.ts', import.meta.url);
+  const { pmtilesAsset } = await tsImport('./setup/prereq.ts', import.meta.url);
+  const dir = join(ROOT, 'data/setup/app-pmtiles'); // 取った zip は残し、次からは取らない
+  const exe = await pmtilesBin('download', dir, (m) => console.log(`  ${m}`), pmtilesAsset('darwin-arm64'));
+  put(exe, join(bin, 'pmtiles'));
+  put(join(ROOT, 'scripts/pmtiles-LICENSE'), join(bin, 'pmtiles-LICENSE'));
+
   // 中身をすべて入れたあとで、アプリ全体に ad-hoc の署名をする（Apple の開発者登録なし）。
   // 署名で中身を封じないと、ダウンロードしたアプリを開いたとき Mac が「壊れている」と出し、ターミナルのコマンドが要る。
   // 封じてあれば「システム設定 → プライバシーとセキュリティ → このまま開く」で開ける（コマンドは要らない）
-  const bundle = join(ctx.appOutDir, `${ctx.packager.appInfo.productFilename}.app`);
   execFileSync('codesign', ['--force', '--deep', '--sign', '-', bundle], { stdio: 'inherit' });
   execFileSync('codesign', ['--verify', '--deep', '--strict', bundle], { stdio: 'inherit' });
 }
