@@ -2,8 +2,14 @@
 // 書きかけは <dest>.part。確かめ終わったものだけが dest になるので、もう一度回しても壊れたファイルを使わない。
 import { createHash } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, statfsSync, writeFileSync } from 'node:fs';
+import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net';
 import { basename, dirname } from 'node:path';
 import type { Log } from './tools';
+
+// fetch は IPv6 と IPv4 を順に試し、1つの試みを既定 250 ms（Electron 44 の Node 24）で打ち切る。日本から Geofabrik（ドイツ）までは
+// TCP の接続に約 290 ms かかるので、全部の試みが打ち切られて「fetch failed」になる（作った Mac のアプリで毎回起きた。11/7）。
+// このプロセスはダウンロードのためのものなので、全体の既定を長くする。
+setDefaultAutoSelectFamilyAttemptTimeout(2000);
 
 const MiB = (n: number) => `${(n / 2 ** 20).toFixed(0)} MiB`;
 
