@@ -27,10 +27,12 @@ import type { PoiResponse } from '../poi';
 import {
   type Card, CHIP_ICON, COLOR, html, nm, type Raw, recipeCard, renderChat, renderDirect, renderError, renderRecipe, renderWait, stepHtml,
 } from './panel';
-import { BASEMAP_KIND_JA, poiCard } from './poi-card';
+import { BASEMAP_KIND_JA, placeCard, poiCard } from './poi-card';
+import { parseCoord, ZONE_OF_REGION, type Parsed } from './jpcoord';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const r6 = (x: number) => Math.round(x * 1e6) / 1e6;
+const ZONE = ZONE_OF_REGION[REGION.id]; // 平面直角座標の系（地域にない系は出さない）
 $('#region').textContent = REGION_PILL;
 const C = { teal: '#0B6E78', sumi: '#12343B', white: '#FFFFFF', gray: '#7D868C', text: '#161B1F', pin: '#B3261E' };
 
@@ -462,6 +464,8 @@ form.addEventListener('submit', async (e) => {
   const text = q.value.trim();
   const send = form.querySelector('button')!;
   if (!text || send.disabled || replaying) return;
+  const coord = parseCoord(text, ZONE); // 座標なら Claude に送らず、その場所へ動く
+  if (coord) return goTo(coord);
   send.disabled = true;
   // 現在地がないと Claude は here: を使えず、住所だけ調べて黙って止まる。送る前に位置情報の許可を求め、取れなければ送らない
   // ponytail: 言葉で判定するので「ここから」などは拾わない。拾い漏れが目立てば言葉を足す
@@ -543,36 +547,59 @@ $('#locate').addEventListener('click', async () => {
   if (why) toast(why === GEO_OFF ? `${GEO_OFF}。地図をクリックして場所を指定できます` : why);
 });
 map.on('click', async (e) => {
-  poiAt(e.point); // 共有の画面でも出す
-  if (shareId || replaying) return;
   const click: LngLat = [r6(e.lngLat.lng), r6(e.lngLat.lat)];
+  const pop = poiAt(e.point) ? undefined : place('この場所', click); // 共有の画面でも出す
+  if (shareId || replaying) return;
+  const n = await addClick(click);
+  if (n && pop?.isOpen()) pop.setHTML(placeCard(`クリック${n}`, click, ZONE));
+});
+/** クリックした点をサーバに渡し、click:N の番号を返す（地域の外などで断られたら知らせて undefined） */
+async function addClick(click: LngLat): Promise<string | undefined> {
   try {
     const r = await api<ContextResponse>('/api/context', { sessionId, click });
     const n = r.clickRef?.match(/^click:(\d+)$/)?.[1]; // 番号はサーバの参照に合わせる
     if (n) { st.clicks.push({ coord: click, n }); draw(); }
+    return n;
   } catch (err) { toast((err as Error).message); }
-});
+}
+/** 検索の欄に貼った座標の場所へ動き、クリックした点と同じに扱う（「クリック1から…」と頼める） */
+async function goTo(c: Parsed) {
+  if ('error' in c) return toast(c.error);
+  const at: LngLat = [r6(c.at[0]), r6(c.at[1])];
+  const n = await addClick(at);
+  if (!n) return;
+  map.flyTo({ center: at, zoom: Math.max(map.getZoom(), 16) });
+  place(`クリック${n}（${c.how}）`, at);
+  q.value = '';
+}
+function place(title: string, at: LngLat) {
+  popup?.remove();
+  return (popup = new maplibregl.Popup({ maxWidth: '300px', offset: 14, className: 'poi-pop' }).setLngLat(at).setHTML(placeCard(title, at, ZONE)).addTo(map));
+}
 
 // ===== 地点の詳細：クリックした所に地点があれば、横にカードを出す（AI を通さない。左のパネルはそのまま） =====
 let popup: maplibregl.Popup | undefined;
-function poiAt(point: maplibregl.Point) {
+/** 地点があればカードを出して true */
+function poiAt(point: maplibregl.Point): boolean {
   popup?.remove();
   // 先に自分の印（OSM の要素のもの）、なければベースマップの地点
   const own = map.queryRenderedFeatures(point, { layers: ['marks-c', 'feat-c'] }).find((f) => f.properties.osm);
   const f = own ?? map.queryRenderedFeatures(point, { layers: ['pois'] })[0];
-  if (f?.geometry.type !== 'Point') return;
+  if (f?.geometry.type !== 'Point') return false;
   const at = f.geometry.coordinates as LngLat, p = f.properties;
   const card = (h: string) => (popup = new maplibregl.Popup({ maxWidth: '300px', offset: 14, className: 'poi-pop' }).setLngLat(at).setHTML(h).addTo(map));
   if (!own) { // タイルには名前と種類しかない。推測で OSM の要素は探さない
     const name = p['name:ja'] ?? p.name ?? null, kindLabel = BASEMAP_KIND_JA[p.kind] ?? null;
-    if (name || kindLabel) card(poiCard({ name, kindLabel, asOf: MAP_TILES_AS_OF }));
-    return;
+    if (!name && !kindLabel) return false;
+    card(poiCard({ name, kindLabel, asOf: MAP_TILES_AS_OF, at, zone: ZONE }));
+    return true;
   }
-  const base = { name: p.name || null, kindLabel: p.kind || null, osm: p.osm as string };
+  const base = { name: p.name || null, kindLabel: p.kind || null, osm: p.osm as string, at, zone: ZONE };
   const pop = card(poiCard(base));
   api<PoiResponse>(`/api/poi/${base.osm}`).then(
     (r) => pop.setHTML(poiCard({ ...base, tags: r.tags, asOf: r.osm_as_of })),
     (err) => pop.setHTML(poiCard({ ...base, error: (err as Error).message })));
+  return true;
 }
 
 // ===== 資料用の画像：地図に出典とデータ時点を描き込んで PNG にする =====

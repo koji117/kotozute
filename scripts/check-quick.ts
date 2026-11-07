@@ -6,6 +6,7 @@
 //   5. Claude に渡る文が、記録した東京の文（scripts/fixtures/claude-text-tokyo.txt）と1バイトも違わないか
 //   6. 地点の詳細のタグとカード（src/poi.ts、src/web/poi-card.ts）
 //   7. 別の地域（大阪府）の設定では、Claude に渡る文に「東京都」が例の文のほかに出ないか。地域にない県の住所を断る判定
+//   8. 日本の座標（src/web/jpcoord.ts）：平面直角座標が国土地理院の計算と 1mm 以内で合うか、地域メッシュ、貼られた座標の読み方
 // 実行：npx tsx scripts/check-quick.ts。問題があれば一覧を出して終了コード 1。
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -18,6 +19,7 @@ import type { RegionConfig } from '../src/region';
 import type { OsmElement } from '../src/services/overpass';
 import { pickDetails } from '../src/poi';
 import { COLOR } from '../src/web/panel';
+import { meshCenter, mesh3, parseCoord, toPlane, fromPlane } from '../src/web/jpcoord';
 import { poiCard } from '../src/web/poi-card';
 
 const bad: string[] = [];
@@ -152,6 +154,42 @@ const OSAKA: RegionConfig = { ...TOKYO, id: 'osaka', label: '大阪府', name: '
   for (const a of addrs) if (otherPref(a, TOKYO.prefs) !== OLD.test(a)) bad.push(`住所「${a}」：東京で地域の外と判定するかが前と違う`);
   for (const [a, want] of [['大阪府大阪市北区梅田1', false], ['東京都港区芝公園4-2-8', true], ['京都府京都市', true], ['北区梅田1', false]] as const) {
     if (otherPref(a, OSAKA.prefs) !== want) bad.push(`住所「${a}」：大阪府の設定で地域の外と判定するかが違う（${want} のはず）`);
+  }
+}
+
+// ===== 8. 日本の座標 =====
+{
+  // 国土地理院の測量計算サイト（bl2xy、JGD2011）で 2026-11-07 に出した値：[系, 緯度, 経度, X, Y]
+  const GSI: [number, number, number, number, number][] = [
+    [9, 35.681236, 139.767125, -35363.2377, -5992.9196], [9, 35.65, 138.95, -38471.2471, -79988.0506],
+    [6, 34.702485, 135.495951, -143825.414, -46175.2301], [12, 43.06417, 141.34694, -103567.419, -73552.566],
+    [15, 26.2124, 127.6809, 23541.9675, 18076.8119], [2, 33.5902, 130.4017, 65612.788, -55532.6696],
+    [19, 24.2867, 153.9811, -189771.8327, -1918.6322], [1, 32.75, 129.87, -27662.2242, 34671.5091],
+  ];
+  for (const [z, lat, lng, X, Y] of GSI) {
+    const p = toPlane([lng, lat], z), b = fromPlane(X, Y, z);
+    if (Math.abs(p.x - X) > 0.001 || Math.abs(p.y - Y) > 0.001) bad.push(`平面直角 ${z}系 (${lat}, ${lng})：X ${p.x.toFixed(4)} Y ${p.y.toFixed(4)}（国土地理院は ${X} ${Y}）`);
+    if (Math.abs(b[1] - lat) > 1e-7 || Math.abs(b[0] - lng) > 1e-7) bad.push(`平面直角 ${z}系 (${X}, ${Y}) から緯度経度に戻すと (${b[1]}, ${b[0]})`);
+  }
+  if (mesh3([139.767125, 35.681236]) !== '53394611') bad.push(`東京駅の3次メッシュが ${mesh3([139.767125, 35.681236])}（53394611 のはず）`);
+  const c = meshCenter('53394611');
+  if (!c || mesh3(c) !== '53394611') bad.push('3次メッシュの中心が同じメッシュに入らない');
+  const near = (t: string, lng: number, lat: number, tol = 1e-5) => {
+    const r = parseCoord(t, 9);
+    if (!r || !('at' in r) || Math.abs(r.at[0] - lng) > tol || Math.abs(r.at[1] - lat) > tol) bad.push(`座標「${t}」の読み方が違う：${JSON.stringify(r)}`);
+  };
+  near('35.681236, 139.767125', 139.767125, 35.681236);
+  near('139.767125,35.681236', 139.767125, 35.681236); // 経度が先でも
+  near('３５．６８１２３６，１３９．７６７１２５', 139.767125, 35.681236); // 全角
+  near('北緯35度40分52.5秒 東経139度46分1.6秒', 139.767111, 35.68125);
+  near('35°40′52.5″N 139°46′01.6″E', 139.767111, 35.68125);
+  near('9系 X=-35363.2377 Y=-5992.9196', 139.767125, 35.681236);
+  near('-35363.2377, -5992.9196', 139.767125, 35.681236); // 系を書かなければ地域の系
+  near('5339-46-11', 139.76875, 35.679167);
+  for (const t of ['港区芝公園4-2-8', '12345678', '1 2', '35.6 200', '芝公園のあたりを大きく']) if (parseCoord(t, 9) !== null) bad.push(`「${t}」を座標と読んだ（Claude に送るはず）`);
+  for (const [t, zone] of [['X=-35363 Y=-5992', undefined], ['20系 1 2', 9], ['35°N 50°W', 9]] as const) {
+    const r = parseCoord(t, zone);
+    if (!r || !('error' in r)) bad.push(`「${t}」はエラーの文を返すはず：${JSON.stringify(r)}`);
   }
 }
 
