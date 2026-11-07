@@ -1,5 +1,5 @@
 // 動画の録画：本物のアプリ（BASE、既定 http://127.0.0.1:8787）を Playwright で動かし、本物の Claude で場面（clip）ごとに録る。撮影はしない（2026-11-06 にユーザーが決定）。
-// 実行：node scripts/video/record.mjs [chips|ex1|ex2|app ...]   （省くと全部。指定した組だけ録り直し、events.json の同じ場面を置き換える）
+// 実行：node scripts/video/record.mjs [chips|coord|ex1|ex2|app ...]   （省くと全部。指定した組だけ録り直し、events.json の同じ場面を置き換える）
 //   kotozute のサーバが BASE で動いていること。Claude のキーはサーバの環境にだけある（このスクリプトは読まない）。
 // 出力（~/kotozute-video。Git に入れない）：
 //   events.json … { base, recorded_at, viewport, clips: [{ id, file, duration_s, marks: [{ name, t }] }], results: { <場面>: 応答 } }
@@ -34,11 +34,12 @@ const TEXT = {
   view: '芝公園のあたりを大きく。郵便局だけ残して', // CLAUDE.md「デモの例」
   ex1: '今いる場所から、郵便局で書類を出して、手土産を買ってから、港区芝公園4-2-8へ。ルートを共有リンクで', // docs/plan.md §7 例1
   ex2: '来週の客先試走。品川駅を出て、トンネルを2本通り、高速は使わず60分以内。資料用の画像も', // 文書で決まっていないので絵コンテ（docs/storyboard/storyboard.html）の文
+  coord: '9系 X=-35363.24 Y=-5992.92', // 平面直角座標（9系）で東京駅。国土地理院の計算と同じ値（scripts/check-quick.ts の 8）。検索の欄に貼る（AI を通さない）
 };
 /** 例2 (b) の北品川の範囲（scripts/check-course.ts と同じ）。地図の横幅をこの経度の幅に合わせる（緯度は範囲の内側になる） */
 const KITASHINAGAWA = [139.7312, 35.616, 139.7478, 35.625];
-const ORDER = ['s1-chips', 's2-view', 's3-ex1', 's3b-share', 's4-feat', 's4-ex2', 's4b-png', 's5-adv', 's5-recipe', 's6-app'];
-const GROUPS = { chips: ['s1-chips', 's2-view'], ex1: ['s3-ex1', 's3b-share', 's5-adv'], ex2: ['s4-feat', 's4-ex2', 's4b-png', 's5-recipe'], app: ['s6-app'] };
+const ORDER = ['s1-chips', 's2-view', 's2b-coord', 's3-ex1', 's3b-share', 's4-feat', 's4-ex2', 's4b-png', 's5-adv', 's5-recipe', 's6-app'];
+const GROUPS = { chips: ['s1-chips', 's2-view'], coord: ['s2b-coord'], ex1: ['s3-ex1', 's3b-share', 's5-adv'], ex2: ['s4-feat', 's4-ex2', 's4b-png', 's5-recipe'], app: ['s6-app'] };
 const want = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(GROUPS);
 for (const g of want) if (!GROUPS[g]) throw new Error(`組の名前が違います：${g}（${Object.keys(GROUPS).join('、')}）`);
 
@@ -339,6 +340,38 @@ async function chipsScenes(browser) {
   await ctx.close();
 }
 
+// 座標を貼る（③ 日本ファースト）。画面の中で読んで、その場所へ動き、地点の札に平面直角座標と地域メッシュが出る。
+// AI を通さないので、この場面では /api/chat を1回も呼ばないことを確かめる
+async function coordScene(browser) {
+  const ctx = await browser.newContext(ctxOpts(false));
+  await ctx.addInitScript(cursorScript);
+  const page = await openPage(ctx);
+  await padForOverlays(page);
+  let chats = 0;
+  page.on('request', (r) => { if (new URL(r.url()).pathname === '/api/chat') chats++; });
+  const rec = await record(page, 'coord');
+  await sleep(800);
+  begin('s2b-coord', rec);
+  await sleep(600);
+  await clickOn(page, '#q');
+  await sleep(300);
+  mark('typing');
+  await page.keyboard.insertText(TEXT.coord); // 貼りつけ（1度に入る）
+  mark('typed');
+  await sleep(700);
+  await page.keyboard.press('Enter');
+  mark('sent');
+  const pop = page.locator('.poi-pop').last();
+  await pop.waitFor({ state: 'visible', timeout: 20000 });
+  await settle(page);
+  const card = await pop.innerText();
+  if (!/平面直角/.test(card) || !/地域メッシュ/.test(card)) throw new Error(`地点の札に座標が出ていない：${card.slice(0, 80)}`);
+  if (chats) throw new Error(`座標を貼ったのに /api/chat を ${chats}回呼んだ`);
+  results['s2b-coord'] = { card, chats };
+  await end(2600);
+  await ctx.close();
+}
+
 let shareUrl;
 async function ex1Scenes(browser) {
   const ctx = await browser.newContext(ctxOpts(true));
@@ -576,7 +609,7 @@ const browser = await chromium.launch({
 });
 const t0 = Date.now();
 // 1つの組が失敗しても、録れた場面は書き出す（Claude を呼んだ分を捨てない）
-for (const [g, fn] of [['chips', chipsScenes], ['ex1', ex1Scenes], ['ex2', ex2Scenes]]) {
+for (const [g, fn] of [['chips', chipsScenes], ['coord', coordScene], ['ex1', ex1Scenes], ['ex2', ex2Scenes]]) {
   if (!want.includes(g)) continue;
   try { await fn(browser); } catch (e) {
     notes.push(`${g}：途中で止まった（${cur?.id ?? '場面の外'}：${e.message.split('\n')[0]}）。その場面は外した`);
@@ -630,6 +663,7 @@ const groupsOf = (...ks) => ks.flatMap((k) => ok(R[k])?.groups ?? []).map((g) =>
 const report = { elapsed_s: Math.round((Date.now() - t0) / 1000), notes };
 if (R['s1-chips']) report.s1 = groupsOf('s1-chips', 's1-chips:2');
 if (R['s2-view']) report.s2 = ops(R['s2-view']);
+if (R['s2b-coord']) report.s2b = R['s2b-coord'].card.split('\n');
 if (R['s3-ex1']) {
   const rt = R['s3-ex1'].steps?.find((s) => s.op === 'route' && s.ok)?.output;
   report.s3 = { ops: ops(R['s3-ex1']), route: rt && { minutes: rt.total.minutes, km: rt.total.km, extra_min: rt.extra_min, tried: rt.tried, from: rt.from.name, stops: rt.stops.map((s) => s.chosen.name), to: rt.to.name }, share: shareUrl, net: R['s3-ex1'].net };
