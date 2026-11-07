@@ -118,7 +118,7 @@ export function resolveRegion(id: string, islands?: 'main' | 'all'): Region {
 const MiB = 2 ** 20, GiB = 2 ** 30;
 /**
  * 手順ごとの大きさの見積もり（バイト）。download：取ってくる量、final：残る量、temp：作るあいだだけ要る量。
- * 数字は 2026-11-06 の関東の測定（pbf 0.5GB → 検索データ 0.3GB、Valhalla の tar 0.9GB・作業のタイル 2.4GB、地図 473MB）からの比。
+ * 数字は 2026-11-06 の関東の測定（pbf 0.5GB → 検索データ 0.3GB、Valhalla のタイル 0.9GB（前は tar）・作業のタイル 2.4GB、地図 473MB）からの比。
  * ponytail: 比で伸ばしただけの見積もり。地方と全国は測っていない（README に「試していない」と書く）
  */
 export function sizes(r: Region, maxzoom: 14 | 15) {
@@ -139,7 +139,7 @@ export function sizes(r: Region, maxzoom: 14 | 15) {
       build: { download: 0, final: 20 * MiB, temp: 0 },
       verify: { download: 0, final: 0, temp: 0 },
     } satisfies Record<StepName, { download: number; final: number; temp: number }>,
-    /** 作るときの最大メモリ（GiB）：Valhalla は関東を2スレッドで 4.6GB（Docker の cgroup の値）。日本全国は測っていない */
+    /** 作るときの最大メモリ（GiB）：Valhalla は関東を2スレッドで 4.6GB（Docker の cgroup の値。2026-11-07 に valhalla_build_tiles を直に回すと最大 RSS 3.9GiB）。日本全国は測っていない */
     ramGiB: r.kind === 'japan' ? 12 : 5,
     /** 作業用の PostgreSQL に要る Docker のメモリ（GiB） */
     dockerMemGiB: all ? 4 : 2,

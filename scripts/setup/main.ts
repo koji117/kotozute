@@ -3,7 +3,7 @@
 // 再利用のオプション（--pbf、--tiles-file、--abr-cache、--abrg-bin、--valhalla-dir）で渡したファイルは、その場で使い、消さない・上書きしない。
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { freemem, totalmem } from 'node:os';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,8 +50,9 @@ async function main(argv: string[]): Promise<void> {
   for (const [k, f] of [['pbf', args.pbf], ['tiles-file', args.tilesFile], ['abr-cache', args.abrCache], ['abrg-bin', args.abrgBin]] as const) {
     if (f && !existsSync(f)) throw new SetupError(`--${k} のファイルがありません：${f}`);
   }
-  if (args.valhallaDir && !['valhalla_tiles.tar', 'valhalla.json'].every((f) => existsSync(join(args.valhallaDir!, f)))) {
-    throw new SetupError(`--valhalla-dir のフォルダに valhalla_tiles.tar と valhalla.json がありません：${args.valhallaDir}`);
+  // タイルはフォルダ（valhalla_tiles）。前のセットアップで作った tar（valhalla_tiles.tar）も使える
+  if (args.valhallaDir && !(existsSync(join(args.valhallaDir, 'valhalla.json')) && ['valhalla_tiles', 'valhalla_tiles.tar'].some((f) => existsSync(join(args.valhallaDir!, f))))) {
+    throw new SetupError(`--valhalla-dir のフォルダに valhalla.json と valhalla_tiles（フォルダ）がありません：${args.valhallaDir}`);
   }
 
   const marks = new Marks(join(DATA, 'state'));
@@ -129,7 +130,8 @@ async function main(argv: string[]): Promise<void> {
       name: 'valhalla', title: 'ルートのデータ（Valhalla）',
       reuse: () => (args.valhallaDir ? { note: `--valhalla-dir（${args.valhallaDir}）を使います`, result: { config: rel(join(args.valhallaDir, 'valhalla.json')) } } : null),
       inputs: () => (pbfKey() ? { pbf: pbfKey() } : null),
-      outputs: () => ['valhalla_tiles.tar', 'valhalla.json'].map((f) => join(DATA, 'valhalla', f)),
+      // 前のセットアップで作った tar も済みとみなす（src/services/valhalla.ts は tar も読める。作り直すなら --redo=valhalla）
+      outputs: () => ['valhalla.json', existsSync(join(DATA, 'valhalla', 'valhalla_tiles.tar')) ? 'valhalla_tiles.tar' : 'valhalla_tiles'].map((f) => join(DATA, 'valhalla', f)),
       run: async () => {
         await buildValhalla({ pbf: await ensurePbf(), dir: join(DATA, 'valhalla'), jobs: args.jobs, log });
         return { config: rel(join(DATA, 'valhalla', 'valhalla.json')) };
@@ -248,7 +250,7 @@ async function main(argv: string[]): Promise<void> {
     docker: todo.has('abr'), dockerMemGiB: size.dockerMemGiB, dockerDiskGiB: size.dockerDiskGiB,
     go: todo.has('abr') || todo.has('abrg'),
     goAvoid: [...(todo.has('abr') ? ['--abr-cache=<abrg.duckdb>'] : []), ...(todo.has('abrg') ? ['--abrg-bin=<abrg>'] : [])],
-    python: todo.has('valhalla'), osmium: todo.has('boundary') ? args.osmium : null, // osmium は境界だけ（検索データは pbf.ts で読む）
+    osmium: todo.has('boundary') ? args.osmium : null, // osmium は境界だけ（検索データは pbf.ts で読む）
     pmtiles: todo.has('tiles'), port: todo.has('verify') ? args.portApp : null, diskBytes: disk, dir: DATA,
   });
   if (pre.found.osmium === 'container' && pbfOutside) pre.problems.push(`コンテナの osmium は data/setup の中のファイルしか読めません。--pbf のファイルを ${rel(join(DATA, 'pbf'))}/ に置くか、osmium を入れてください`);
@@ -298,9 +300,13 @@ async function main(argv: string[]): Promise<void> {
   // ===== まとめ（設計書 §7 の 14） =====
   if (!args.only || args.only.has('region')) {
     const cfg = JSON.parse(readFileSync(join(ROOT, 'data/region.json'), 'utf8')) as RegionConfig;
-    const files = [cfg.osm_index, cfg.tiles, cfg.valhalla_config && join(cfg.valhalla_config, '../valhalla_tiles.tar'), cfg.abr_cache, cfg.abrg_bin].filter((f): f is string => !!f);
+    const vdir = cfg.valhalla_config && join(cfg.valhalla_config, '..');
+    const vtiles = vdir && (['valhalla_tiles', 'valhalla_tiles.tar'].map((f) => join(vdir, f)).find((f) => existsSync(abs(f))) ?? join(vdir, 'valhalla_tiles'));
+    const files = [cfg.osm_index, cfg.tiles, vtiles, cfg.abr_cache, cfg.abrg_bin].filter((f): f is string => !!f);
+    // フォルダ（ルートのタイル）は中のファイルの合計
+    const bytes = (p: string): number => (statSync(p).isDirectory() ? readdirSync(p, { recursive: true, withFileTypes: true }).reduce((a, d) => a + (d.isFile() ? statSync(join(d.parentPath, d.name)).size : 0), 0) : statSync(p).size);
     log(`できたもの（${((Date.now() - t0) / 60000).toFixed(1)} 分）：`);
-    for (const f of files) log(`  ${f}：${existsSync(abs(f)) ? fmtBytes(statSync(abs(f)).size) : 'ありません'}`);
+    for (const f of files) log(`  ${f}：${existsSync(abs(f)) ? fmtBytes(bytes(abs(f))) : 'ありません'}`);
     log(`起動：${args.portApp === 8787 ? '' : `PORT=${args.portApp} `}npm start → http://localhost:${args.portApp}/`);
   }
   if (pbfMark()?.fallback) warn('OSM データは固定のものではなく最新です。動画と件数や時間が違うことがあります');
