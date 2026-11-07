@@ -219,6 +219,25 @@ try {
   await page.mouse.click(900, 400);
   if (apiUp) {
     check('クリックした点に「クリック1」', await until(page, async () => (await window.map.getSource('marks').getData()).features.some((f) => f.properties.label === 'クリック1')));
+    const cc = await until(page, () => document.querySelector('.maplibregl-popup .poi h3')?.textContent === 'クリック1') ? await text(page, '.maplibregl-popup .poi') : '';
+    check('クリックした点のカード：緯度経度・平面直角（9系）・地域メッシュ', ['緯度経度', '度分秒', '平面直角 9系', '地域メッシュ'].every((w) => cc.includes(w)), cc.slice(0, 160));
+    // 座標を貼る：Claude に送らず、その場所へ動いてクリックした点と同じに扱う
+    let sent = 0;
+    const onReq = (r) => { if (r.url().includes('/api/chat')) sent++; };
+    page.on('request', onReq);
+    await page.fill('#q', '９系 X=-35363.24 Y=-5992.92');
+    await page.press('#q', 'Enter');
+    const moved = await until(page, () => document.querySelector('.maplibregl-popup .poi h3')?.textContent === 'クリック2（平面直角座標 9系）');
+    const c2 = await page.evaluate(async () => (await window.map.getSource('marks').getData()).features.find((f) => f.properties.label === 'クリック2')?.geometry.coordinates);
+    await settle(page);
+    await page.screenshot({ path: `${OUT}/desktop-coord.png` });
+    check('座標を貼る：平面直角 → 東京駅のあたりに「クリック2」、Claude には送らない', moved && sent === 0 && Math.abs(c2[0] - 139.767125) < 1e-5 && Math.abs(c2[1] - 35.681236) < 1e-5 && await page.inputValue('#q') === '', JSON.stringify(c2));
+    await page.fill('#q', '34.702485, 135.495951'); // 大阪（地域の外）
+    await page.press('#q', 'Enter');
+    const out = await page.waitForFunction(() => document.querySelector('#toast')?.textContent?.includes('外'), null, { timeout: 5000 }).then(() => true, () => false);
+    check('座標を貼る：地域の外は知らせて、点を作らない', out && sent === 0 && !(await page.evaluate(async () => (await window.map.getSource('marks').getData()).features.some((f) => f.properties.label === 'クリック3'))), await text(page, '#toast'));
+    page.off('request', onReq);
+    await page.fill('#q', '');
   } else {
     const ok = await page.waitForFunction(() => document.querySelector('#toast')?.textContent?.includes('サーバに接続できません'), null, { timeout: 5000 }).then(() => true, () => false);
     check('クリック：API がないときは案内を出す', ok, await text(page, '#toast'));

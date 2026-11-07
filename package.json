@@ -1,14 +1,23 @@
 {
   "name": "kotozute",
   "private": true,
+  "version": "0.1.0",
   "license": "Apache-2.0",
   "type": "module",
+  "main": "desktop/main.mjs",
   "scripts": {
     "dev": "vite",
     "server": "tsx watch src/server/main.ts",
     "mcp": "tsx src/mcp/server.ts",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "app": "electron desktop/main.mjs",
+    "app:dist": "vite build && electron-builder --mac dmg --arm64",
+    "setup": "node scripts/setup.mjs",
+    "start": "node scripts/start.mjs"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",
@@ -17,14 +26,17 @@
     "@hono/node-server": "^2.1.6",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@protomaps/basemaps": "^5.7.2",
+    "@valhallajs/valhallajs": "3.7.0",
     "hono": "^4.13.16",
     "maplibre-gl": "^6.16.0",
     "pmtiles": "^4.5.0",
+    "tsx": "^4.23.15",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
-    "tsx": "^4.23.15",
+    "electron": "44.9.3",
+    "electron-builder": "26.18.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.5"
   }

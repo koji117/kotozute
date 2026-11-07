@@ -16,6 +16,8 @@ import type { Feature as F } from 'geojson';
 import { layers, namedFlavor } from '@protomaps/basemaps';
 import { ATTRIBUTION, attributionParts, dataAsOfText, MAP_TILES_AS_OF } from '../attribution';
 import { CHIPS, DICT, type DictKey } from '../ops/dict';
+import { REGION } from '../region'; // vite が build のときに値を埋め込む（vite.config.ts）
+import { REGION_PILL } from '../region-text';
 import type {
   AddPinOutput, BBox, ChatResponse, CheckRouteOutput, ContextResponse, CourseOutput, ExportRouteOutput, FindFeaturesOutput, GeocodeOutput,
   LngLat, OpResult, Place, RecipeRunResponse, RecipeSaved, RouteOutput, SearchPlaceOutput, Session, SetViewOutput, ShareState, TunnelRun,
@@ -25,10 +27,13 @@ import type { PoiResponse } from '../poi';
 import {
   type Card, CHIP_ICON, COLOR, html, nm, type Raw, recipeCard, renderChat, renderDirect, renderError, renderRecipe, renderWait, stepHtml,
 } from './panel';
-import { BASEMAP_KIND_JA, poiCard } from './poi-card';
+import { BASEMAP_KIND_JA, placeCard, poiCard } from './poi-card';
+import { parseCoord, ZONE_OF_REGION, type Parsed } from './jpcoord';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const r6 = (x: number) => Math.round(x * 1e6) / 1e6;
+const ZONE = ZONE_OF_REGION[REGION.id]; // 平面直角座標の系（地域にない系は出さない）
+$('#region').textContent = REGION_PILL;
 const C = { teal: '#0B6E78', sumi: '#12343B', white: '#FFFFFF', gray: '#7D868C', text: '#161B1F', pin: '#B3261E' };
 
 // 地図の配色（docs/storyboard/scenes.js の FLAVOR）：青い水、緑の公園、白い道、暖色の幹線
@@ -77,17 +82,17 @@ maplibregl.addProtocol('pmtiles', new Protocol().tile);
 const origin = location.origin;
 const map = new maplibregl.Map({
   container: 'map',
-  // 始めは都心（札で探せる広さ。範囲の上限は LIMITS.max_bbox_km2）
-  center: [139.752, 35.668],
-  zoom: 13.5,
-  maxBounds: [[138.9, 35.48], [139.95, 35.92]], // tokyo.pmtiles の切り出し範囲
+  // 始めは地域の設定の最初の表示（東京は都心。札で探せる広さ。範囲の上限は LIMITS.max_bbox_km2）
+  center: REGION.view.center,
+  zoom: REGION.view.zoom,
+  maxBounds: REGION.bbox, // 地図ファイルの切り出し範囲
   attributionControl: false, // 出典は右下に自前で出し、書き出す画像にも描き込む
   canvasContextAttributes: { preserveDrawingBuffer: true }, // 画像の書き出しに必要
   style: {
     version: 8,
     glyphs: `${origin}/assets/fonts/{fontstack}/{range}.pbf`,
     sprite: `${origin}/assets/sprites/v4/light`,
-    sources: { protomaps: { type: 'vector', url: `pmtiles://${origin}/tiles/tokyo.pmtiles` } },
+    sources: { protomaps: { type: 'vector', url: `pmtiles://${origin}/tiles/${REGION.tiles.split('/').pop()}` } }, // サーバと同じ名前（src/server/main.ts）
     // landcover は ESA WorldCover（CC BY 4.0）由来なので外す
     layers: layers('protomaps', { ...namedFlavor('light'), ...FLAVOR }, { lang: 'ja' })
       .filter((l) => !('source-layer' in l && l['source-layer'] === 'landcover')),
@@ -459,6 +464,8 @@ form.addEventListener('submit', async (e) => {
   const text = q.value.trim();
   const send = form.querySelector('button')!;
   if (!text || send.disabled || replaying) return;
+  const coord = parseCoord(text, ZONE); // 座標なら Claude に送らず、その場所へ動く
+  if (coord) return goTo(coord);
   send.disabled = true;
   // 現在地がないと Claude は here: を使えず、住所だけ調べて黙って止まる。送る前に位置情報の許可を求め、取れなければ送らない
   // ponytail: 言葉で判定するので「ここから」などは拾わない。拾い漏れが目立てば言葉を足す
@@ -526,7 +533,7 @@ function locate(fly: boolean): Promise<string | null> {
   if (!navigator.geolocation) return Promise.resolve(GEO_OFF);
   return new Promise((done) => navigator.geolocation.getCurrentPosition(async (pos) => {
     const here: Session['here'] = { coord: [r6(pos.coords.longitude), r6(pos.coords.latitude)], accuracy_m: Math.max(1, Math.round(pos.coords.accuracy)) };
-    // サーバが受けた（東京都の中で、here: として使える）ときだけ地図に出す
+    // サーバが受けた（地域の中で、here: として使える）ときだけ地図に出す
     try { await api<ContextResponse>('/api/context', { sessionId, here }); } catch (err) { return done((err as Error).message); }
     st.here = here;
     draw();
@@ -540,36 +547,59 @@ $('#locate').addEventListener('click', async () => {
   if (why) toast(why === GEO_OFF ? `${GEO_OFF}。地図をクリックして場所を指定できます` : why);
 });
 map.on('click', async (e) => {
-  poiAt(e.point); // 共有の画面でも出す
-  if (shareId || replaying) return;
   const click: LngLat = [r6(e.lngLat.lng), r6(e.lngLat.lat)];
+  const pop = poiAt(e.point) ? undefined : place('この場所', click); // 共有の画面でも出す
+  if (shareId || replaying) return;
+  const n = await addClick(click);
+  if (n && pop?.isOpen()) pop.setHTML(placeCard(`クリック${n}`, click, ZONE));
+});
+/** クリックした点をサーバに渡し、click:N の番号を返す（地域の外などで断られたら知らせて undefined） */
+async function addClick(click: LngLat): Promise<string | undefined> {
   try {
     const r = await api<ContextResponse>('/api/context', { sessionId, click });
     const n = r.clickRef?.match(/^click:(\d+)$/)?.[1]; // 番号はサーバの参照に合わせる
     if (n) { st.clicks.push({ coord: click, n }); draw(); }
+    return n;
   } catch (err) { toast((err as Error).message); }
-});
+}
+/** 検索の欄に貼った座標の場所へ動き、クリックした点と同じに扱う（「クリック1から…」と頼める） */
+async function goTo(c: Parsed) {
+  if ('error' in c) return toast(c.error);
+  const at: LngLat = [r6(c.at[0]), r6(c.at[1])];
+  const n = await addClick(at);
+  if (!n) return;
+  map.flyTo({ center: at, zoom: Math.max(map.getZoom(), 16) });
+  place(`クリック${n}（${c.how}）`, at);
+  q.value = '';
+}
+function place(title: string, at: LngLat) {
+  popup?.remove();
+  return (popup = new maplibregl.Popup({ maxWidth: '300px', offset: 14, className: 'poi-pop' }).setLngLat(at).setHTML(placeCard(title, at, ZONE)).addTo(map));
+}
 
 // ===== 地点の詳細：クリックした所に地点があれば、横にカードを出す（AI を通さない。左のパネルはそのまま） =====
 let popup: maplibregl.Popup | undefined;
-function poiAt(point: maplibregl.Point) {
+/** 地点があればカードを出して true */
+function poiAt(point: maplibregl.Point): boolean {
   popup?.remove();
   // 先に自分の印（OSM の要素のもの）、なければベースマップの地点
   const own = map.queryRenderedFeatures(point, { layers: ['marks-c', 'feat-c'] }).find((f) => f.properties.osm);
   const f = own ?? map.queryRenderedFeatures(point, { layers: ['pois'] })[0];
-  if (f?.geometry.type !== 'Point') return;
+  if (f?.geometry.type !== 'Point') return false;
   const at = f.geometry.coordinates as LngLat, p = f.properties;
   const card = (h: string) => (popup = new maplibregl.Popup({ maxWidth: '300px', offset: 14, className: 'poi-pop' }).setLngLat(at).setHTML(h).addTo(map));
   if (!own) { // タイルには名前と種類しかない。推測で OSM の要素は探さない
     const name = p['name:ja'] ?? p.name ?? null, kindLabel = BASEMAP_KIND_JA[p.kind] ?? null;
-    if (name || kindLabel) card(poiCard({ name, kindLabel, asOf: MAP_TILES_AS_OF }));
-    return;
+    if (!name && !kindLabel) return false;
+    card(poiCard({ name, kindLabel, asOf: MAP_TILES_AS_OF, at, zone: ZONE }));
+    return true;
   }
-  const base = { name: p.name || null, kindLabel: p.kind || null, osm: p.osm as string };
+  const base = { name: p.name || null, kindLabel: p.kind || null, osm: p.osm as string, at, zone: ZONE };
   const pop = card(poiCard(base));
   api<PoiResponse>(`/api/poi/${base.osm}`).then(
     (r) => pop.setHTML(poiCard({ ...base, tags: r.tags, asOf: r.osm_as_of })),
     (err) => pop.setHTML(poiCard({ ...base, error: (err as Error).message })));
+  return true;
 }
 
 // ===== 資料用の画像：地図に出典とデータ時点を描き込んで PNG にする =====

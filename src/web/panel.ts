@@ -8,6 +8,7 @@ import type {
 } from '../ops/types';
 import type { NoteDraftOutput } from '../ops/draft_osm_note';
 import { ISSUES, type Issue } from '../ops/note_rules';
+import { CHIP_SOURCE, courseCandidates, WIDENED_NOTE } from '../region-text';
 
 // ===== 差し込み。OSM の名前などはすべてエスケープする（Raw だけそのまま） =====
 export class Raw { constructor(readonly s: string) {} }
@@ -140,7 +141,7 @@ function features(o: FindFeaturesOutput) {
 function search(o: SearchPlaceOutput) {
   return card(html`<div class="card">
     <h3>「${o.query}」 ${o.items.length ? `${o.total}件${o.capped ? '以上' : ''}` : ''}</h3>
-    ${o.widened ? html`<div class="note">画面の中になかったので、東京都全体から探しました</div>` : ''}
+    ${o.widened ? html`<div class="note">${WIDENED_NOTE}</div>` : ''}
     ${o.items.length === 0 ? html`<div class="zero">OSM上で見つかりません（現地にないとは限らない）</div>` : html`
       ${o.truncated ? html`<div class="note">多いので近い${o.items.length}件だけ${o.capped ? '（上限で切ったので、近い順は一部の中で）' : ''}</div>` : ''}
       <ol class="names">${o.items.map((p) => html`<li>${nm(p)}</li>`)}</ol>`}
@@ -239,7 +240,7 @@ function course(o: CourseOutput) {
   </div>`,
   html`<div class="note">解釈：トンネル＝道路の tunnel=yes（連続する区間は1本）${o.conditions.avoid_highways ? '／高速＝高速道路と有料道路を除外して計算' : ''}／${start}から${start}へ（周回）</div>
     ${t.adv}
-    <div class="note">経由地の候補はプログラムが作りました：出発地から${o.radius_m / 1000}km以内の、東京都の中の名前のある道路トンネル ${o.candidates}本（有料・自動車専用・車両通行不可・高さ2.1m未満の ${o.excluded}本は除外）。ルート計算 ${o.routes}回</div>`);
+    <div class="note">経由地の候補はプログラムが作りました：${courseCandidates(o.radius_m / 1000)} ${o.candidates}本（有料・自動車専用・車両通行不可・高さ2.1m未満の ${o.excluded}本は除外）。ルート計算 ${o.routes}回</div>`);
 }
 
 function checkCard(o: CheckRouteOutput) {
@@ -400,7 +401,7 @@ export function renderDirect(steps: OpResult[]) {
   const cards = steps.map((s) => stepHtml(s));
   return html`${close}<div class="ph-h"><h2>この画面の範囲</h2><span class="badge b-ok">AIを通さない</span></div>
     ${cards.map((c) => c.main)}
-    ${foot}${advSection([html`<div class="note">札は AI を通さずに、自社の Overpass へ直接たずねます</div>`, ...cards.map((c) => c.adv)], (steps.at(-1) as { net?: NetLog } | undefined)?.net)}`;
+    ${foot}${advSection([html`<div class="note">${CHIP_SOURCE}</div>`, ...cards.map((c) => c.adv)], (steps.at(-1) as { net?: NetLog } | undefined)?.net)}`;
 }
 
 export const renderError = (msg: string) => html`${close}<div class="card err" style="margin-top:0"><div>${msg}</div></div>${foot}${advSection([])}`;

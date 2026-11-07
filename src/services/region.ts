@@ -1,17 +1,19 @@
-// 対応する地域：東京都（島しょ部を除く）。判定は都の境界（OSM の行政界）で行う。
+// 対応する地域（src/region.ts の REGION。既定は東京都（島しょ部を除く））。判定は地域の境界（OSM の行政界）で行う。
+// 名前（TOKYO_BBOX、inTokyo）は東京だけだったときのまま。中身は地域の設定
+import { readFileSync } from 'node:fs';
 import type { BBox, LngLat } from '../ops/types';
-import boundary from './tokyo-boundary.json' with { type: 'json' };
+import { fromRoot, REGION } from '../region';
 
-/** 地図ファイル（tokyo.pmtiles）の切り出し範囲。埼玉・神奈川・千葉の端も入るので、地域の判定には使わない */
-export const TOKYO_BBOX: BBox = [138.9, 35.48, 139.95, 35.92];
-export const REGION_LABEL = '東京都（島しょ部を除く）';
+/** 地図ファイルの切り出し範囲。地域の外（東京なら埼玉・神奈川・千葉の端）も入るので、これだけでは地域の判定に使わない */
+export const TOKYO_BBOX: BBox = REGION.bbox;
 
-// 都の境界：scripts/build-tokyo-boundary.ts で作る（約20mの許容で間引いた輪。境界のすぐ近くは判定がずれうる）
-const RINGS = boundary.rings as LngLat[][];
-/** 点が輪の中か（偶奇規則。輪が複数でも、どれかの中なら中） */
-function inRings([x, y]: LngLat): boolean {
+// 境界：{ rings }（1つのまとまり）か { groups: rings[] }（県ごとのまとまり）。東京は scripts/build-tokyo-boundary.ts で作る（約20mの許容で間引いた輪。境界のすぐ近くは判定がずれうる）
+const boundary = JSON.parse(readFileSync(fromRoot(REGION.boundary), 'utf8')) as { rings?: LngLat[][]; groups?: LngLat[][][] };
+const GROUPS = boundary.groups ?? [boundary.rings ?? []];
+/** 点がまとまりの輪の中か（偶奇規則。輪が複数でも、どれかの中なら中） */
+function inRings([x, y]: LngLat, rings: LngLat[][]): boolean {
   let inside = false;
-  for (const r of RINGS) {
+  for (const r of rings) {
     for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
       const [xi, yi] = r[i], [xj, yj] = r[j];
       if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
@@ -20,8 +22,9 @@ function inRings([x, y]: LngLat): boolean {
   return inside;
 }
 
+/** 地域の中か：どれかのまとまりの中（複数の県で、境の細い隙間が外にならないように、県ごとに判定する） */
 export const inTokyo = (p: LngLat) =>
-  p[0] >= TOKYO_BBOX[0] && p[0] <= TOKYO_BBOX[2] && p[1] >= TOKYO_BBOX[1] && p[1] <= TOKYO_BBOX[3] && inRings(p);
+  p[0] >= TOKYO_BBOX[0] && p[0] <= TOKYO_BBOX[2] && p[1] >= TOKYO_BBOX[1] && p[1] <= TOKYO_BBOX[3] && GROUPS.some((g) => inRings(p, g));
 
 /** bbox の面積（km²、平面近似） */
 export const bboxKm2 = ([w, s, e, n]: BBox) => {

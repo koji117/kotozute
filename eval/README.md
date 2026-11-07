@@ -5,7 +5,8 @@
 
 - `set.jsonl`：問題（1行1問）。40問（(a)〜(d) 各10問）＋罠10問。
 - `scripts/eval.ts`：採点。結果は `eval/runs/<日時>.json` に保存する。
-- 実行：`npx tsx scripts/eval.ts`（自社の Overpass・Valhalla・ABR と `.env` のキーが要る。1回で Claude を約140回呼ぶ。3回の実績は138〜141回）。`--only a01,b03` で一部だけ。
+- 実行：`npx tsx scripts/eval.ts`（`.env` のキーが要る。検索は地域の設定 `data/region.json` があれば手元の SQLite、なければ Overpass :12345。ルートは Valhalla :8002（`VALHALLA_MODE=embedded` と `VALHALLA_CONFIG` で組み込み）。住所は `ABR_URL`（既定は :3002）。1回で Claude を約140回呼ぶ。3回の実績は138〜141回）。`--only a01,b03` で一部だけ。
+- 3回の結果（11/5）は、前の構成（Docker の Overpass、Valhalla、abr-geocoder）で測った。11/7 に検索の「〜駅」と ヶ・ケ・が の扱いを直したあとは回していない（回すのは3回までと決めているため）。
 
 ## 問題の分け方
 

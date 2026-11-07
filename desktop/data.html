@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+  <title>地図のデータ</title>
+  <style>
+    /* 色と角丸は src/web/style.css の :root と同じ値（key.html と同じ） */
+    :root { --teal-600: #0B6E78; --teal-700: #085862; --text: #161B1F; --text-2: #434C53; --text-3: #5A646B; --line: #E2E6E9; --line-2: #C7CED3; --surface: #FFFFFF; --map-bg: #F2F1EE; --ok-700: #18703E; --ng-700: #B3261E; --r-sm: 8px; --r-lg: 14px; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 32px; font: 14px/1.6 "Hiragino Sans", sans-serif; color: var(--text); background: var(--map-bg); line-break: strict; }
+    h1 { margin: 0 0 10px; font-size: 18px; }
+    h2 { margin: 16px 0 6px; font-size: 14px; }
+    p { margin: 0 0 8px; color: var(--text-2); }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); }
+    th, td { padding: 6px 10px; text-align: left; border-top: 1px solid var(--line); vertical-align: top; }
+    tr:first-child th, tr:first-child td { border-top: 0; }
+    th { font-weight: 600; white-space: nowrap; }
+    td.n { white-space: nowrap; text-align: right; }
+    .src { color: var(--text-3); font-size: 12px; }
+    ol { margin: 6px 0 10px; padding: 0; list-style: none; }
+    li { padding: 2px 0 2px 26px; position: relative; color: var(--text-3); }
+    li::before { content: ""; position: absolute; left: 4px; top: 9px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line-2); }
+    li.done { color: var(--text-2); }
+    li.done::before { content: "✓"; border: 0; top: 1px; left: 3px; width: auto; height: auto; color: var(--ok-700); font-weight: 700; }
+    li.now { color: var(--text); font-weight: 600; }
+    li.now::before { border-color: var(--teal-600); background: var(--teal-600); }
+    li.ng { color: var(--ng-700); font-weight: 600; }
+    li.ng::before { border-color: var(--ng-700); }
+    progress { width: 100%; height: 10px; accent-color: var(--teal-600); }
+    .amount { min-height: 1.6em; margin: 2px 0 0; color: var(--text-3); font-size: 12px; }
+    .msg { min-height: 1.6em; margin: 8px 0 0; }
+    .msg.ng { color: var(--ng-700); }
+    .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+    button { padding: 9px 18px; font: 600 15px "Hiragino Sans", sans-serif; border-radius: var(--r-lg); border: 1px solid var(--line-2); background: var(--surface); color: var(--text); cursor: pointer; }
+    button.primary { background: var(--teal-600); border-color: var(--teal-600); color: #fff; }
+    button.primary:hover { background: var(--teal-700); }
+    :focus-visible { outline: 3px solid var(--teal-600); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1>地図のデータ</h1>
+
+  <section id="first" hidden>
+    <p>ことづては、地図・検索・ルート・住所のデータを、この Mac の中に作って使います。はじめに一度、次のデータをダウンロードして、東京のデータを作ります。</p>
+    <table>
+      <tr><th>OSM のデータ（関東）</th><td class="n">約 500MB</td><td>Geofabrik<div class="src">download.geofabrik.de</div></td></tr>
+      <tr><th>地図の絵</th><td class="n">約 190MB</td><td>Protomaps<div class="src">build.protomaps.com</div></td></tr>
+      <tr><th>住所のデータ（東京）、ルートの速度表</th><td class="n">約 22MB</td><td>GitHub<div class="src">github.com、raw.githubusercontent.com</div></td></tr>
+    </table>
+    <h2>この Mac に要るもの</h2>
+    <p>空きディスク：作るあいだ約 4GB。作ったあとに残るのは約 1.7GB です。</p>
+    <p>時間：数分から十数分（ネットの速さと、この Mac によります）。</p>
+    <h2>通信について</h2>
+    <p>このアプリが上の場所と通信するのは、「ダウンロードして作る」と「最新にする」を押したときだけです。地図を使っているあいだに外に出るのは、日本語の依頼を読む Claude API だけです。</p>
+    <p>途中で止めても、次はダウンロードの続きから取ります。</p>
+  </section>
+
+  <section id="update" hidden>
+    <table>
+      <tr><th>OSM のデータ時点</th><td id="osm"></td></tr>
+      <tr><th>地図のデータ時点</th><td id="tiles"></td></tr>
+      <tr><th>作った日時</th><td id="built"></td></tr>
+    </table>
+    <p class="intro" style="margin-top: 12px">「最新にする」を押すと、OSM（Geofabrik）と地図（Protomaps）の最新のデータと住所のデータ（GitHub）を取って、作り直します。ダウンロードは約 700MB、時間は数分から十数分です。</p>
+    <p class="intro">作るあいだも、今のデータで地図を使えます。この画面を閉じても作り続けます。できたら新しいデータに切り替えて、地図の画面を読み直します。うまくいかなければ、今のデータのままです。</p>
+  </section>
+
+  <section id="job" hidden>
+    <h2>進み具合</h2>
+    <ol id="steps"></ol>
+    <progress id="bar" max="1"></progress>
+    <p class="amount" id="amount"></p>
+  </section>
+  <p class="msg" id="msg" role="status" aria-live="polite"></p>
+
+  <div class="row">
+    <button type="button" id="quit" hidden>終了</button>
+    <button type="button" id="close" hidden>閉じる</button>
+    <button type="button" id="stop" hidden>止める</button>
+    <button type="button" class="primary" id="start" hidden></button>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const api = window.kotozute.data;
+    const MB = (n) => `${Math.round(n / 2 ** 20)} MB`;
+    const day = (iso) => (iso ? iso.slice(0, 10) : '分からない');
+    let mode = null; // 開いたときの形（作り終えて mode が変わっても、画面の形は変えない）
+
+    function render(s) {
+      if (!s) return;
+      mode ??= s.mode;
+      const job = s.job;
+      const running = job?.status === 'running';
+      // 作り始めたら、説明は隠して進み具合を出す（窓の高さに収める）
+      $('first').hidden = mode !== 'first' || !!job;
+      $('update').hidden = mode !== 'update';
+      for (const p of document.querySelectorAll('.intro')) p.hidden = !!job;
+      if (s.current) {
+        $('osm').textContent = day(s.current.osm_as_of);
+        $('tiles').textContent = day(s.current.tiles_as_of);
+        $('built').textContent = s.current.built_at ? new Date(s.current.built_at).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' }) : '分からない';
+      }
+
+      $('job').hidden = !job || !job.steps.length;
+      if (job) {
+        const at = job.steps.findIndex((x) => x.id === job.step);
+        $('steps').replaceChildren(...job.steps.map((x, i) => {
+          const li = document.createElement('li');
+          li.textContent = x.title;
+          const done = job.status === 'done' || i < at;
+          li.className = done ? 'done' : i === at && running ? 'now' : i === at && job.status === 'error' ? 'ng' : '';
+          if (i === at && running) li.setAttribute('aria-current', 'step');
+          return li;
+        }));
+        const bar = $('bar');
+        if (running && job.total > 0) { bar.max = job.total; bar.value = job.got; $('amount').textContent = `${MB(job.got)} / ${MB(job.total)}`; }
+        else if (running) { bar.removeAttribute('value'); $('amount').textContent = ''; } // 量の分からない手順は、動いている印だけ
+        else { bar.max = 1; bar.value = job.status === 'done' ? 1 : 0; $('amount').textContent = ''; }
+      }
+
+      const msg = $('msg');
+      msg.className = 'msg' + (job?.status === 'error' ? ' ng' : '');
+      msg.setAttribute('role', job?.status === 'error' ? 'alert' : 'status');
+      msg.textContent = !job ? ''
+        : running ? `作っています（手順 ${Math.max(1, job.steps.findIndex((x) => x.id === job.step) + 1)} / ${job.steps.length || '…'}）。この Mac を眠らせないでください`
+        : job.status === 'stopped' ? '止めました。ダウンロードした分は残してあり、次は続きから取ります'
+        : job.status === 'error' ? job.error
+        : mode === 'update' ? '最新にしました。地図の画面を新しいデータで読み直しました' : 'できました。地図を開きます';
+
+      const again = job?.status === 'error' || job?.status === 'stopped';
+      $('quit').hidden = mode !== 'first' || running;
+      $('close').hidden = mode !== 'update' || running;
+      $('stop').hidden = !running;
+      $('start').hidden = running || (mode === 'first' && job?.status === 'done');
+      $('start').textContent = again ? 'もう一度' : mode === 'first' ? 'ダウンロードして作る' : '最新にする';
+    }
+
+    $('start').addEventListener('click', async () => { await api.start(); render(await api.state()); });
+    $('stop').addEventListener('click', () => api.stop());
+    $('quit').addEventListener('click', () => api.quit());
+    $('close').addEventListener('click', () => window.close());
+    api.onState(render);
+    api.state().then(render);
+  </script>
+</body>
+</html>

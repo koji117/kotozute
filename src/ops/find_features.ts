@@ -4,7 +4,8 @@ import { DICT, type DictKey } from './dict';
 import { MIN_TUNNEL_M, SAME_TUNNEL_M } from './check_route';
 import { defineOp, Ref, Word, type BBox, type FeatureGroup, type FindFeaturesOutput, type LngLat, type Place } from './types';
 import { addResult, resolveRef } from '../server/session';
-import { featureQuery, LIMITS, overpass, toPlace, type Area, type OsmElement } from '../services/overpass';
+import { features } from '../services/osm';
+import { LIMITS, toPlace, type Area, type OsmElement } from '../services/overpass';
 import { bboxKm2, distM, inTokyo, lineM, midOf } from '../services/region';
 
 const r6 = (x: number) => Math.round(x * 1e6) / 1e6;
@@ -32,7 +33,7 @@ export const findFeatures = defineOp({
     // 先に全部の言葉を問い合わせ、全部成功してからセッションを変える（途中で失敗しても result:N の番号と印の表示がずれない）
     // ponytail: 言葉ごとに順に問い合わせる（最大5回）。遅ければ並列にする
     const fetched: { word: DictKey; elements: OsmElement[] }[] = [];
-    for (const word of [...new Set(input.words)]) fetched.push({ word, elements: (await overpass(featureQuery(word, area, word === 'tunnel'))).elements });
+    for (const word of [...new Set(input.words)]) fetched.push({ word, elements: (await features(word, area, word === 'tunnel')).elements });
     for (const { word, elements } of fetched) {
       const tunnel = word === 'tunnel', crossing = CROSSINGS.has(word);
       const items = (tunnel ? mergeTunnels(elements) : crossing ? mergeCrossings(elements, word) : elements.map((e) => toPlace(e, word)))
