@@ -27,6 +27,16 @@ export function regionLaunch(root, env = process.env, file = resolve(root, 'data
   return { region, env: add, abrg: !env.ABR_URL && bin && cache ? { bin, cache } : null };
 }
 
+/**
+ * 開発中の abrg（npm run setup が Go で作ったもの）：data/region.json の abrg_bin か data/setup/abr/abrg。なければ undefined。
+ * 作ったアプリの中の bin/abrg は、これを scripts/app-data.mjs が写したもの。npm run app（bin/ がない）はこれを使う
+ */
+export function devAbrg(root) {
+  let r = {};
+  try { r = JSON.parse(readFileSync(resolve(root, 'data/region.json'), 'utf8')); } catch {}
+  return [r.abrg_bin, 'data/setup/abr/abrg'].filter(Boolean).map((p) => resolve(root, p)).find((p) => existsSync(p));
+}
+
 /** url が 200 を返すまで待つ（ms を過ぎたら失敗） */
 export async function waitHttp(url, ms) {
   for (const t = Date.now(); Date.now() - t < ms; await new Promise((r) => setTimeout(r, 100))) {

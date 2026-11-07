@@ -5,11 +5,12 @@
 //   pmtiles と pmtiles-LICENSE：地図を切り出す道具（固定した版。GitHub のリリースから取り、sha256 を確かめる）。
 //     BSD-3-Clause なのでライセンスの文も入れる。リリースの zip には入っていないので、同じ版（v1.31.2）の LICENSE を scripts/pmtiles-LICENSE に置いた
 // コピーは APFS の複製（clonefile。ディスクを使わない）。モード（実行の権限）も写す。
-import { chmodSync, constants, copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { chmodSync, constants, copyFileSync, mkdirSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tsImport } from 'tsx/esm/api';
+import { devAbrg } from '../src/launch.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -23,8 +24,7 @@ export default async function afterPack(ctx) {
   const bundle = join(ctx.appOutDir, `${ctx.packager.appInfo.productFilename}.app`);
   const bin = join(bundle, 'Contents/Resources/app/bin');
 
-  const region = existsSync(join(ROOT, 'data/region.json')) ? JSON.parse(readFileSync(join(ROOT, 'data/region.json'), 'utf8')) : {};
-  const abrg = [region.abrg_bin, 'data/setup/abr/abrg'].filter(Boolean).map((p) => resolve(ROOT, p)).find((p) => existsSync(p));
+  const abrg = devAbrg(ROOT);
   if (!abrg) throw new Error('住所の道具（abrg）がありません。先に「npm run setup -- --region=tokyo」を回して data/setup/abr/abrg を作ってください');
   put(abrg, join(bin, 'abrg'));
 

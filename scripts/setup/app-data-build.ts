@@ -5,6 +5,8 @@
 //   ネットを使う手順を先に回す（住所が取れないときに、数分かけて作ったあとで止まらないため）。
 //   進み具合は stdout に1行1つの JSON で出す：{type:'step', id, steps}、{type:'progress', got, total}、{type:'log', msg}、{type:'error', msg}、{type:'done', region}。
 //   ダウンロードは --cache に置き、止めても次は続きから取る。作り終えたら pbf は消す。
+//   取り終えた pbf が残っていても（前の回が途中で止まった）、Geofabrik の今のファイルと同じとき（ETag）だけ使う。「最新にする」で古いものを使わないため。
+//   ネットにつながらないときは、取る先の名前を入れた日本語の文にする（download.ts の netError）。
 // 通信する先は download.geofabrik.de、build.protomaps.com、github.com（と raw.githubusercontent.com。ルートの速度表）だけ。
 // 試すための差し替え（環境変数）：KOTOZUTE_PBF_URL（手元のパスか URL）、KOTOZUTE_TILES_FILE（手元の .pmtiles）、KOTOZUTE_ABR_URL（手元のパスか URL）。
 // KOTOZUTE_BUILD_FAKE=1（か、地域の設定のパス）：本当には作らず、進み具合だけを出して、開発用のデータ（data/region.json）を指す region.json を書く（画面の確認用）。
@@ -16,7 +18,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import type { RegionConfig } from '../../src/region';
-import { download } from './download';
+import { download, netError } from './download';
 import { buildOsmIndex } from './osm-index';
 import { CATALOG, DEFAULT, fmtBytes, regionConfig, resolveRegion } from './plan';
 import { extract, latestBuild, pmtilesBin, tilesInfo } from './tiles';
@@ -78,8 +80,8 @@ async function build(out: string, cache: string, jobs: number): Promise<string> 
   let pbf: string, downloaded = false;
   if (isUrl(pbfSrc)) {
     pbf = join(cache, basename(new URL(pbfSrc).pathname));
-    // Geofabrik のものは .md5 で確かめる（差し替えの URL には .md5 がないことがある）
-    await download({ url: pbfSrc, dest: pbf, md5Url: process.env.KOTOZUTE_PBF_URL ? undefined : true, log, progress });
+    // Geofabrik のものは .md5 で確かめる（差し替えの URL には .md5 がないことがある）。revalidate：前の回の残りは、今の latest と同じときだけ使う
+    await download({ url: pbfSrc, dest: pbf, md5Url: process.env.KOTOZUTE_PBF_URL ? undefined : true, revalidate: true, log, progress });
     downloaded = true;
   } else {
     if (!existsSync(pbfSrc)) throw new Error(`KOTOZUTE_PBF_URL のファイルがありません：${pbfSrc}`);
@@ -127,7 +129,10 @@ async function build(out: string, cache: string, jobs: number): Promise<string> 
 
   step('valhalla');
   log(`ルートのデータを ${jobs} スレッドで作ります`);
-  await buildValhalla({ pbf, dir: join(out, 'valhalla'), jobs, log });
+  // 速度表（raw.githubusercontent.com）を取る。そこでネットが切れたときも日本語の文にする
+  await buildValhalla({ pbf, dir: join(out, 'valhalla'), jobs, log }).catch((e: Error) => {
+    throw e.message === 'fetch failed' || e.name === 'TimeoutError' ? netError('https://raw.githubusercontent.com/', e) : e;
+  });
 
   step('region');
   // npm run setup の東京と同じ形。abrg の場所は入れない（アプリの中にあり、アプリを動かすと場所が変わる。アプリが ABRG_BIN で渡す）
@@ -136,7 +141,10 @@ async function build(out: string, cache: string, jobs: number): Promise<string> 
   });
   const file = join(out, 'region.json');
   writeFileSync(file, JSON.stringify(region satisfies RegionConfig, null, 2) + '\n');
-  if (downloaded) { rmSync(pbf, { force: true }); log('OSM のデータ（pbf）を消しました'); }
+  if (downloaded) {
+    for (const f of [pbf, `${pbf}.etag`]) rmSync(f, { force: true });
+    log('OSM のデータ（pbf）を消しました');
+  }
   return file;
 }
 

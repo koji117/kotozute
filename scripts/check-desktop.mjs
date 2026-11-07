@@ -9,7 +9,8 @@
 //   作ったアプリでは、ルート（組み込みの Valhalla）と住所（アプリの中の abrg）でデモの例1の数字が出ること、アプリのメモリ（全部のプロセスの RSS）、
 //   アプリ（と DMG=<.dmg> ならその中身）に .env とキーらしい文字列と地図のデータがないことも確かめる。
 //   KOTOZUTE_PORT（既定 18797）は、開発中の確認では userData の port.json に書いて、アプリが覚えたポートとして使わせる（作ったアプリにはそのまま渡す）。
-//   ABRG_PORT はアプリに渡す（abrg のポート）。開発中の確認の abrg は KOTOZUTE_BUILD_FAKE の地域の設定の abrg_bin（ABRG_BIN があればそちら）。
+//   ABRG_PORT はアプリに渡す（abrg のポート）。開発中の確認の abrg は、アプリが自分で探すもの（bin/ がないので npm run setup が作ったもの。devAbrg）。
+//   それがないとき（別のリポジトリの KOTOZUTE_BUILD_FAKE を使うとき）だけ、その地域の設定の abrg_bin を ABRG_BIN で渡す（ABRG_BIN があればそちら）。
 // キーには試しの文字列を使う（本物のキーは使わない）。Claude API は呼ばない。
 // キーとデータはふだんの場所（~/Library/Application Support/kotozute）ではなく、一時フォルダ（KOTOZUTE_USER_DATA）に置く。
 import { execSync, spawn } from 'node:child_process';
@@ -19,7 +20,7 @@ import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { regionLaunch } from '../src/launch.mjs';
+import { devAbrg, regionLaunch } from '../src/launch.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PORT = process.env.KOTOZUTE_PORT ?? '18797';
@@ -55,7 +56,7 @@ const check = (name, ok, extra = '') => {
 /** アプリを開く。出力（stdout と stderr）は logs に集める。ポートは KOTOZUTE_PORT ではなく、アプリが覚えたポート（port.json）で決める */
 async function launch(userData) {
   const env = { ...process.env, KOTOZUTE_USER_DATA: userData, ABRG_PORT, KOTOZUTE_BUILD_FAKE: FAKE };
-  if (DEV.abrg) env.ABRG_BIN = DEV.abrg.bin;
+  if (DEV.abrg && !devAbrg(ROOT)) env.ABRG_BIN = DEV.abrg.bin; // ふだんは渡さず、npm run app と同じくアプリに探させる
   delete env.KOTOZUTE_PORT;
   fs.mkdirSync(userData, { recursive: true });
   if (!fs.existsSync(path.join(userData, 'port.json'))) fs.writeFileSync(path.join(userData, 'port.json'), JSON.stringify({ port: Number(PORT) }));

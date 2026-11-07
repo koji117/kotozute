@@ -5,6 +5,7 @@
 // 地図のデータ（検索・ルート・地図・住所）はアプリに入れず、アプリが取って作る（設計書 §17。scripts/setup/app-data-build.ts を子のプロセスで動かす）。
 //   置き場所は <userData>/data/<作った日時>/、今のものは <userData>/data/current.json。ダウンロードの途中のものは <userData>/data/cache/（次は続きから取る）。
 //   サーバには REGION_FILE（今のデータの region.json）を、abrg にはアプリの中の bin/abrg を渡す（src/launch.mjs）。
+//   開発中（npm run app）は bin/ がないので、npm run setup が作った abrg（devAbrg）を使う。
 //   メニュー「地図のデータ…」の「最新にする」：作るあいだは前のデータで使える。できたら切り替えて、abrg とサーバを起こし直し、画面を読み直し、前のデータを消す。
 //   失敗したら前のデータのまま。
 // 環境変数（OSM_BACKEND、OSM_INDEX、VALHALLA_MODE、VALHALLA_CONFIG、ABRG_BIN、ABRG_CACHE_PATH、ABR_URL）があればそちら（開発用）。
@@ -17,7 +18,7 @@ import { createServer } from 'node:net';
 import { isAbsolute, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { abrgServe, regionLaunch, waitHttp } from '../src/launch.mjs';
+import { abrgServe, devAbrg, regionLaunch, waitHttp } from '../src/launch.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)); // リポジトリと同じ並び（アプリでは Contents/Resources/app）
 app.setPath('userData', process.env.KOTOZUTE_USER_DATA ?? join(app.getPath('appData'), 'kotozute')); // 確認用のスクリプトは別の場所にする
@@ -28,7 +29,8 @@ const MAP_DATA = join(DATA, 'data');
 const CURRENT_FILE = join(MAP_DATA, 'current.json');
 const CACHE = join(MAP_DATA, 'cache');
 const STAMP = /^\d{8}-\d{6}$/; // データのフォルダの名前（作った日時、UTC）
-const ABRG_BIN = process.env.ABRG_BIN || join(ROOT, 'bin/abrg'); // アプリの中の abrg（scripts/app-data.mjs が入れる）
+// アプリの中の abrg（scripts/app-data.mjs が入れる）。開発中は bin/ がないので、npm run setup が作ったもの
+const ABRG_BIN = process.env.ABRG_BIN || (existsSync(join(ROOT, 'bin/abrg')) ? join(ROOT, 'bin/abrg') : devAbrg(ROOT));
 const PRELOAD = join(ROOT, 'desktop/preload.cjs'); // sandbox と contextIsolation は既定（有効）のまま
 
 let win; // 地図の窓
@@ -265,13 +267,16 @@ const freePort = (p = 0) => new Promise((resolve, reject) => {
 function start(name, cmd, args, env) {
   const p = spawn(cmd, args, { cwd: ROOT, env, stdio: ['ignore', 'inherit', 'inherit'] });
   children.add(p);
-  p.on('error', () => {}); // 起動できないときは exit も来る
-  p.on('exit', (code, signal) => {
+  const down = (msg) => {
     children.delete(p);
-    if (quitting || p.stopping) return;
-    dialog.showErrorBox('ことづて', `${name}が止まりました（${code ?? signal}）。アプリを終了します。`);
+    if (quitting || p.stopping || p.down) return;
+    p.down = true;
+    dialog.showErrorBox('ことづて', `${msg}。アプリを終了します。`);
     app.quit();
-  });
+  };
+  // 起動できないとき（ファイルがないなど）は exit が来ず、error だけが来る。待たずにすぐ知らせる
+  p.on('error', (e) => down(`${name}を起動できませんでした（${e.message}）`));
+  p.on('exit', (code, signal) => down(`${name}が止まりました（${code ?? signal}）`));
   return p;
 }
 
