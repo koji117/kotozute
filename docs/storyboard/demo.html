@@ -266,17 +266,18 @@ out geom;</div>
         <li>操作13個と、その型・検証・操作ログ<small>src/ops/</small></li>
         <li>業務の言葉と OSM タグの辞書<small>src/ops/dict.ts</small></li>
         <li>サーバ（Claude のツールループ、レシピ、外部通信の記録、共有リンク）<small>src/server/</small></li>
-        <li>画面（地図アプリの配置、結果パネル、条件の確認、画像の書き出し）<small>src/web/</small></li>
-        <li>MCP サーバ<small>src/mcp/</small></li>
-        <li>評価セット（50問）と結果<small>eval/</small></li>
+        <li>画面（地図アプリの配置、結果パネル、条件の確認、日本の座標）<small>src/web/</small></li>
+        <li>Mac のアプリと、初めて開いたときにデータを作る部品<small>desktop/ scripts/setup/</small></li>
+        <li>評価セット（50問）と結果、MCP サーバ<small>eval/ src/mcp/</small></li>
         <li>Claude Code の hooks、サブエージェント、Skill<small>.claude/</small></li>
       </ul></div>
       <div class="col"><h4>使ったOSS・公開データ</h4><ul>
         <li>地図の表示：MapLibre GL JS、pmtiles、@protomaps/basemaps、basemaps-assets</li>
-        <li>地物検索：Overpass API／ルート：Valhalla／住所：abr-geocoder（デジタル庁）、PostgreSQL</li>
-        <li>サーバと画面：Hono、zod、Vite、TypeScript、tsx</li>
+        <li>ルート：Valhalla（@valhallajs/valhallajs）／住所：abr-geocoder（デジタル庁。Go 版の abrg）、DuckDB</li>
+        <li>サーバと画面：Hono、zod、Vite、TypeScript、tsx、node:sqlite</li>
+        <li>Mac のアプリ：Electron、electron-builder</li>
         <li>@anthropic-ai/sdk、@modelcontextprotocol/sdk、Playwright</li>
-        <li>文字：M PLUS 1、Noto Sans Mono（OFL）／構築のときだけ：osmium-tool、pmtiles CLI</li>
+        <li>文字：M PLUS 1、Noto Sans Mono（OFL）</li>
         <li>データ：OpenStreetMap（ODbL）、Protomaps の日ごとのビルド、アドレス・ベース・レジストリ</li>
       </ul></div>
     </div>
