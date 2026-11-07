@@ -16,6 +16,7 @@ const PKG = path.dirname(createRequire(import.meta.url).resolve('@valhallajs/val
 // 設定のひな形（valhalla-config.json）は、valhallajs 3.7.0 の valhalla_build_config（Python）を次の引数で回した出力そのまま：
 //   --mjolnir-tile-dir '' --mjolnir-tile-extract '' --mjolnir-admin '' --mjolnir-timezone '' --mjolnir-concurrency 1
 //   --mjolnir-default-speeds-config '' --service-limits-allow-hard-exclusions True --additional-data-elevation ''
+//   --mjolnir-max-cache-size 134217728（タイルのキャッシュ 128MiB。valhallajs はスレッドごとにキャッシュを持つので、既定の 1e9 だとメモリが約1GB増える）
 // valhallajs の版を上げたら作り直す。check-setup が、今の build_config の出力と同じかを確かめる
 const TEMPLATE = readFileSync(new URL('./valhalla-config.json', import.meta.url), 'utf8');
 

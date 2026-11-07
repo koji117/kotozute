@@ -3,7 +3,7 @@
 //   2. 地域の解決（tokyo・osaka・kanto・japan・hokkaido）と、data/region.json の中身（東京は既定と同じ＋作ったもの）
 //   3. 手順の印（入力が同じなら飛ばし、違えばやり直す）、記録で値を伏せる、.env を作るのは無いときだけ、同じファイルの判定
 //   4. ダウンロード：途中で切れたら .part から続ける、md5 か sha256 が違えば捨てる、取り終えた .part は取り直さずに確かめる、進み具合、
-//      revalidate（元の ETag が変われば取り直す）、ネットにつながらないときの文（手元の HTTP サーバ）
+//      revalidate（元の ETag が変われば取り直す）、書きかけの元が変われば最初から取る、ネットにつながらないときの文（手元の HTTP サーバ）
 //   5. 確認の手順：Docker なし、docker.sock の権限なし、Docker が止まっている、Docker の置き場の空き、osmium なし、Go と C のコンパイラ、ポートが使用中、ディスク不足（偽の docker を PATH に置く）
 //   6. Geofabrik の .poly、地図の範囲（境界＋2km）
 //   7. pbf の読み方（scripts/setup/pbf.ts）と検索データ：テストの中で書いた小さな pbf（zlib と無圧縮、DenseNodes と Node、粒度とずれ）を読む
@@ -127,21 +127,22 @@ await t('同じファイル（シンボリックリンク）', () => {
 // ===== 4. ダウンロード =====
 const body = Buffer.from(Array.from({ length: 300_000 }, (_, i) => i % 251));
 const md5 = createHash('md5').update(body).digest('hex');
-let cut = true, ranges: string[] = [], gets = 0, md5Fail = 0, etag = '"v1"';
+let cut = true, ranges: string[] = [], gets = 0, md5Fail = 0, etag = '"v1"', alt: Buffer | undefined; // alt：/h で返す別の中身（次の日のファイル）
 const srv = httpServer((req, res) => {
+  const b = req.url === '/h' && alt ? alt : body;
   if (req.url === '/missing') { res.writeHead(404).end(); return; }
   if (req.url!.endsWith('.md5')) { if (md5Fail-- > 0) res.writeHead(404).end(); else res.end(`${md5}  x.osm.pbf\n`); return; }
   const range = /bytes=(\d+)-/.exec(req.headers.range ?? '');
   const from = range ? Number(range[1]) : 0;
-  const head = { 'content-length': String(body.length - from), etag, 'accept-ranges': 'bytes' };
+  const head = { 'content-length': String(b.length - from), etag, 'accept-ranges': 'bytes' };
   // /nosize：HEAD が大きさを返さない（続きがなければ 416 で分かる）
-  if (req.method === 'HEAD') { res.writeHead(200, req.url === '/nosize' ? { etag } : { ...head, 'content-length': String(body.length) }).end(); return; }
+  if (req.method === 'HEAD') { res.writeHead(200, req.url === '/nosize' ? { etag } : { ...head, 'content-length': String(b.length) }).end(); return; }
   gets++;
-  if (from >= body.length) { res.writeHead(416, { 'content-range': `bytes */${body.length}` }).end(); return; }
+  if (from >= b.length) { res.writeHead(416, { 'content-range': `bytes */${b.length}` }).end(); return; }
   if (range) ranges.push(req.headers.range!);
   res.writeHead(range ? 206 : 200, head);
-  if (cut) { cut = false; res.write(body.subarray(from, from + 100_000), () => res.destroy()); return; } // 途中で切る
-  res.end(body.subarray(from));
+  if (cut) { cut = false; res.write(b.subarray(from, from + 100_000), () => res.destroy()); return; } // 途中で切る
+  res.end(b.subarray(from));
 });
 await new Promise<void>((r) => srv.listen(0, '127.0.0.1', () => r()));
 const base = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
@@ -165,6 +166,7 @@ await t('ダウンロード：取り終えた .part は取り直さずに確か�
   for (const name of ['full', 'nosize']) {
     const dest = join(tmp, 'dl', `${name}.osm.pbf`);
     writeFileSync(`${dest}.part`, body);
+    writeFileSync(`${dest}.part.src`, `${base}/${name} ${etag}`); // 書きかけの元（今の HEAD と同じ）
     const g = gets;
     await download({ url: `${base}/${name}`, dest, md5, log });
     assert.deepEqual(readFileSync(dest), body, name);
@@ -200,6 +202,17 @@ await t('ダウンロード：revalidate なら、取り終えたものは元（
   await download({ url: `${base}/f`, dest, md5, revalidate: true, log });
   etag = '"v1"';
   assert.deepEqual([gets - g, readFileSync(dest).equals(body), readFileSync(`${dest}.etag`, 'utf8').endsWith('"v2"')], [1, true, true], '変わっていれば取り直す');
+});
+await t('ダウンロード：書きかけの元（ETag）が変わっていれば、続きにせず最初から取る（Geofabrik の latest が次の日のファイルになった）', async () => {
+  const dest = join(tmp, 'dl', 'h.osm.pbf');
+  cut = true;
+  await assert.rejects(download({ url: `${base}/h`, dest, md5, log }), /途中で切れました/);
+  alt = Buffer.from(body).reverse(); // 同じ大きさで中身が違う
+  etag = '"v2"';
+  const r = ranges.length;
+  await download({ url: `${base}/h`, dest, md5: createHash('md5').update(alt).digest('hex'), log });
+  etag = '"v1"';
+  assert.deepEqual([ranges.length - r, readFileSync(dest).equals(alt), existsSync(`${dest}.part`), existsSync(`${dest}.part.src`)], [0, true, false, false]);
 });
 await t('ダウンロード：ネットにつながらないときは、取る先の名前を入れた日本語の文（fetch failed だけにしない）', async () => {
   const s = tcpServer();
@@ -378,6 +391,7 @@ if (spawnSync('python3', ['-I', '-c', 'import sys; sys.exit(sys.version_info < (
     const r = spawnSync('python3', ['-I', '-c', PY_FUTURE, join(dirname(createRequire(import.meta.url).resolve('@valhallajs/valhallajs')), 'valhalla_build_config'),
       '--mjolnir-tile-dir', o.tileDir, '--mjolnir-tile-extract', '', '--mjolnir-admin', o.admin, '--mjolnir-timezone', o.timezone,
       '--mjolnir-concurrency', String(o.jobs), '--mjolnir-default-speeds-config', o.speeds,
+      '--mjolnir-max-cache-size', String(128 * 2 ** 20), // ひな形はタイルのキャッシュを 128MiB にした（組み込みは libuv のスレッドごとにキャッシュを持つ。既定の 1GB だと4本で約 1GB ふえた）
       '--service-limits-allow-hard-exclusions', 'True', '--additional-data-elevation', ''], { encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr);
     assert.deepEqual(buildConfig(o), JSON.parse(r.stdout));

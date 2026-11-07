@@ -5,7 +5,7 @@
     "file_name": "path_to_some_file.log"
   },
   "mjolnir": {
-    "max_cache_size": 1000000000,
+    "max_cache_size": 134217728,
     "id_table_size": 1300000000,
     "use_lru_mem_cache": false,
     "lru_mem_cache_hard_control": false,

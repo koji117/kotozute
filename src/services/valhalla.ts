@@ -40,6 +40,8 @@ function embedded() {
     const file = process.env.VALHALLA_CONFIG ?? '';
     const cfg = JSON.parse(await readFile(file, 'utf8'));
     for (const k of ['tile_extract', 'tile_dir'] as const) if (cfg.mjolnir[k]) cfg.mjolnir[k] = resolve(dirname(file), cfg.mjolnir[k]);
+    // タイルのキャッシュはスレッドごとなので 128MiB までにする（前に作ったデータの設定は 1e9。結果は変わらない。11/7 に14本のルートで確かめた）
+    cfg.mjolnir.max_cache_size = Math.min(cfg.mjolnir.max_cache_size ?? Infinity, 134217728);
     // タイルがないと Actor は作れても、どのルートも「道がつながっていません」になる。ここで止める
     if (cfg.mjolnir.tile_extract) await stat(cfg.mjolnir.tile_extract);
     else if (!(await readdir(cfg.mjolnir.tile_dir, { recursive: true })).some((f) => f.endsWith('.gph'))) throw new Error(`タイルのフォルダにタイル（.gph）がありません：${cfg.mjolnir.tile_dir}`);

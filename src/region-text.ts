@@ -34,8 +34,8 @@ export const REGION_PILL = label;
 export const WIDENED_NOTE = `画面の中になかったので、${name}全体から探しました`;
 /** 試走コースの経由地の候補の説明 */
 export const courseCandidates = (km: number) => `出発地から${km}km以内の、${name}の中の名前のある道路トンネル`;
-/** サーバが地域の外の座標（現在地、クリック）を断るとき */
-export const OUTSIDE_POINT = `対応する地域（${name}）の外です`;
+/** サーバが地域の外の座標（現在地、クリック、貼った座標）を断るとき。島しょ部も東京都なので、受け付ける範囲の名前（label）で言う */
+export const OUTSIDE_POINT = `対応する地域（${label}）の外です`;
 
 // 地物の検索の出どころ（2026-11-06 にユーザーが決定：手元の検索データのときは「手元の検索データ（OSM）」と言う）。
 // osm_backend がない今のデモ（Overpass）では、前と同じ文のまま

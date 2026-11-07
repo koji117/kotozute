@@ -95,7 +95,8 @@ const DMS_ONE = String.raw`(北緯|南緯|東経|西経|[NSEW])?\s*(\d{1,3}(?:\.
  * 読めるもの：緯度経度（10進、どちらの順でもよい）、度分秒、平面直角（「9系 X=… Y=…」。系を書かなければ zone）、地域メッシュ（4・6・8桁）
  */
 export function parseCoord(text: string, zone?: number): Parsed | null {
-  const s = text.normalize('NFKC').replace(/[−‐‑–—]/g, '-').trim();
+  // ー（長音。日本語の入力でマイナスのつもりで打たれる）と ― もマイナス・ハイフンとして読む
+  const s = text.normalize('NFKC').replace(/[−‐‑–—―ー]/g, '-').trim();
   // 地域メッシュ（数字だけ。日本の外の番号は座標とみなさない）
   const mesh = /^(\d{4})(?:-?(\d{2}))?(?:-?(\d{2}))?$/.exec(s);
   if (mesh) {

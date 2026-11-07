@@ -1,5 +1,6 @@
 // 途中で止まっても続きから取れるダウンロード（Range と If-Range）。md5 か sha256 を確かめてから本当の名前にする。
 // 書きかけは <dest>.part。確かめ終わったものだけが dest になるので、もう一度回しても壊れたファイルを使わない。
+// <dest>.part.src に書きかけの元（転送をたどった先と ETag）を覚え、今の元と違えば続きにせず最初から取る（Geofabrik の latest は毎日、別の日付のファイルを指す）。
 import { createHash } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, statfsSync, writeFileSync } from 'node:fs';
 import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net';
@@ -33,7 +34,7 @@ const hashOf = async (file: string, alg: 'md5' | 'sha256') => {
 /**
  * url を dest に取る。dest がもうあれば何もしない。md5（16進）か md5Url（Geofabrik の .md5 のように1語目が値）か sha256 があれば確かめる。
  * revalidate：dest があっても、元（転送をたどった先の URL と ETag）が取ったときと同じときだけ使い、違えば取り直す（<dest>.etag に覚える）。
- *   アプリの「最新にする」で、前の回に取って残った古い latest を使わないため。途中の .part の続きは今までどおり（If-Range）。
+ *   アプリの「最新にする」で、前の回に取って残った古い latest を使わないため。途中の .part も、元が同じときだけ続きから取る（.part.src）。
  * progress は取った量と全体（分からなければ 0）を、塊ごとに呼ぶ（間引くのは呼ぶ側）。
  * 戻り値の url は転送をたどった先（日付つきのファイル名が分かる）
  */
@@ -47,20 +48,29 @@ export async function download(o: {
   const tag = `${dest}.etag`;
   const h = await head(o.url);
   if (!h.ok) throw Object.assign(new Error(`ダウンロードできません（HTTP ${h.status}）：${o.url}`), { status: h.status });
-  const id = `${h.url} ${h.etag}`;
+  // 元の印。URL の ? 以降は見ない（GitHub の Releases は、毎回ちがう署名つきの URL に転送する）
+  const id = `${h.url.split('?')[0]} ${h.etag}`;
   if (existsSync(dest)) {
     if (h.etag && existsSync(tag) && readFileSync(tag, 'utf8') === id) return { url: h.url, bytes: statSync(dest).size };
     rmSync(dest);
     log(`前に取った ${basename(dest)} は今の ${h.url} と違うので、取り直します`);
   }
+  const src = `${part}.src`;
   let have = existsSync(part) ? statSync(part).size : 0;
-  if (Number.isFinite(h.bytes) && have > h.bytes) { rmSync(part); have = 0; }
+  // 書きかけの元が分からないか今と違う（latest が新しい日付のファイルになった）、または今より大きいときは、捨てて最初から取る
+  if (have > 0 && ((existsSync(src) ? readFileSync(src, 'utf8') : '') !== id || (Number.isFinite(h.bytes) && have > h.bytes))) {
+    rmSync(part);
+    rmSync(src, { force: true });
+    have = 0;
+    log(`書きかけの ${basename(part)} は今の ${h.url.split('?')[0]} と違うので、最初から取ります`);
+  }
   const left = (Number.isFinite(h.bytes) ? h.bytes : 0) - have;
   const s = statfsSync(dirname(dest));
   if (s.bavail * s.bsize < left * 1.1) throw new Error(`空きディスクが足りません（${dirname(dest)} に、あと ${MiB(left * 1.1)} 要ります）。ファイルを消して空きを作ってから、もう一度回してください`);
 
   // .part を取り終えたあと、確かめる前に止まった回（md5 のファイルが取れない、Ctrl-C など）は、取らずに確かめへ進む
   let got = have;
+  // If-Range の ETag は .part.src のものと同じ（上で確かめた）
   const res = have > 0 && have === h.bytes ? null : await get(h.url, { headers: have ? { range: `bytes=${have}-`, ...(h.etag ? { 'if-range': h.etag } : {}) } : {} });
   if (res?.status === 416 && have > 0) await res.body?.cancel(); // 続きがない＝取り終えている（大きさが分からないとき）
   else if (res) {
@@ -69,6 +79,7 @@ export async function download(o: {
     const resume = have > 0 && res.status === 206;
     got = resume ? have : 0;
     log(`取得：${h.url}（${Number.isFinite(h.bytes) ? MiB(h.bytes) : '大きさ不明'}${resume ? `、${MiB(have)} から続き` : ''}）`);
+    if (!resume) writeFileSync(src, id);
     const out = createWriteStream(part, { flags: resume ? 'a' : 'w' });
     try {
       for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
@@ -92,13 +103,16 @@ export async function download(o: {
   }
   if (want && (await hashOf(part, 'md5')) !== want) {
     rmSync(part); // 壊れたものを続きに使わない
+    rmSync(src, { force: true });
     throw new Error(`ダウンロードしたファイルの md5 が合いません。消したので、もう一度回すと最初から取ります：${h.url}`);
   }
   if (o.sha256 && (await hashOf(part, 'sha256')) !== o.sha256) {
     rmSync(part);
+    rmSync(src, { force: true });
     throw new Error(`ダウンロードしたファイルの sha256 が固定した値と違います。消したので、もう一度回すと最初から取ります：${h.url}`);
   }
   renameSync(part, dest);
+  rmSync(src, { force: true });
   if (o.revalidate) writeFileSync(tag, id);
   log(`取得しました：${dest}（${MiB(got)}）`);
   return { url: h.url, bytes: got };

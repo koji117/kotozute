@@ -1,8 +1,8 @@
 // Mac のアプリが地図のデータ（東京）を取って作る（設計書 §17）。アプリが Electron の Node で動かす（ELECTRON_RUN_AS_NODE=1、--import tsx。サーバと同じ）。
 //   引数：--out <新しいデータのフォルダ> --cache <ダウンロードの置き場> [--jobs N]
-//   手順：空きの確認 → OSM（関東の pbf。続きから、md5）→ 地図（最新のビルドから切り出す）→ 住所（GitHub Releases、sha256）
+//   手順：空きの確認 → 住所（GitHub Releases、sha256）→ OSM（関東の pbf。続きから、md5）→ 地図（最新のビルドから切り出す）
 //         → 検索データ → ルートのデータ → 地域の設定（<out>/region.json）。
-//   ネットを使う手順を先に回す（住所が取れないときに、数分かけて作ったあとで止まらないため）。
+//   ネットを使う手順を先に回す。住所（約 22MB）を最初にするのは、取れないとき（公開の前は 404）に約 700MB を取ったあとで止まらないため。
 //   進み具合は stdout に1行1つの JSON で出す：{type:'step', id, steps}、{type:'progress', got, total}、{type:'log', msg}、{type:'error', msg}、{type:'done', region}。
 //   ダウンロードは --cache に置き、止めても次は続きから取る。作り終えたら pbf は消す。
 //   取り終えた pbf が残っていても（前の回が途中で止まった）、Geofabrik の今のファイルと同じとき（ETag）だけ使う。「最新にする」で古いものを使わないため。
@@ -37,9 +37,9 @@ export const ABR_TOKYO = {
 const NEED = { build: 4 * GiB, after: 1.7 * GiB };
 export const STEPS = [
   { id: 'disk', title: '空きディスクの確認' },
+  { id: 'abr', title: '住所のデータを取る' },
   { id: 'osm', title: 'OSM のデータ（関東）を取る' },
   { id: 'tiles', title: '地図を取って東京の範囲を切り出す' },
-  { id: 'abr', title: '住所のデータを取る' },
   { id: 'index', title: '検索データを作る' },
   { id: 'valhalla', title: 'ルートのデータを作る' },
   { id: 'region', title: '仕上げ' },
@@ -75,6 +75,21 @@ async function build(out: string, cache: string, jobs: number): Promise<string> 
   }
   log(`空きディスク ${fmtBytes(free)}（要るのは約 ${fmtBytes(NEED.build)}）`);
 
+  step('abr');
+  const abrSrc = process.env.KOTOZUTE_ABR_URL ?? ABR_TOKYO.url;
+  const abr = join(out, 'abrg.duckdb');
+  if (isUrl(abrSrc)) {
+    const part = join(cache, 'abrg-tokyo.duckdb');
+    await download({ url: abrSrc, dest: part, sha256: ABR_TOKYO.sha256, log, progress }).catch((e: Error) => {
+      throw new Error(`住所のデータをダウンロードできませんでした。住所のデータがまだ公開されていないか、ネットにつながっていません（${e.message}）`);
+    });
+    renameSync(part, abr);
+  } else {
+    if (!existsSync(abrSrc)) throw new Error(`住所のデータをダウンロードできませんでした。KOTOZUTE_ABR_URL のファイルがありません：${abrSrc}`);
+    if ((await sha256Of(abrSrc)) !== ABR_TOKYO.sha256) throw new Error(`住所のデータの sha256 が固定した値と違います：${abrSrc}`);
+    copyFileSync(abrSrc, abr, constants.COPYFILE_FICLONE);
+  }
+
   step('osm');
   const pbfSrc = process.env.KOTOZUTE_PBF_URL ?? CATALOG.subregions.kanto.url;
   let pbf: string, downloaded = false;
@@ -102,21 +117,6 @@ async function build(out: string, cache: string, jobs: number): Promise<string> 
   };
   await extract({ bin, src, out: tiles, bbox: DEFAULT.bbox, maxzoom: 15, log: tilesLog });
   const tilesAsOf = (await tilesInfo(tiles)).asOf;
-
-  step('abr');
-  const abrSrc = process.env.KOTOZUTE_ABR_URL ?? ABR_TOKYO.url;
-  const abr = join(out, 'abrg.duckdb');
-  if (isUrl(abrSrc)) {
-    const part = join(cache, 'abrg-tokyo.duckdb');
-    await download({ url: abrSrc, dest: part, sha256: ABR_TOKYO.sha256, log, progress }).catch((e: Error) => {
-      throw new Error(`住所のデータをダウンロードできませんでした。住所のデータがまだ公開されていないか、ネットにつながっていません（${e.message}）`);
-    });
-    renameSync(part, abr);
-  } else {
-    if (!existsSync(abrSrc)) throw new Error(`住所のデータをダウンロードできませんでした。KOTOZUTE_ABR_URL のファイルがありません：${abrSrc}`);
-    if ((await sha256Of(abrSrc)) !== ABR_TOKYO.sha256) throw new Error(`住所のデータの sha256 が固定した値と違います：${abrSrc}`);
-    copyFileSync(abrSrc, abr, constants.COPYFILE_FICLONE);
-  }
 
   step('index');
   const db = join(out, 'osm.db');

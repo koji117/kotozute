@@ -29,7 +29,6 @@ installNetlog(); // 外部通信の記録（サーバが出す fetch を数え�
 // ===== 画面とのやりとり（型は src/ops/types.ts） =====
 const SessionId = z.string().regex(/^[\w-]{8,64}$/);
 const LngLat = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]);
-const InTokyo = LngLat.refine(inTokyo, OUTSIDE_POINT);
 const View = z.object({
   bbox: z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90), z.number().min(-180).max(180), z.number().min(-90).max(90)])
     .refine(([w, s, e, n]) => w < e && s < n, '範囲の形が正しくありません'),
@@ -37,9 +36,9 @@ const View = z.object({
 });
 const ContextReq = z.object({
   sessionId: SessionId,
-  here: z.object({ coord: InTokyo, accuracy_m: z.number().min(0).max(100_000) }).nullable().optional(),
+  here: z.object({ coord: LngLat, accuracy_m: z.number().min(0).max(100_000) }).nullable().optional(),
   view: View.optional(),
-  click: InTokyo.optional(),
+  click: LngLat.optional(),
 });
 const OpReq = z.object({ sessionId: SessionId, input: z.unknown(), view: View.optional() });
 const ChatReq = z.object({ sessionId: SessionId, text: z.string().trim().min(1, '依頼が空です').max(300, '依頼は300文字までにしてください'), view: View.optional() });
@@ -70,6 +69,8 @@ app.use('/api/*', bodyLimit({ maxSize: 16 * 1024, onError: (c) => c.json({ error
 // 現在地・画面の範囲・クリックを伝える。座標はここで受けてセッションに置き、LLM には参照名だけを渡す
 app.post('/api/context', async (c) => {
   const req = await body(c, ContextReq);
+  // 地域の外の点は、セッションを変える前に断る。文は画面にそのまま出す（「送られたデータが正しくありません」で包まない）
+  if ([req.here?.coord, req.click].some((p) => p && !inTokyo(p))) throw new OpError('out_of_area', OUTSIDE_POINT);
   const s = withView(req.sessionId, req.view);
   if (req.here !== undefined) delete s.hereLabel; // 見ている人の現在地（または無し）が、レシピを保存した人の現在地に代わる
   if (req.here === null) delete s.here;
