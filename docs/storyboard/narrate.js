@@ -2,7 +2,9 @@
 // 声は2つから選ぶ（TTS）：
 //   TTS=say（既定）       … macOS の say（Kyoko）。字幕の時間に収まるまで速さを上げる
 //   TTS=elevenlabs        … ElevenLabs の API（11/7 にユーザーが決定）。キーは .env の ELEVENLABS_API_KEY（画面にもログにも出さない）、
-//                           声は ELEVENLABS_VOICE_ID、モデルは ELEVENLABS_MODEL（既定 eleven_multilingual_v2）。
+//                           声は ELEVENLABS_VOICE_ID、モデルは ELEVENLABS_MODEL（既定 eleven_v4）。
+//                           v4 と v3 は、行の頭に英語の指示（[curious] など。DIRECTION）を付けて抑揚を出す。字幕の文字は変えない。
+//                           v4 には style と speed の設定がないので、stability（ELEVENLABS_STABILITY、既定 0.35）と similarity_boost だけ送る。
 //                           前後の行を previous_text / next_text で渡して、行と行の話し方をつなげる。作った音は文と設定の hash でキャッシュする
 //                           （~/kotozute-video/voice-el/。同じ文ならもう一度お金がかからない）。字幕の時間を超える行だけ、最大1.2倍まで速める。
 // 使い方（docs/storyboard で）：node render.js full && node narrate.js  → ~/kotozute-video/preview.mp4（MP4=… で出力先を変える）
@@ -23,17 +25,62 @@ const GAP = TTS === 'elevenlabs' ? 0.25 : 0.4;
 const READ = [
   ['Claude Code', 'クロードコード'], ['Claude', 'クロード'], ['Googleマップ', 'グーグルマップ'], ['Google', 'グーグル'],
   ['Valhalla', 'ヴァルハラ'], ['OSS', 'オーエスエス'], ['OSM', 'オーエスエム'], ['MCP', 'エムシーピー'], ['AI', 'エーアイ'],
-  ['4-2-8', 'よんのにのはち'], ['四丁目2番8号', 'よんちょうめにばんはちごう'], ['hook', 'フック'], ['.dmg', 'ディーエムジー'], ['Mac', 'マック'], ['km', 'キロ'], ['札', 'ふだ'], ['0件', 'ゼロ件'],
+  ['4-2-8', 'よんのにのはち'], ['四丁目2番8号', 'よんちょうめにばんはちごう'], ['hook', 'フック'], ['.dmg', 'ディーエムジー'], ['Mac', 'マック'], ['km', 'キロ'], ['札', 'ふだ'], ['0件', 'ゼロ件'], ['0分', 'ゼロ分'], ['SLA', 'エスエルエー'],
 ];
+// 行ごとの話し方（v4・v3 だけ。2026-11-07 にユーザーが「聞いている人が惹きつけられる抑揚のあるプレゼンに」と頼んだ）。
+// [字幕の文の頭, 指示, 読みだけの直し（任意）]。指示は英語で書く（ElevenLabs の audio tags）。字幕の文字は変えない
+const DIRECTION = [
+  [/^あなたの組織では/, '[curious, direct, engaging]'],
+  [/^無料のGoogleマップには/, '[serious, matter-of-fact]'],
+  [/^明日、商用利用が禁止されても/, '[pointed]', (t) => t.replace('知っていましたか？', '[curious] 知っていましたか？')],
+  [/^これまでも/, '[serious, measured]'],
+  [/^OSMは自分で/, '[thoughtful]'],
+  [/^書ける人は/, '[curious, a little playful]'],
+  [/^地図の業界に長くいる/, '[warm, sincere]'],
+  [/^言葉から、数秒で地図に/, '[confident, upbeat]'],
+  [/^では、冒頭の予定を/, '[upbeat]'],
+  [/^頼むのは、このひとこと/, '[confident]'],
+  [/^ひとことを、Claudeが/, '[clear, explaining]'],
+  [/^ルートは自分のマシンで/, '[clear, explaining]'],
+  [/^寄り道で増えたのは/, '[excited]', (t) => t.replace('ゼロ分。', 'ゼロ分！')],
+  [/^共有リンクを別のブラウザ/, '[friendly]'],
+  [/^札を押すと/, '[snappy]'],
+  [/^日本の住所は/, '[knowing, a little amused]'],
+  [/^測量の座標も/, '[snappy]'],
+  [/^品川駅を出て/, '[upbeat]'],
+  [/^Claudeが条件を読み/, '[clear, explaining]'],
+  [/^1回目は/, '[matter-of-fact]'],
+  [/^\d+回目は/, '[satisfied]'],
+  [/^資料用の画像には/, '[confident]'],
+  [/^期間中に作ったもの/, '[clear]'],
+  [/^開発はClaude Code/, '[proud]'],
+  [/^Googleのフォント配信/, '[a little amused]'],
+  [/^11月5日は/, '[proud, clear]'],
+  [/^評価セットは/, '[building excitement]'],
+  [/^MCPでも/, '[snappy]'],
+  [/^詳細を開くと/, '[clear, explaining]'],
+  [/^保存したレシピは/, '[confident]'],
+  [/^Macは/, '[friendly]'],
+  [/^明日、Googleマップの規約が変わっても/, '[confident, warm]'],
+  [/^あなたの地図は、止まらない/, '[powerful, slowly]'],
+];
+const TAGS = /^eleven_v[34]/.test(process.env.ELEVENLABS_MODEL ?? 'eleven_v4');
+const directed = (text) => {
+  const d = TAGS && DIRECTION.find(([re]) => re.test(text));
+  const said = spokenOf(d?.[2] ? d[2](text) : text);
+  return d ? `${d[1]} ${said}` : said;
+};
 const spokenOf = (t) => READ.reduce((s, [k, v]) => s.split(k).join(v), t);
 const dur = (f) => +execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString();
 
 // ===== ElevenLabs =====
 const API = 'https://api.elevenlabs.io';
 const EL = {
-  model: process.env.ELEVENLABS_MODEL ?? 'eleven_multilingual_v2',
+  model: process.env.ELEVENLABS_MODEL ?? 'eleven_v4',
   voice: process.env.ELEVENLABS_VOICE_ID,
-  settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: Number(process.env.ELEVENLABS_SPEED ?? 1) },
+  settings: TAGS ? { stability: Number(process.env.ELEVENLABS_STABILITY ?? 0.35), similarity_boost: 0.75 }
+    : { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: Number(process.env.ELEVENLABS_SPEED ?? 1) },
+  seed: 7, // 同じ文と設定なら、なるべく同じ読みにする（保証はされない）
 };
 function elKey() {
   try { process.loadEnvFile(path.resolve(__dirname, '../../.env')); } catch {} // .env がなければ環境変数だけ
@@ -49,7 +96,7 @@ async function elGet(p) {
 /** 1行を音にする（キャッシュがあれば使う）。戻り値は mp3 のパス */
 async function eleven(text, prev, next) {
   if (!EL.voice) throw new Error('ELEVENLABS_VOICE_ID がありません（TTS=elevenlabs node narrate.js voices で声を探す）');
-  const body = { text, model_id: EL.model, voice_settings: EL.settings, previous_text: prev || undefined, next_text: next || undefined };
+  const body = { text, model_id: EL.model, voice_settings: EL.settings, seed: EL.seed, previous_text: prev || undefined, next_text: next || undefined };
   const hash = crypto.createHash('sha256').update(JSON.stringify([EL.voice, body])).digest('hex').slice(0, 20);
   const f = path.join(OUT, 'voice-el', `${hash}.mp3`);
   if (fs.existsSync(f)) return f;
@@ -96,7 +143,7 @@ async function voices() {
     const slot = l.b - l.a - GAP; // 字幕の切り替わりの前後に少し間を空ける
     let f, d, note;
     if (TTS === 'elevenlabs') {
-      const raw = await eleven(spoken, lines[i - 1] && spokenOf(lines[i - 1].text), lines[i + 1] && spokenOf(lines[i + 1].text));
+      const raw = await eleven(directed(l.text), lines[i - 1] && spokenOf(lines[i - 1].text), lines[i + 1] && spokenOf(lines[i + 1].text));
       ({ f, d } = fit(raw, slot, path.join(dir, `l${String(i).padStart(2, '0')}.m4a`)));
       note = `tempo=${(dur(raw) / d).toFixed(2)}`;
     } else {

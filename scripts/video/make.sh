@@ -3,12 +3,11 @@
 # 実行（リポジトリのどこからでも）：sh scripts/video/make.sh            全部録り直す
 #                                    sh scripts/video/make.sh --no-record   今の events.json のまま作る
 #                                    sh scripts/video/make.sh ex2           指定した組だけ録り直す（record.mjs の組の名前）
-#                                    INTRO=a sh scripts/video/make.sh ...   冒頭を案 A で作る（既定は B。docs/storyboard/demo.html の「冒頭の案」）
 # 要るもの：kotozute のサーバ（http://127.0.0.1:8787。Claude のキーはサーバの環境にだけある）、Playwright、ffmpeg、.env の ELEVENLABS_API_KEY（TTS=say なら say）。
 # 出力は Git の外（~/kotozute-video）。3分（180秒）を超えたら失敗で終わる。
 set -eu
-# 声は ElevenLabs（2026-11-07 にユーザーが決定。声は Atsuji - Calm、速さ 1.15）。キーは .env の ELEVENLABS_API_KEY。TTS=say で macOS の Kyoko
-export TTS="${TTS:-elevenlabs}" ELEVENLABS_VOICE_ID="${ELEVENLABS_VOICE_ID:-Ncfr0DOB9MiCWyPewqcL}" ELEVENLABS_SPEED="${ELEVENLABS_SPEED:-1.15}"
+# 声は ElevenLabs（2026-11-07 にユーザーが決定。モデル eleven_v4、声は Koji - Friendly Japanese Narrator、行ごとに抑揚の指示）。キーは .env の ELEVENLABS_API_KEY。TTS=say で macOS の Kyoko
+export TTS="${TTS:-elevenlabs}" ELEVENLABS_VOICE_ID="${ELEVENLABS_VOICE_ID:-YtLXDp1ffXOa1EhXx19q}" ELEVENLABS_MODEL="${ELEVENLABS_MODEL:-eleven_v4}"
 cd "$(dirname "$0")/../.."
 OUT="$HOME/kotozute-video"
 MP4="$OUT/kotozute-demo-$(date +%Y%m%d-%H%M).mp4"
