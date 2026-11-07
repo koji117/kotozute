@@ -15,7 +15,7 @@
   - `window.render(t)` は録画をその時刻のコマまで送り（`seeked` を待つ）、終わってから返す。コマはずれない（11/6 に、コマ番号を色にした録画で 90 コマを確かめた。WebM と MP4 のどちらも合う）。
   - 字幕や札の `{名前}` は、`events.json` の `results`（画面が受け取った `/api/chat`・`/api/op` などの応答）からテンプレートで埋める（`V`）。アプリから来る数字や名前は書かない。値が取れなければ「？」にし、render.js が「足りないもの」として出す。「分からない（データなし）」は動画に出さない決まりなので、出たら「？」になる。
   - ③ の見せ方：解釈の行（`Claudeが読んだ`）は、画面の「解釈」と同じ作り（`src/web/panel.ts` の `pairs`）で結果から作る。`地図のデータが答えた` は結果の値（件数、分、◯/×）だけに付ける。
-  - Claude Code の場面は、リポジトリにある日付つきの記録だけ（`logs/hook-blocks.jsonl`、`logs/tag-audit.json`、評価のコミット f799188 → f2bba9f → 3a215f9 → 47bf364、MCP の 8c94575）。hook と tag-auditor の記録は、render.js がコミット済みの版（`git show HEAD:…`）を読んで入れる。「Google のフォント配信を◯回止めた」の数も、この版から数える（コミットしていない行は数えない）。作業フォルダの名前（`.claude/worktrees/<名前>/`）は「(worktree)/」と出す。
+  - Claude Code の場面は、リポジトリにある日付つきの記録だけ（`logs/hook-blocks.jsonl`、`logs/tag-audit.json`、評価のコミット cafb4a3 → 2c9102a → 2be320c → ceafe28、MCP の f0bac95）。hook と tag-auditor の記録は、render.js がコミット済みの版（`git show HEAD:…`）を読んで入れる。「Google のフォント配信を◯回止めた」の数も、この版から数える（コミットしていない行は数えない）。作業フォルダの名前（`.claude/worktrees/<名前>/`）は「(worktree)/」と出す。
   - 期間中に作ったもの ／ 使ったOSS・公開データの札は、README の2つの表から。
   - フォントは自前（`@fontsource`、`node_modules`）。ネット接続は要らない。
 - `render.js`：`demo.html` を 1920×1080（1280×720 を 1.5 倍）、30コマ/秒で撮る。出力は `~/kotozute-video/`（Git の外）。
@@ -94,7 +94,7 @@ node dummy-events.js && EVENTS=~/kotozute-video/dummy/events.json node render.js
 - `scenes.js`：`data/` から地図の場面を描く（`maps/*.png` と、札の位置 `maps/pos.js`）
 - `mapshot.js`：自前の地図（tokyo.pmtiles）を MapLibre で描き、PNG にする。`scenes.js` から呼ばれる
 - `design/`：画面デザインの検討（案A〜F と操作パネルの一覧）。色・角丸・文字は案E（`design/option-e.html` の `:root`）。配置はその後、地図アプリでおなじみの形に変えた（`storyboard.html`）
-- `render.js`・`narrate.js`：今は `demo.html` 用。`storyboard.html` 用の版は git の履歴（864aa8c）にある
+- `render.js`・`narrate.js`：今は `demo.html` 用。`storyboard.html` 用の版は git の履歴（3751219）にある
 - `package.json`：ルートが ES module なので、ここのスクリプトを CommonJS として動かすために置いている
 
 ### 書き出し（storyboard.html 用の、前の render.js）

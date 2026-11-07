@@ -3,7 +3,7 @@
  "label": "3回目：SYSTEM プロンプトに2行（頼まれていない地物を足さない、0件なら言い換えて探し直さない）",
  "model": "claude-sonnet-5-5",
  "filter": {},
- "commit": "3a215f9",
+ "commit": "2be320c",
  "summary": {
   "total": 50,
   "passed": 50,
