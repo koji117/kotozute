@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Hono, type Context } from 'hono';
@@ -18,7 +19,7 @@ import { inTokyo } from '../services/region';
 import { elementTags } from '../services/osm';
 import { pickDetails, type PoiResponse } from '../poi';
 import { OSM_DATA_AS_OF } from '../attribution';
-import { REGION } from '../region';
+import { REGION, webRegion } from '../region';
 import { OUTSIDE_POINT } from '../region-text';
 
 const ASSETS = 'data/basemaps-assets-src/basemaps-assets-main';
@@ -144,7 +145,16 @@ app.onError((e, c) => {
 });
 
 // 地図ファイル（Range 対応）とフォント・アイコンはすべて自前で配信する。公開CDNは使わない。
+// path は根からの相対でも絶対パスでもよい（serveStatic は root '' と join するので、絶対パスはそのまま。アプリのデータは絶対パス）
 app.get(`/tiles/${basename(REGION.tiles)}`, serveStatic({ path: REGION.tiles })); // 画面は同じ名前で読む（src/web/main.ts）
+// 画面（index.html）には今の地域の値（データ時点など）を入れて返す。dist は build のときの値を持ち、それを上書きする（vite.config.ts）
+const regionTag = `<script type="application/json" id="kz-region">${JSON.stringify(webRegion(REGION)).replace(/</g, '\\u003c')}</script>`;
+const page = async (c: Context, next: () => Promise<void>) => {
+  if (!existsSync('dist/index.html')) return next();
+  return c.html(readFileSync('dist/index.html', 'utf8').replace('</head>', () => `${regionTag}</head>`));
+};
+app.get('/', page);
+app.get('/index.html', page);
 app.use('/assets/*', serveStatic({ root: ASSETS, rewriteRequestPath: p => decodeURIComponent(p.replace(/^\/assets/, '')) }));
 app.use('/*', serveStatic({ root: 'dist' })); // vite build の出力
 

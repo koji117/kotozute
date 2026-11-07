@@ -5,7 +5,8 @@
 //   events.json … { base, recorded_at, viewport, clips: [{ id, file, duration_s, marks: [{ name, t }] }], results: { <場面>: 応答 } }
 //     場面に足す項目：url（s3b-share で開いた共有リンク）、view（そのときの地図の範囲 [西, 南, 東, 北]）、downloads（画面が保存したファイル）
 //   clips/<場面>.mp4（1920x1080、30fps）、clips/<場面>.png（画面が保存した画像。s4b-png は資料用の画像そのもの）
-//   s6-app（Mac のアプリ）は ../kotozute-setup の dist（npx vite build）が要る。窓の中身だけを録る（Mac の窓の枠は写らない）
+//   s6-app（Mac のアプリ）は ../kotozute-setup の dist（npx vite build）と開発用のデータ（data/region.json）が要る。窓の中身だけを録る（Mac の窓の枠は写らない）。
+//     アプリの地図のデータは、そのデータを指す形で userData に置く（appData）。データの画面は出ず、キーの画面のあとに地図が出る
 // 録り方：CDP の screencast の JPEG を時刻つきで保存し、場面ごとに ffmpeg で mp4 にする（Playwright の recordVideo は VP8 1Mbps で文字がぼやける）。
 //   画面は 1280x720・倍率 1.5。Playwright の viewport の上書きでは screencast のコマが 1280x720 のままなので、窓の大きさと --force-device-scale-factor で合わせる。
 //   ヘッドレスの Chrome for Testing（GPU で地図が動く。SwiftShader の倍のコマ数）を使う。
@@ -19,6 +20,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { devAbrg } from '../../src/launch.mjs';
 
 const BASE = process.env.BASE ?? 'http://127.0.0.1:8787';
 const OUT = path.join(os.homedir(), 'kotozute-video');
@@ -487,6 +489,26 @@ async function ex2Scenes(browser) {
   await ctx.close();
 }
 
+/**
+ * アプリの地図のデータ（desktop/main.mjs の <userData>/data/<日時>/region.json と current.json）を、kotozute-setup の開発用のデータを指す形で置く。
+ * データ時点は本物の値のまま（KOTOZUTE_BUILD_FAKE は OSM のデータ時点を今の日時にするので、動画の出典に作った日付が出る。使わない）。
+ * 住所の DuckDB だけは写す（scripts/setup/app-data-build.ts の試しと同じ。abrg が開くため。APFS の複製でディスクを使わない）
+ */
+function appData(userData) {
+  const r = JSON.parse(fs.readFileSync(path.join(SETUP, 'data/region.json'), 'utf8'));
+  const abs = (p) => (p ? path.resolve(SETUP, p) : p);
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15).replace('T', '-'); // desktop/main.mjs と同じ名前の形
+  const dir = path.join(userData, 'data', stamp);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.copyFileSync(abs(r.abr_cache), path.join(dir, 'abrg.duckdb'), fs.constants.COPYFILE_FICLONE);
+  const { abrg_bin: _, ...region } = {
+    ...r, tiles: abs(r.tiles), osm_index: abs(r.osm_index), boundary: abs(r.boundary), valhalla_config: abs(r.valhalla_config),
+    abr_cache: path.join(dir, 'abrg.duckdb'), osm_backend: 'sqlite',
+  };
+  fs.writeFileSync(path.join(dir, 'region.json'), JSON.stringify(region, null, 2) + '\n');
+  fs.writeFileSync(path.join(userData, 'data/current.json'), JSON.stringify({ dir: stamp, built_at: new Date().toISOString() }) + '\n');
+}
+
 /** Mac のアプリ：kotozute-setup の Electron を起動し、「キーなしで使う」→ 地図 → 札。本物の窓の中身（CDP の screencast）を録る */
 async function appScene() {
   // 画面（vite build の dist）がないと、アプリはエラーの窓を出して止まる（その窓は SIGTERM で閉じない）
@@ -494,8 +516,11 @@ async function appScene() {
   const port = 9333;
   const userData = path.join(OUT, 'electron-userdata'); // 本物のアプリの設定（~/Library/Application Support/kotozute）に触らない
   fs.rmSync(userData, { recursive: true, force: true });
+  appData(userData);
+  const abrgBin = devAbrg(SETUP);
+  if (!abrgBin) throw new Error(`${SETUP} に住所の道具（abrg）がありません`);
   const child = spawn('npx', ['electron', `--remote-debugging-port=${port}`, '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', 'desktop/main.mjs'],
-    { cwd: SETUP, env: { ...process.env, KOTOZUTE_USER_DATA: userData }, stdio: 'ignore', detached: true });
+    { cwd: SETUP, env: { ...process.env, KOTOZUTE_USER_DATA: userData, ABRG_BIN: abrgBin }, stdio: 'ignore', detached: true });
   const kill = (sig = 'SIGTERM') => { try { process.kill(-child.pid, sig); } catch {} }; // 子のサーバも同じプロセスグループ
   process.on('exit', () => kill('SIGKILL'));
   try {

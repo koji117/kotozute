@@ -2,7 +2,8 @@
 //   1. 引数の解釈（知らない地域・知らないオプションは日本語のエラーと地域の一覧）
 //   2. 地域の解決（tokyo・osaka・kanto・japan・hokkaido）と、data/region.json の中身（東京は既定と同じ＋作ったもの）
 //   3. 手順の印（入力が同じなら飛ばし、違えばやり直す）、記録で値を伏せる、.env を作るのは無いときだけ、同じファイルの判定
-//   4. ダウンロード：途中で切れたら .part から続ける、md5 が違えば捨てる、取り終えた .part は取り直さずに確かめる（手元の HTTP サーバ）
+//   4. ダウンロード：途中で切れたら .part から続ける、md5 か sha256 が違えば捨てる、取り終えた .part は取り直さずに確かめる、進み具合、
+//      revalidate（元の ETag が変われば取り直す）、ネットにつながらないときの文（手元の HTTP サーバ）
 //   5. 確認の手順：Docker なし、docker.sock の権限なし、Docker が止まっている、Docker の置き場の空き、osmium なし、Go と C のコンパイラ、ポートが使用中、ディスク不足（偽の docker を PATH に置く）
 //   6. Geofabrik の .poly、地図の範囲（境界＋2km）
 //   7. pbf の読み方（scripts/setup/pbf.ts）と検索データ：テストの中で書いた小さな pbf（zlib と無圧縮、DenseNodes と Node、粒度とずれ）を読む
@@ -122,15 +123,15 @@ await t('同じファイル（シンボリックリンク）', () => {
 // ===== 4. ダウンロード =====
 const body = Buffer.from(Array.from({ length: 300_000 }, (_, i) => i % 251));
 const md5 = createHash('md5').update(body).digest('hex');
-let cut = true, ranges: string[] = [], gets = 0, md5Fail = 0;
+let cut = true, ranges: string[] = [], gets = 0, md5Fail = 0, etag = '"v1"';
 const srv = httpServer((req, res) => {
   if (req.url === '/missing') { res.writeHead(404).end(); return; }
   if (req.url!.endsWith('.md5')) { if (md5Fail-- > 0) res.writeHead(404).end(); else res.end(`${md5}  x.osm.pbf\n`); return; }
   const range = /bytes=(\d+)-/.exec(req.headers.range ?? '');
   const from = range ? Number(range[1]) : 0;
-  const head = { 'content-length': String(body.length - from), etag: '"v1"', 'accept-ranges': 'bytes' };
+  const head = { 'content-length': String(body.length - from), etag, 'accept-ranges': 'bytes' };
   // /nosize：HEAD が大きさを返さない（続きがなければ 416 で分かる）
-  if (req.method === 'HEAD') { res.writeHead(200, req.url === '/nosize' ? { etag: '"v1"' } : { ...head, 'content-length': String(body.length) }).end(); return; }
+  if (req.method === 'HEAD') { res.writeHead(200, req.url === '/nosize' ? { etag } : { ...head, 'content-length': String(body.length) }).end(); return; }
   gets++;
   if (from >= body.length) { res.writeHead(416, { 'content-range': `bytes */${body.length}` }).end(); return; }
   if (range) ranges.push(req.headers.range!);
@@ -175,6 +176,34 @@ await t('ダウンロード：md5 のファイルが取れなかった回のあ�
   const g = gets;
   await download({ url: `${base}/d`, dest, md5Url: true, log });
   assert.deepEqual([readFileSync(dest).equals(body), existsSync(`${dest}.part`), gets - g], [true, false, 0]);
+});
+await t('ダウンロード：sha256 が違えば捨てる、合えば通る。進み具合を呼ぶ（アプリの住所のデータ）', async () => {
+  const dest = join(tmp, 'dl', 'e.duckdb');
+  await assert.rejects(download({ url: `${base}/e`, dest, sha256: '0'.repeat(64), log }), /sha256 が固定した値と違います/);
+  assert.deepEqual([existsSync(dest), existsSync(`${dest}.part`)], [false, false]);
+  const seen: [number, number][] = [];
+  await download({ url: `${base}/e`, dest, sha256: createHash('sha256').update(body).digest('hex'), log, progress: (got, total) => seen.push([got, total]) });
+  assert.deepEqual([readFileSync(dest).equals(body), seen.at(-1)], [true, [body.length, body.length]]);
+});
+await t('ダウンロード：revalidate なら、取り終えたものは元（ETag）が同じときだけ使い、変わっていれば取り直す（アプリの「最新にする」）', async () => {
+  const dest = join(tmp, 'dl', 'f.osm.pbf');
+  await download({ url: `${base}/f`, dest, md5, revalidate: true, log });
+  let g = gets;
+  await download({ url: `${base}/f`, dest, md5, revalidate: true, log });
+  assert.equal(gets - g, 0, '同じなら取り直さない');
+  etag = '"v2"';
+  g = gets;
+  await download({ url: `${base}/f`, dest, md5, revalidate: true, log });
+  etag = '"v1"';
+  assert.deepEqual([gets - g, readFileSync(dest).equals(body), readFileSync(`${dest}.etag`, 'utf8').endsWith('"v2"')], [1, true, true], '変わっていれば取り直す');
+});
+await t('ダウンロード：ネットにつながらないときは、取る先の名前を入れた日本語の文（fetch failed だけにしない）', async () => {
+  const s = tcpServer();
+  await new Promise<void>((r) => s.listen(0, '127.0.0.1', () => r()));
+  const port = (s.address() as AddressInfo).port;
+  await new Promise((r) => s.close(r)); // 閉じたポート：つながらない
+  await assert.rejects(download({ url: `http://127.0.0.1:${port}/x.osm.pbf`, dest: join(tmp, 'dl', 'g'), log }),
+    (e: Error) => e.message.startsWith(`ネットにつながっていないか、127.0.0.1:${port} に届きません。`) && e.message.includes('fetch failed'));
 });
 srv.close();
 

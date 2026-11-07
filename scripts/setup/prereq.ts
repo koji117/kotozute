@@ -146,7 +146,8 @@ export const PMTILES = {
     'linux-x64': ['go-pmtiles_1.31.2_Linux_x86_64.tar.gz', '3ed7dbf4ec2e6dfe5e25b6f70d1ffc932729f93c86db353bf514dd71010a312f'],
   } as Record<string, [string, string]>,
 };
-export function pmtilesAsset(): { url: string; name: string; sha256: string } | null {
-  const a = PMTILES.assets[`${process.platform}-${process.arch}`];
+/** key は <OS>-<CPU>（既定はこの機械。Mac のアプリを作るときは darwin-arm64） */
+export function pmtilesAsset(key = `${process.platform}-${process.arch}`): { url: string; name: string; sha256: string } | null {
+  const a = PMTILES.assets[key];
   return a ? { url: `https://github.com/protomaps/go-pmtiles/releases/download/${PMTILES.version}/${a[0]}`, name: a[0], sha256: a[1] } : null;
 }
