@@ -620,7 +620,7 @@ for (const e of document.querySelectorAll('.say .big')) e.innerHTML = e.innerHTM
 
 // 解釈の行（画面の「解釈」と同じ作り：操作の名前と、入力を日本語にしたもの。src/web/panel.ts の pairs）
 const LABEL = { post_office: '郵便局', souvenir: '手土産', convenience: 'コンビニ', cafe: 'カフェ', parking: '駐車場', fuel: 'ガソリンスタンド', toilets: 'トイレ', park: '公園', station: '駅', hospital: '病院', level_crossing: '踏切', foot_crossing: '歩行者用の踏切', tunnel: 'トンネル' };
-const KEY = { words: '探すもの', area: '範囲', radius_m: '半径（m）', name: '名前', address: '住所', from: '出発', to: '目的地', stops: '寄り道先', ref: '場所', word: '種類', target: '場所', show: '残す', hide: '隠す', avoid_highways: '高速を使わない', keep_order: '頼んだ順に寄る', stay_min: '過ごす時間（分）', arrive_by: '着く時刻', start: '出発・到着', tunnels: 'トンネル（本）', max_minutes: '時間の上限（分）' };
+const KEY = { mode: '移動の手段', words: '探すもの', area: '範囲', radius_m: '半径（m）', name: '名前', address: '住所', from: '出発', to: '目的地', stops: '寄り道先', ref: '場所', word: '種類', target: '場所', show: '残す', hide: '隠す', avoid_highways: '高速を使わない', keep_order: '頼んだ順に寄る', stay_min: '過ごす時間（分）', arrive_by: '着く時刻', start: '出発・到着', tunnels: 'トンネル（本）', max_minutes: '時間の上限（分）' };
 function interp(id) {
   const names = { 'here:': '現在地', 'view:': '画面の範囲' };
   const remember = (v) => {
@@ -637,7 +637,7 @@ function interp(id) {
     : v && typeof v === 'object' ? pairs(v, '、') : String(v);
   const pairs = (o, sep) => {
     const e = Object.entries(o).filter(([, v]) => v != null && v !== false && !(Array.isArray(v) && !v.length));
-    return e.length === 1 ? inVal(e[0][1]) : e.map(([k, v]) => `${KEY[k] ?? k}：${inVal(v)}`).join(sep);
+    return e.length === 1 ? inVal(e[0][1]) : e.map(([k, v]) => `${KEY[k] ?? k}：${k === 'mode' ? ({ car: '車', walk: '徒歩', bicycle: '自転車' }[v] ?? v) : inVal(v)}`).join(sep);
   };
   return oks(id).map((s) => {
     const input = s.op === 'find_features' && s.output.area.radius_m == null ? Object.fromEntries(Object.entries(s.input).filter(([k]) => k !== 'radius_m')) : s.input;
