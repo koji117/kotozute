@@ -463,6 +463,12 @@ function noteCopy(card: HTMLElement) {
 const HERE_WORDS = /今いる|いまいる|現在地|現在位置|今の場所|いまの場所/;
 const form = $<HTMLFormElement>('#search');
 const q = $<HTMLTextAreaElement>('#q');
+// スマホは欄が狭く（ルートのボタンの分）、例文が途中で切れるので、短い例文にする（座標の貼り付けの説明は省く）
+const PLACEHOLDER = q.placeholder;
+const narrow = matchMedia('(max-width: 767px)');
+const setPlaceholder = () => { q.placeholder = narrow.matches ? '例：東京タワーの近くの郵便局' : PLACEHOLDER; };
+setPlaceholder();
+narrow.addEventListener('change', setPlaceholder);
 q.addEventListener('keydown', (e) => {
   // 日本語入力の変換確定の Enter では送らない
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); form.requestSubmit(); }
