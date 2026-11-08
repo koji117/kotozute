@@ -182,14 +182,14 @@ svg{display:block;flex:none}
 <div data-show="116.62-120.49" class="abs stamp pop"><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">座標を貼るだけで、その場所へ</div><div class="s">平面直角座標・地域メッシュ・度分秒。変換は完全ローカル</div></div></div>
 <div data-show="81.95-85.36" class="abs stamp pop" data-fill><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">{ex1sec}で、ルートと共有リンク</div><div class="s">依頼から結果まで（Claude の処理時間を含む）</div></div></div>
 <div data-show="96.7-103.7" class="abs stamp pop" data-fill><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">着く時刻も、過ごす時間も、ひとことで</div><div class="s">着く時刻から出発時刻を逆算（運転時間と滞在時間から。渋滞は含まない）</div></div></div>
-<div data-show="106-109.22" class="abs stamp pop" style="z-index:55"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">出典とデータの日付を、いつも表示</div><div class="s">地図のデータは、自分で更新するまで変わらない</div><div class="back">冒頭の例への答え：2019年の地図の作り替え</div></div></div>
+<div data-show="106-109.22" class="abs stamp pop" style="z-index:55"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">出典とデータの日付を、いつも表示</div><div class="s">地図のデータは、自分で更新するまで変わらない。出典つきで資料にも使える</div><div class="back">冒頭の例への答え：2019年の地図の作り替え／Google Earth の画像</div></div></div>
 <!-- 例2の③：「品川駅」で探して、出発地が OSM の駅（名前は「品川」）になったときだけ出す（下の script で、そうでなければ消す。2026-11-07 にユーザーが決定） -->
 <div id="stamp-station" data-show="0-0" class="abs stamp pop" data-fill><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">「{ex2q}」は、OSM の駅「{ex2st}」</div><div class="s">「駅」を外して、駅として探す</div></div></div>
 <div data-show="0-0" class="abs stamp pop"><div class="tag"><span class="n" style="font-size:13px">しくみ</span></div><div><div class="t">合うかどうかは、通った道の OSM のタグで</div><div class="s">プログラムが数えて確かめる。トンネルは、頼んだ本数以上で「合う」</div></div></div>
 <div data-show="0-0" class="abs stamp pop" style="z-index:55"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">出典とデータ時点を、画像に焼き込む</div><div class="s">OSM の地図なので、出典を入れて社外の資料に使える</div><div class="back">↩ 冒頭の問い：Google Earth の画像</div></div></div>
-<div data-show="148.55-156.45" class="abs stamp pop" data-fill><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">外部への通信は Claude への依頼だけ{advOtherZero}</div><div class="s">地図・検索・ルート・住所は自分のマシンで動く。使った回数による料金はかからない</div><div class="back">冒頭の例への答え：2018年の無料枠の縮小</div></div></div>
+<div data-show="148.55-156.45" class="abs stamp pop" data-fill><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">外部への通信は Claude への依頼だけ{advOtherZero}</div><div class="s">地図・検索・ルート・住所は自分のマシンで動き、使った回数による料金はかからない（Claude API は使った分）</div><div class="back">冒頭の例への答え：明日、業務が止まる／2011年の有料化／2018年の無料枠の縮小</div></div></div>
 <div data-show="157.45-162.65" class="abs stamp pop" data-fill><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">Claude を使わずに再実行</div><div class="s">このときの Claude への通信は {recA}</div></div></div>
-<div data-show="163.15-167.45" class="abs stamp pop" style="z-index:65;left:60px;right:auto;top:430px"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">ローカルファースト</div><div class="s">アプリはオープンソース（Apache-2.0）。地図のデータは手元で作り、メニューから最新にできる</div><div class="back">冒頭の例への答え：2026年の Earth Pro の配布終了</div></div></div>
+<div data-show="163.15-167.45" class="abs stamp pop" style="z-index:65;left:60px;right:auto;top:430px"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">ローカルファースト</div><div class="s">アプリはオープンソース（Apache-2.0）。地図のデータは手元で作り、メニューから最新にできる</div><div class="back">冒頭の例への答え：2020年 Mapbox／2024年 Bing Maps／2026年 Earth Pro</div></div></div>
 
 <!-- ③：解釈（Claudeが読んだ）と結果の値（地図のデータが答えた）。中身は events.json の結果から作る -->
 <div class="abs callouts">
@@ -223,6 +223,7 @@ svg{display:block;flex:none}
      予定のカードが灰色に沈み、「SLA がない」「変更によっては、明日、業務が止まるかもしれない」が出る ============ -->
 <div data-show="0-13.9" class="abs full">
   <img id="openmap" alt="" class="abs" style="left:0;top:0;width:1280px;height:640px;object-fit:cover">
+  <div class="abs" style="right:10px;top:618px;font-size:11px;color:#5A646B;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:4px">© OpenStreetMap contributors | Protomaps</div>
   <div class="abs mapsearch" style="left:24px;top:20px;width:430px"><svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>東京タワー</span></div>
   <div class="abs plan" style="left:24px;top:84px;width:430px;font-size:12.5px;padding:20px 26px 14px">
     <div class="ph">明日の予定<small>いつもの地図アプリで</small></div>
@@ -246,6 +247,7 @@ svg{display:block;flex:none}
   <div data-show="13.47-21.74" class="abs" style="left:110px;top:26px;width:1060px">
     <div style="font-size:26px;font-weight:800;line-height:1.5">業務で使ってよい範囲は、ガイドラインに例で書かれているだけ。<br>範囲を決め直すのも Google。</div>
     <div style="font-size:20px;font-weight:700;color:var(--teal-300);margin-top:6px">Google Earth の画像は、今も商用には使えない。</div>
+    <div style="font-size:16px;color:var(--on-sumi-2);margin-top:4px">変更は、地図アプリにも、地図を組み込んだ業務のシステムにも及ぶ</div>
     <div class="cases6" style="display:flex;flex-direction:column;gap:5px;margin-top:12px">
       <div data-show="13.79-33.14" class="case rise"><span class="yr">2011</span><b>Google Maps API</b><span>一定の量を超える利用を、有料にする方針を発表</span><i data-show="16.09-16.97,19.5-33.14" class="hl"></i></div>
       <div data-show="14.09-33.14" class="case rise"><span class="yr">2018</span><b>Google Maps Platform</b><span>APIキーが必須に。キーのないサイトで地図が灰色に。無料枠も大幅に縮小<small class="det"><span data-show="16.97-33.14">無料の範囲：1日 25,000回 → 月 約28,000回。超えた分：1,000回 0.5ドル → 7ドル（Maps JavaScript API）</span></small></span><i data-show="14.83-16.09,16.97-17.75,19.5-33.14" class="hl"></i></div>
@@ -270,13 +272,14 @@ svg{display:block;flex:none}
     </div>
     <div data-show="33.49-39.54" class="rise" style="width:580px">
       <div class="win" style="position:relative">
-        <div class="bar">今の道具で「港区の郵便局」を探すと</div>
+        <div class="bar">手元で動かす OSM で「港区の郵便局」を探すと</div>
         <div class="term pre" style="font-size:16px">[out:json][timeout:25];
 area["name"="港区"]-&gt;.a;
 nwr["amenity"="post_office"](area.a);
 out center;</div>
       </div>
       <div data-show="35.58-39.54" class="rise" style="margin-top:16px;font-weight:800;font-size:24px;color:var(--ng-700)">これを書ける人は、まわりに何人？</div>
+      <div data-show="36.6-39.54" class="rise" style="margin-top:10px;font-size:17px;line-height:1.6;color:var(--text-2)">書けても、OSM の「郵便局」には宅配便の営業所も混じる<br>（関東で約80件）。ことづては、辞書で除いて探す</div>
     </div>
   </div>
   <div data-show="39.2-45.76" class="abs rise" style="left:0;width:1280px;top:190px;text-align:center">
@@ -303,7 +306,8 @@ out center;</div>
         <li>港区芝公園4-2-8</li><li>港区芝公園四丁目2番8号</li><li>港区芝公園４－２－８</li><li>港区芝公園4丁目2-8</li>
         <li style="color:var(--ok-700);font-weight:800">→ どれも同じ街区（芝公園4丁目2）</li></ul></div>
       <div data-show="110.97-116.1" class="col rise"><h4>駅の名前</h4><ul>
-        <li>「品川駅」と頼んでも</li><li>OSM の駅の名前は「品川」</li><li style="color:var(--ok-700);font-weight:800">→ 駅としても探す</li></ul></div>
+        <li>「品川駅」と頼んでも</li><li>OSM の駅の名前は「品川」</li><li style="color:var(--ok-700);font-weight:800">→ 駅としても探す</li>
+        <li style="font-size:.8em;color:var(--text-3)">11/6 の録画では同じ名前のバス停を選んでいた。11/7 に直した</li></ul></div>
       <div data-show="112.22-116.1" class="col rise"><h4>座標</h4><ul>
         <li>平面直角座標は19の系（東京は9系）</li><li>地域メッシュ（例：53394611）</li><li>度分秒（例：北緯35°40′52.4″）</li></ul></div>
     </div>
@@ -314,7 +318,7 @@ out center;</div>
 <!-- ============ Claude Code での開発（121-148）。リポジトリのファイルとコミットにある、日付つきの出来事だけ ============ -->
 <div data-show="120.8-146.16" class="abs full">
   <div class="abs win" style="left:50px;top:24px;width:1180px;height:592px">
-    <div class="bar">Claude Code での開発（リポジトリの記録から）</div>
+    <div class="bar" data-fill style="font-size:15px;font-weight:700">Claude Code での開発（リポジトリの記録から。11/4〜11/8 のコミット {ccAll} 件（マージを除く）のうち {ccClaude} 件が Claude と共同）</div>
     <div class="term" style="height:556px">
       <div data-show="120.8-128.35">
         <div class="c">$ cat logs/hook-blocks.jsonl　<span class="m"># PreToolUse hook が止めた記録（時刻は UTC）</span></div>
@@ -334,7 +338,7 @@ out center;</div>
             <div class="b" data-show="130.95-143.95"><span>94%</span><i style="height:141px;background:var(--teal-600)"></i><span class="m">2回目</span></div>
             <div class="b" data-show="131.93-143.95"><span>100%</span><i style="height:150px;background:var(--teal-300)"></i><span class="m">3回目</span></div>
           </div>
-          <div class="m" style="padding-bottom:30px;line-height:1.9">自作の50問（40問＋罠10問）<br>AIが座標を作った回数：どの回も 0</div>
+          <div class="m" style="padding-bottom:30px;line-height:1.9">自作の50問（40問＋罠10問）<br><span style="font-size:1.35em;font-weight:800;color:var(--teal-300)">AIが座標を作った回数：どの回も 0</span></div>
         </div>
       </div>
       <div data-show="143.65-146.16">
@@ -379,6 +383,10 @@ out center;</div>
   <div data-show="176.85-179.85" class="abs hero rise" style="top:410px">
     <div style="display:flex;justify-content:center;align-items:center;gap:16px"><svg width="52" height="52"><use href="#i-logo"/></svg><span style="font-size:52px;letter-spacing:.06em">ことづて</span></div>
     <div style="margin-top:12px;font-size:15px;font-weight:500;color:var(--on-sumi-2)">Built with Claude: Japan 2026 ／ テーマ1「あなたにしかない深さを」</div>
+  </div>
+  <div data-show="172.5-179.85" class="abs rise" style="left:0;width:1280px;top:560px;display:flex;justify-content:center;gap:40px;font-size:22px;font-weight:700;color:var(--on-sumi)">
+    <span>ブラウザで試す　<span style="color:var(--teal-300)">kotozute-map.com</span></span>
+    <span>コード　<span style="color:var(--teal-300)">github.com/koji117/kotozute</span></span>
   </div>
 </div>
 
@@ -520,6 +528,8 @@ const V = {
   hookFonts: () => n(hooks().filter((h) => h.host.startsWith('fonts.')).length),
   auditN: () => n(audit().rows.length),
   auditZeroN: () => audit().rows.filter((r) => r.kanto === 0).length,
+  ccAll: () => n(REPO.commits),
+  ccClaude: () => n(REPO.claudeCommits),
 };
 const val = (k) => {
   let v; try { v = V[k](); } catch { v = undefined; }

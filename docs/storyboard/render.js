@@ -39,6 +39,9 @@ async function open(browser) {
   const repo = {
     hooks: committed('logs/hook-blocks.jsonl').split('\n').filter(Boolean).map((l) => JSON.parse(l)),
     audit: JSON.parse(committed('logs/tag-audit.json')),
+    // Claude Code の場面の題：マージを除くコミットの数と、そのうち Co-Authored-By: Claude がある数（作り直すときの HEAD で数える）
+    commits: Number(execFileSync('git', ['-C', root, 'rev-list', '--count', '--no-merges', 'HEAD']).toString()),
+    claudeCommits: execFileSync('git', ['-C', root, 'log', '--no-merges', '--format=%h', '--grep=Co-Authored-By: Claude', 'HEAD']).toString().split('\n').filter(Boolean).length,
   };
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1.5 });
   page.on('pageerror', (e) => console.error('page error:', e.message));
