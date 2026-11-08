@@ -474,7 +474,8 @@ form.addEventListener('submit', async (e) => {
   send.disabled = true;
   // 現在地がないと Claude は here: を使えず、住所だけ調べて黙って止まる。送る前に位置情報の許可を求め、取れなければ送らない
   // ponytail: 言葉で判定するので「ここから」などは拾わない。拾い漏れが目立てば言葉を足す
-  if (!st.here && HERE_WORDS.test(text)) {
+  // 公開版は言葉によらず、最初の依頼で現在地を用意する（出発地を書かない「…して皇居に」も、現在地から引けるように。取れなければ試用の現在地）
+  if (!st.here && (HERE_WORDS.test(text) || DEMO_HERE)) {
     const why = await locateOrDemo(false);
     if (why) {
       show(renderError(`依頼を送りませんでした。「今いる場所」を使うには現在地が要りますが、${why}。右下の現在地のボタンで位置情報を許可するか、地図で出発地をクリックしてから「クリックした場所から…」と頼んでください`));
