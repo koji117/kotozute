@@ -148,6 +148,17 @@ svg{display:block;flex:none}
 .plan li i{width:24px;height:24px;border:2.5px solid var(--teal-600);border-radius:6px;flex:none}
 .plan li.to{color:var(--teal-700)}
 .plan li b{flex:none;padding:2px 12px;border-radius:var(--r-pill);background:var(--sumi-800);color:var(--teal-300);font-size:17px}
+/* 冒頭の無料の地図アプリの画面（0-3.8）：経路のパネルと、右下の予定のメモ */
+.free-tag{margin-left:auto;background:var(--sumi-800);color:var(--teal-300);font-size:14px;height:28px}
+.route-ui{padding:18px 24px 10px}
+.route-ui .rh{font-size:22px;font-weight:800;margin-bottom:12px}
+.route-ui .modes{display:flex;gap:8px;margin-bottom:6px}
+.route-ui .modes span{padding:5px 14px;border-radius:var(--r-pill);border:1px solid var(--line);font-size:15px;font-weight:700;color:var(--text-2)}
+.route-ui .modes span.on{background:var(--sumi-800);border-color:var(--sumi-800);color:var(--teal-300)}
+.route-ui li{font-size:18px;padding:11px 0}
+.route-ui li .dot{width:16px;height:16px;border-radius:50%;border:3px solid var(--teal-600);background:var(--surface)}
+.route-ui li .dot.here{background:var(--teal-600)}
+.route-ui li.add{color:var(--teal-700);font-size:16px}
 .mapsearch{display:flex;align-items:center;gap:10px;height:48px;padding:0 18px;background:var(--surface);border-radius:var(--r-pill);box-shadow:var(--sh-win);font-size:17px;font-weight:700;color:var(--text-2)}
 .gray{inset:0;background:rgba(17,21,24,.9);-webkit-backdrop-filter:grayscale(1);backdrop-filter:grayscale(1)}
 
@@ -232,9 +243,20 @@ svg{display:block;flex:none}
 <div data-show="0-13.9" class="abs full">
   <img id="openmap" alt="" class="abs" style="left:0;top:0;width:1280px;height:640px;object-fit:cover">
   <div class="abs" style="right:10px;top:618px;font-size:11px;color:#5A646B;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:4px">© OpenStreetMap contributors | Protomaps</div>
-  <div class="abs mapsearch" style="left:24px;top:20px;width:430px"><svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>東京タワー</span></div>
-  <div class="abs plan" style="left:24px;top:84px;width:430px;font-size:12.5px;padding:20px 26px 14px">
-    <div class="ph">明日の予定<small>いつもの地図アプリで</small></div>
+  <div class="abs mapsearch" style="left:24px;top:20px;width:430px"><svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>東京タワー</span><span class="badge free-tag">無料の地図アプリ</span></div>
+  <!-- 冒頭（0-3.8）：ふだん使っている無料の地図アプリで、明日の予定のルートを組んでいる画面（2026-11-08 にユーザーが「無料の地図アプリの利用画面をだして」と決定）。
+       Google の見た目（ロゴ、4色、アイコン）はまねない。経路のパネルに分や km は書かない（録画の結果ではないため）。予定のメモは 74.15秒の「冒頭の予定」が指すので残す -->
+  <div class="abs plan route-ui" style="left:24px;top:84px;width:430px">
+    <div class="rh">経路</div>
+    <div class="modes"><span class="on">車</span><span>電車</span><span>徒歩</span><span>自転車</span></div>
+    <ul>
+      <li><i class="dot here"></i>現在地</li>
+      <li class="add">＋ 経由地を追加</li>
+      <li><i class="dot"></i>東京タワー</li>
+    </ul>
+  </div>
+  <div data-show="0.4-13.9" class="abs plan memo rise" style="left:934px;top:268px;width:326px;font-size:10px;padding:14px 20px 8px">
+    <div class="ph">明日の予定<small>メモ</small></div>
     <ul>
       <li><i></i>郵便局で書類を出す</li>
       <li><i></i>手土産を買う</li>
