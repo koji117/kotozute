@@ -30,7 +30,7 @@ export const COLOR: Record<DictKey, string> = {
   toilets: '#5A646B', park: '#18703E', station: '#12343B', hospital: '#B3261E', level_crossing: '#B3261E', foot_crossing: '#734700', tunnel: '#12343B',
 };
 
-const svg16 = (d: string) => `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+export const svg16 = (d: string) => `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 /** 札のアイコン（自前の線画） */
 export const CHIP_ICON: Partial<Record<DictKey, string>> = {
   post_office: svg16('M3.5 3.5h9a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11V5a1.5 1.5 0 0 1 1.5-1.5zM2.5 4.5L8 9l5.5-4.5'),
@@ -39,7 +39,12 @@ export const CHIP_ICON: Partial<Record<DictKey, string>> = {
   cafe: svg16('M3 6.5h8v3.5a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM11 7.5h1.2a1.6 1.6 0 0 1 0 3.2H11M5.5 2.5v2M8.5 2.5v2'),
   parking: svg16('M4 2.5h8a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5zM6.5 11.5v-7h2.3a2 2 0 0 1 0 4H6.5'),
   fuel: svg16('M3 13.5v-10a1 1 0 0 1 1-1h4.5a1 1 0 0 1 1 1v10M2 13.5h8.5M4.5 5.5h3.5M9.5 7h1.5a1 1 0 0 1 1 1v3a1 1 0 0 0 2 0V6l-1.5-2'),
+  toilets: svg16('M4 2.5h3.5v5H4zM2.5 7.5h11A4.5 4.5 0 0 1 9 12H7a4.5 4.5 0 0 1-4.5-4.5zM6 12l-.5 1.5h5L10 12'),
+  park: svg16('M8 2a4 4 0 0 1 4 4 3.5 3.5 0 0 1-4 3.5A3.5 3.5 0 0 1 4 6a4 4 0 0 1 4-4zM8 9.5V14M5 14h6'),
+  station: svg16('M4.5 2h7A1.5 1.5 0 0 1 13 3.5V10a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 10V3.5A1.5 1.5 0 0 1 4.5 2zM3 7h10M5.5 9.2h.01M10.5 9.2h.01M5 11.5L3.5 14M11 11.5l1.5 2.5'),
+  hospital: svg16('M4 2.5h8A1.5 1.5 0 0 1 13.5 4v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5zM8 5v6M5 8h6'),
   level_crossing: svg16('M3 3l10 10M13 3L3 13'),
+  foot_crossing: svg16('M2 5.5h12M2 10.5h12M8 2v1.5M8 7.2v1.6M8 12.5V14'), // 線路を歩いて渡る点線
   tunnel: svg16('M2 13V8a6 6 0 0 1 12 0v5'),
 };
 

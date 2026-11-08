@@ -15,7 +15,7 @@ import { Protocol } from 'pmtiles';
 import type { Feature as F } from 'geojson';
 import { layers, namedFlavor } from '@protomaps/basemaps';
 import { ATTRIBUTION, attributionParts, dataAsOfText, MAP_TILES_AS_OF } from '../attribution';
-import { CHIPS, DICT, type DictKey } from '../ops/dict';
+import { DICT, type DictKey } from '../ops/dict';
 import { REGION } from '../region'; // vite が build のときに値を埋め込む（vite.config.ts）
 import { REGION_PILL } from '../region-text';
 import type {
@@ -30,6 +30,7 @@ import {
 import { BASEMAP_KIND_JA, type Go, placeCard, poiCard } from './poi-card';
 import { parseCoord, ZONE_OF_REGION, type Parsed } from './jpcoord';
 import { routeForm } from './route-form';
+import { chipEditor, loadChips } from './chip-editor';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const r6 = (x: number) => Math.round(x * 1e6) / 1e6;
@@ -397,7 +398,7 @@ async function saveRecipe(b: HTMLButtonElement) {
 async function runRecipe(id: string) {
   show(renderWait());
   replaying = true;
-  $('#route-btn').hidden = true;
+  $('#route-btn').hidden = $('#chip-edit').hidden = true;
   try {
     const res = await api<RecipeRunResponse>(`/api/recipe/${encodeURIComponent(id)}/run`, { sessionId });
     st.clicks = res.recipe.context.clicks.map((coord, i) => ({ coord, n: String(i + 1) })); // click:N の番号どおり
@@ -409,7 +410,7 @@ async function runRecipe(id: string) {
     await saveExports(res.steps); // 書き出しの手順も同じようにやり直す（カードの「画像にしました」と合わせる）
   } catch (err) { show(renderError(`レシピを再実行できません：${(err as Error).message}`)); }
   replaying = false;
-  $('#route-btn').hidden = false;
+  $('#route-btn').hidden = $('#chip-edit').hidden = false;
 }
 
 async function copy(input: HTMLInputElement | HTMLTextAreaElement, what = '共有リンク') {
@@ -510,8 +511,10 @@ form.addEventListener('submit', async (e) => {
   send.disabled = false;
 });
 
-// ===== カテゴリの札（AI を通さない） =====
-for (const w of CHIPS) {
+// ===== カテゴリの札（AI を通さない）。並びは辞書の言葉から選べる（src/web/chip-editor.ts） =====
+const chipBtn = new Map<DictKey, HTMLButtonElement>(); // 並べ替えても押した状態が残るよう、作った札は使い回す
+let chipWords = loadChips();
+function chipButton(w: DictKey) {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'chip';
@@ -519,20 +522,38 @@ for (const w of CHIPS) {
   b.setAttribute('aria-pressed', 'false');
   b.innerHTML = `${CHIP_ICON[w] ?? ''}<span>${DICT[w].label}</span>`; // 辞書の定数だけ
   b.addEventListener('click', () => chip(w, b));
-  $('#chips').append(b);
+  chipBtn.set(w, b);
+  return b;
+}
+/** 札を今の並びで置き直す。最後は編集のボタン */
+function renderChips() {
+  $('#chips').replaceChildren(...chipWords.map((w) => chipBtn.get(w) ?? chipButton(w)), $('#chip-edit'));
+  draw();
+}
+renderChips();
+chipEditor($('#chip-editor'), $('#chips'), {
+  get: () => chipWords,
+  set: (ws) => {
+    // 外した札の印が地図に出ていれば、札をもう一度押したときと同じに隠す
+    const gone = chipWords.filter((w) => !ws.includes(w) && st.visible.has(w));
+    chipWords = ws;
+    renderChips();
+    if (gone.length) hideWords(gone);
+  },
+});
+/** 言葉の印と札の結果を隠す（Overpass には聞き直さない） */
+function hideWords(ws: DictKey[]) {
+  let wasChip = false;
+  for (const w of ws) { st.visible.delete(w); wasChip = chipSteps.delete(w) || wasChip; }
+  draw();
+  if (chipSteps.size) show(renderDirect([...chipSteps.values()]), 'direct');
+  else if (wasChip && panel.dataset.mode === 'direct') panel.hidden = true;
+  // 共有リンクに隠した印が入らないよう、サーバの表示の状態も合わせる（地図は動かさない）
+  api('/api/op/set_view', { sessionId, input: { target: 'view:', show: [], hide: ws }, view: viewNow() }).catch(() => {});
 }
 async function chip(w: DictKey, b: HTMLButtonElement) {
   if (b.getAttribute('aria-busy') === 'true' || replaying) return;
-  if (st.visible.has(w)) { // もう一度押したら、その印を隠すだけ（Overpass には聞き直さない）
-    st.visible.delete(w);
-    const wasChip = chipSteps.delete(w);
-    draw();
-    if (chipSteps.size) show(renderDirect([...chipSteps.values()]), 'direct');
-    else if (wasChip && panel.dataset.mode === 'direct') panel.hidden = true;
-    // 共有リンクに隠した印が入らないよう、サーバの表示の状態も合わせる（地図は動かさない）
-    api('/api/op/set_view', { sessionId, input: { target: 'view:', show: [], hide: [w] }, view: viewNow() }).catch(() => {});
-    return;
-  }
+  if (st.visible.has(w)) return hideWords([w]); // もう一度押したら、その印を隠すだけ
   b.setAttribute('aria-busy', 'true');
   try {
     const r = await api<OpResult>('/api/op/find_features', { sessionId, input: { words: [w], area: 'view:', radius_m: 500 }, view: viewNow() });
@@ -596,7 +617,13 @@ $('#locate').addEventListener('click', async () => {
   const why = await locateOrDemo(true);
   if (why) toast(why === GEO_OFF ? `${GEO_OFF}。地図をクリックして場所を指定できます` : why);
 });
+// 地図を押して編集の窓を閉じたときは、その1回を地図のクリックにしない（クリック1の印が残らないように）
+let chipEditorClosedAt = 0;
+$('#chip-editor').addEventListener('beforetoggle', (e) => {
+  if ((e as Event & { newState?: string }).newState === 'closed') chipEditorClosedAt = performance.now();
+});
 map.on('click', async (e) => {
+  if (performance.now() - chipEditorClosedAt < 400) return;
   const click: LngLat = [r6(e.lngLat.lng), r6(e.lngLat.lat)];
   if (!shareId && !replaying && await rf.click(click)) return; // ルートのフォームの「地図で選ぶ」
   const pop = poiAt(e.point) ? undefined : place('この場所', click); // 共有の画面でも出す

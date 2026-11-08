@@ -85,6 +85,25 @@ svg { display: block; flex: none; }
 .chip[aria-pressed="true"] { background: var(--teal-600); color: var(--white); font-weight: 700; }
 .chip[aria-pressed="true"] svg { color: var(--white); }
 .chip[aria-busy="true"] { opacity: .6; cursor: progress; }
+/* 札の編集のボタン（札と同じ形。点線の縁で操作のボタンと分かるように）と、編集の窓（popover。display は変えない） */
+.cedit { pointer-events: auto; display: flex; align-items: center; gap: 5px; height: 36px; padding: 0 12px 0 10px; border: 1.5px dashed var(--line-2); border-radius: 18px; background: var(--surface); box-shadow: var(--sh-chip); font-size: var(--fs-small); font-weight: 700; color: var(--teal-700); white-space: nowrap; flex: none; }
+.cedit:hover { background: var(--teal-50); }
+.cpop { inset: auto; margin: 0; width: 300px; max-height: 80vh; padding: 14px 14px 12px; border: 0; border-radius: var(--r-lg); background: var(--surface); color: var(--text); box-shadow: var(--sh-float); overflow: auto; overscroll-behavior: contain; font-family: var(--f-ui); }
+.cpop h2 { margin: 2px 0 0; font-size: var(--fs-ui); font-weight: 800; }
+.cpop .note { margin-top: 2px; }
+.cpop .x { position: sticky; top: 0; z-index: 1; float: right; width: 32px; height: 32px; margin: -4px -4px 0 8px; border: 0; border-radius: 50%; background: var(--surface-2); font-size: 18px; line-height: 1; color: var(--text-2); }
+.cpop ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.cpop li { display: grid; grid-template-columns: minmax(0, 1fr) 34px 34px; align-items: center; min-height: 38px; border-top: 1px solid var(--line); }
+.cpop li.on + li.off { border-top: 2px solid var(--line-2); } /* 出しているボタンと、出していない言葉の境 */
+.cpop label { display: flex; align-items: center; gap: 8px; min-height: 38px; cursor: pointer; font-weight: 500; }
+.cpop li.off label { color: var(--text-2); }
+.cpop label svg { color: var(--text-2); }
+.cpop input { width: 18px; height: 18px; margin: 0; accent-color: var(--teal-600); }
+.cpop input:disabled { cursor: not-allowed; }
+.cpop li button { width: 34px; height: 34px; border: 0; border-radius: var(--r-sm); background: none; display: grid; place-items: center; color: var(--text-2); }
+.cpop li button:hover:not(:disabled) { background: var(--surface-2); }
+.cpop li button:disabled { opacity: .3; cursor: default; }
+.cpop-foot { display: flex; justify-content: flex-end; margin-top: 10px; }
 
 .panel { position: relative; flex: 0 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--sh-float); padding: 16px 18px; }
 .panel .x { position: sticky; top: 0; float: right; width: 32px; height: 32px; margin: -8px -10px 0 8px; border: 0; border-radius: 50%; background: var(--surface-2); font-size: 18px; line-height: 1; color: var(--text-2); z-index: 1; }
@@ -248,4 +267,6 @@ a.btn { color: var(--text); text-decoration: none; }
   .vt > div { padding: 4px 8px; }
   .ncard textarea, .rf-in input { font-size: var(--fs-input); } /* iOS が入力時に拡大しないように */
   .rbtn { width: 44px; height: 44px; }
+  .cedit { position: sticky; right: calc(var(--edge) * -1); } /* 札を横に送っても、編集のボタンは画面の右端に見える（.chips の余白の分だけ外へ。隙間に札が見えないように） */
+  .cpop { left: 0; right: 0; bottom: 0; width: auto; max-height: 75vh; border-radius: var(--r-xl) var(--r-xl) 0 0; box-shadow: var(--sh-sheet); padding: 18px 16px calc(14px + env(safe-area-inset-bottom)); }
 }
