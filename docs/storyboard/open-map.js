@@ -6,7 +6,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const FLAVOR = require('./flavor.js');
 
-const OUT = path.join(os.homedir(), 'kotozute-video');
+const OUT = process.env.VIDEO_OUT ?? path.join(os.homedir(), 'kotozute-video');
 const E = JSON.parse(fs.readFileSync(process.env.EVENTS ?? path.join(OUT, 'events.json'), 'utf8'));
 const r = E.results['s3-ex1'].steps.find((s) => s.op === 'route' && s.ok).output;
 const C = { teal: '#0B6E78', sumi: '#12343B', white: '#FFFFFF' }; // 案E の色
