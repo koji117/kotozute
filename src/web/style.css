@@ -59,6 +59,8 @@ svg { display: block; flex: none; }
 .ph-h h2 { margin: 0; font-size: var(--fs-title); font-weight: 800; }
 .ph-h + .od { margin-top: 2px; }
 .od { font-size: var(--fs-small); color: var(--text-2); }
+.arr { display: flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--text); }
+.arr b { font-size: 1.15em; }
 .kv { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; font-size: var(--fs-body); color: var(--text-2); line-height: 1.6; }
 .kv > div { display: grid; grid-template-columns: 112px 1fr; gap: 8px; }
 .kv b { color: var(--text); font-weight: 700; }

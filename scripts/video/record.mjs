@@ -32,14 +32,14 @@ const W = 1280, H = 720, DPR = 1.5;
 const HERE = { latitude: 35.6288086, longitude: 139.7379847, accuracy: 30 };
 const TEXT = {
   view: '芝公園のあたりを大きく。郵便局だけ残して', // CLAUDE.md「デモの例」
-  ex1: '今いる場所から、郵便局で書類を出して、手土産を買ってから、港区芝公園4-2-8へ。ルートを共有リンクで', // docs/plan.md §7 例1
+  ex1: '今いる場所から、郵便局で書類を出して、手土産を買って、カフェで30分休憩してから、15時20分までに東京タワーへ。ルートを共有リンクで', // 2026-11-08 にユーザーが決定（場所の名前、寄り道で時間が増える例、着く時刻）
   ex2: '来週の客先試走。品川駅を出て、トンネルを2本通り、高速は使わず60分以内。資料用の画像も', // 文書で決まっていないので絵コンテ（docs/storyboard/storyboard.html）の文
   coord: '9系 X=-35363.24 Y=-5992.92', // 平面直角座標（9系）で東京駅。国土地理院の計算と同じ値（scripts/check-quick.ts の 8）。検索の欄に貼る（AI を通さない）
 };
 /** 例2 (b) の北品川の範囲（scripts/check-course.ts と同じ）。地図の横幅をこの経度の幅に合わせる（緯度は範囲の内側になる） */
 const KITASHINAGAWA = [139.7312, 35.616, 139.7478, 35.625];
 const ORDER = ['s1-chips', 's2-view', 's2b-coord', 's3-ex1', 's3b-share', 's4-feat', 's4-ex2', 's4b-png', 's5-adv', 's5-recipe', 's6-app'];
-const GROUPS = { chips: ['s1-chips', 's2-view'], coord: ['s2b-coord'], ex1: ['s3-ex1', 's3b-share', 's5-adv'], ex2: ['s4-feat', 's4-ex2', 's4b-png', 's5-recipe'], app: ['s6-app'] };
+const GROUPS = { chips: ['s1-chips', 's2-view'], coord: ['s2b-coord'], ex1: ['s3-ex1', 's3b-share', 's5-adv', 's5-recipe'], ex2: ['s4-feat', 's4-ex2', 's4b-png'], app: ['s6-app'] };
 const want = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(GROUPS);
 for (const g of want) if (!GROUPS[g]) throw new Error(`組の名前が違います：${g}（${Object.keys(GROUPS).join('、')}）`);
 
@@ -434,6 +434,34 @@ async function ex1Scenes(browser) {
   await wheelTo(page, '#panel .net');
   mark('net');
   await end(3500);
+
+  // レシピ → 「Claude を使わずに再実行」。11/8 に例2を外したので、例1のレシピを使う。「詳細」は外部通信の場面で開いたままになる（例1の「詳細」には「分からない（データなし）」は出ない）
+  begin('s5-recipe', rec);
+  await sleep(600);
+  await wheelTo(page, '#panel [data-act=recipe]');
+  await clickOn(page, '#panel [data-act=recipe]');
+  mark('click');
+  await page.locator('#panel .recipe a').waitFor({ timeout: 30000 });
+  await wheelTo(page, '#panel .recipe');
+  mark('saved');
+  await sleep(1400);
+  const popup = ctx.waitForEvent('page');
+  await clickOn(page, '#panel .recipe a');
+  const rp = await popup;
+  watch(rp);
+  const run = rp.waitForResponse((r) => /\/api\/recipe\/[^/]+\/run$/.test(new URL(r.url()).pathname), { timeout: 180000 });
+  const rec3 = await record(rp, 'recipe');
+  switchTo(rec3);
+  mark('sent');
+  await rp.mouse.move(900, 430);
+  mouse.set(rp, [900, 430]);
+  await run;
+  mark('answered');
+  await ready(rp);
+  await rp.locator('#panel .net').waitFor({ state: 'attached', timeout: 60000 });
+  await settle(rp);
+  await end(3500);
+  await Promise.all(pending);
   await ctx.close();
 }
 
@@ -491,33 +519,6 @@ async function ex2Scenes(browser) {
   mark('saved');
   await end(2000);
 
-  // レシピ → 「Claude を使わずに再実行」。「詳細」は閉じたまま（このブラウザでは開いていない。開くと車線数の「分からない（データなし）」が出る）
-  begin('s5-recipe', rec);
-  await sleep(600);
-  await wheelTo(page, '#panel [data-act=recipe]');
-  await clickOn(page, '#panel [data-act=recipe]');
-  mark('click');
-  await page.locator('#panel .recipe a').waitFor({ timeout: 30000 });
-  await wheelTo(page, '#panel .recipe');
-  mark('saved');
-  await sleep(1400);
-  const popup = ctx.waitForEvent('page');
-  await clickOn(page, '#panel .recipe a');
-  const rp = await popup;
-  watch(rp);
-  const run = rp.waitForResponse((r) => /\/api\/recipe\/[^/]+\/run$/.test(new URL(r.url()).pathname), { timeout: 180000 });
-  const rec2 = await record(rp, 'recipe');
-  switchTo(rec2);
-  mark('sent');
-  await rp.mouse.move(900, 430);
-  mouse.set(rp, [900, 430]);
-  await run;
-  mark('answered');
-  await ready(rp);
-  await rp.locator('#panel .net').waitFor({ state: 'attached', timeout: 60000 });
-  await settle(rp);
-  if (await rp.locator('#panel details.adv[open]').count()) throw new Error('レシピの画面で「詳細」が開いています');
-  await end(3500);
   await Promise.all(pending);
   await ctx.close();
 }

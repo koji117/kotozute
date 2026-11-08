@@ -13,6 +13,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DICT, DICT_KEYS } from '../src/ops/dict';
+import { arrival, route } from '../src/ops/route';
 import { mergeCrossings, mergeTunnels } from '../src/ops/find_features';
 import { otherPref } from '../src/ops/geocode_address';
 import type { RegionConfig } from '../src/region';
@@ -107,6 +108,7 @@ for (const k of DICT_KEYS) {
 }
 
 // ===== 5. Claude に渡る文（東京では1バイトも変えない。評価は回し直せないため） =====
+// 例外：2026-11-08 にユーザーが route に着きたい時刻（arrive_by）と寄り道先で過ごす時間（stay_min）を足すと決めた。記録はそのとき作り直した。評価の3回はその前の版
 // 地域の設定はプロセスを起こすときに読むので、別のプロセスで作る。東京は Git の中の既定で作る（data/region.json がほかの地域でも比べられる）
 function claudeText(regionFile: string): string {
   const r = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/claude-text.ts'], { env: { ...process.env, REGION_FILE: regionFile }, encoding: 'utf8' });
@@ -211,4 +213,16 @@ if (bad.length) {
   console.error(`check-quick：${bad.length}件\n- ${bad.join('\n- ')}`);
   process.exit(1);
 }
+// ===== 9. 着きたい時刻から出発の時刻を逆算する（運転＋寄り道先で過ごす時間。分は切り捨て） =====
+{
+  const eq = (got: unknown, want: unknown, what: string) => { if (JSON.stringify(got) !== JSON.stringify(want)) bad.push(`${what}：${JSON.stringify(got)}（${JSON.stringify(want)} のはず）`); };
+  eq(arrival(7.4 * 60, [{ stay_min: null }, { stay_min: null }, { stay_min: 30 }], '15:20'), { stay_min: 30, arrive_by: '15:20', depart_by: '14:42' }, '出発の時刻');
+  eq(arrival(1800, [], '0:10').depart_by, '23:40', '日をまたぐ出発の時刻');
+  eq(arrival(600, [], null), { stay_min: 0, arrive_by: null, depart_by: null }, '時刻なし');
+  const old = route.input.parse({ from: 'here:', to: 'abr:1', stops: [{ ref: null, word: 'cafe' }], keep_order: true, avoid_highways: false });
+  eq([old.arrive_by, old.stops[0].stay_min], [null, null], '新しいキーのない入力（前のレシピ）');
+  eq(route.input.safeParse({ ...old, arrive_by: '25:00' }).success, false, '時刻の形の検証');
+  eq(route.input.safeParse({ ...old, stops: [{ ref: null, word: 'cafe', stay_min: 999 }] }).success, false, '過ごす時間の上限');
+}
+
 console.log('check-quick: ok');

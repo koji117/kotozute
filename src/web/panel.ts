@@ -80,7 +80,7 @@ const isWord = (s: string): s is DictKey => Object.hasOwn(DICT, s);
 const label = (s: string) => (isWord(s) ? DICT[s].label : s);
 const KEY: Record<string, string> = {
   words: '探すもの', area: '範囲', radius_m: '半径（m）', name: '名前', address: '住所', from: '出発', to: '目的地',
-  stops: '寄り先', ref: '場所', word: '種類', target: '場所', show: '残す', hide: '隠す', avoid_highways: '高速を使わない', keep_order: '頼んだ順に寄る',
+  stops: '寄り先', ref: '場所', word: '種類', target: '場所', show: '残す', hide: '隠す', avoid_highways: '高速を使わない', keep_order: '頼んだ順に寄る', stay_min: '過ごす時間（分）', arrive_by: '着く時刻',
   start: '出発・到着', tunnels: 'トンネル（本）', max_minutes: '時間の上限（分）',
   format: '形式',
   issue: '問題の種類',
@@ -150,6 +150,7 @@ function search(o: SearchPlaceOutput) {
 
 function route(r: RouteOutput, hereAcc?: number) {
   const nStops = r.stops.length;
+  const stay = r.stay_min ?? 0; // 11/8 より前の共有リンクとレシピにはない
   const legs = r.legs.map((leg, i) => {
     const last = leg.steps.at(-1);
     const side = last?.type === 5 ? '右側' : last?.type === 6 ? '左側' : '';
@@ -163,12 +164,14 @@ function route(r: RouteOutput, hereAcc?: number) {
       ${r.from.kind === 'here'
         ? html`<div class="pt"><span class="dot here"></span><span>現在地</span><small>${hereAcc != null ? `半径${hereAcc}m` : ''}</small></div>`
         : html`<div class="pt"><span class="dotn">出</span><span>${nm(r.from)}</span><small>出発</small></div>`}
-      ${r.stops.map((s, i) => html`<div class="pt"><span class="dotn">${i + 1}</span><span>${nm(s.chosen)}</span><small>${label(s.requested)}</small></div>`)}
+      ${r.stops.map((s, i) => html`<div class="pt"><span class="dotn">${i + 1}</span><span>${nm(s.chosen)}</span><small>${label(s.requested)}${s.stay_min ? `・${s.stay_min}分` : ''}</small></div>`)}
       <div class="pt"><span class="dotn">終</span><span>${nm(r.to)}</span><small>目的地</small></div>
     </div>
     <div class="ph-h" style="margin-top:12px">${CAR}<h2>車</h2><span class="big">${min(r.total.minutes)}</span><span class="od">${km(r.total.km)}</span>
-      ${nStops ? html`<span class="badge b-acc" style="margin-left:auto">寄り道で +${min(r.extra_min)}</span>` : ''}</div>
-    ${nStops ? html`<div class="od">寄らない場合 ${min(r.direct.minutes)}・${km(r.direct.km)}</div>` : ''}
+      ${nStops ? html`<span class="badge b-acc" style="margin-left:auto">寄り道で +${min(r.extra_min + stay)}</span>` : ''}</div>
+    ${nStops ? html`<div class="od">寄らない場合 ${min(r.direct.minutes)}・${km(r.direct.km)}${stay ? `。増える時間は、運転 +${min(r.extra_min)}と、寄り道先で過ごす ${stay}分` : ''}</div>` : ''}
+    ${r.depart_by ? html`<div class="arr">${CLOCK}<span><b>${r.arrive_by}</b> に着くには <b>${r.depart_by}</b> までに出発</span></div>
+      <div class="od">運転 ${min(r.total.minutes)}${stay ? `＋寄り道先で過ごす ${stay}分` : ''}から逆算（渋滞は含まない）</div>` : ''}
     ${r.avoid_highways ? html`<div class="badges"><span class="badge b-acc">高速を使わない</span></div>` : ''}
     <div class="steps">${legs}</div></div>`,
   html`${r.legs.length > 1 ? html`<div class="note">区間ごと：${r.legs.map((l) => min(l.minutes)).join('／')}</div>` : ''}

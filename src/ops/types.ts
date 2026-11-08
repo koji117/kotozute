@@ -104,13 +104,16 @@ export interface FeatureGroup { word: DictKey; label: string; interpretation: st
 export interface FindFeaturesOutput { area: { ref: string; label: string; bbox: BBox; radius_m: number | null }; groups: FeatureGroup[] }
 export interface Step { type: number; text: string; street: string | null; km: number }
 export interface Leg { from: string; to: string; minutes: number; km: number; shape: LngLat[]; steps: Step[] }
-export interface StopChoice { requested: string; chosen: Place; alternatives: { place: Place; extra_min: number }[] }
+/** stay_min：依頼に書いてあった、その寄り道先で過ごす時間（分）。書いていなければ null */
+export interface StopChoice { requested: string; chosen: Place; alternatives: { place: Place; extra_min: number }[]; stay_min: number | null }
 export interface RouteOutput {
   from: Place; to: Place; stops: StopChoice[]; legs: Leg[];
   total: { minutes: number; km: number };
   /** 寄り道しない場合 */
   direct: { minutes: number; km: number };
   extra_min: number;
+  /** 寄り道先で過ごす時間の合計（分）。arrive_by：着きたい時刻（H:MM）。depart_by：そこから逆算した出発の時刻（運転＋過ごす時間。渋滞は含まない） */
+  stay_min: number; arrive_by: string | null; depart_by: string | null;
   avoid_highways: boolean; keep_order: boolean;
   /** 試した組み合わせの数 */
   tried: number;

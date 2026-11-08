@@ -50,6 +50,18 @@ const product = (ns: number[]): number[][] =>
   ns.reduce<number[][]>((acc, n) => acc.flatMap((a) => Array.from({ length: n }, (_, j) => [...a, j])), [[]]);
 
 type Cand = Omit<Place, 'ref'> & { ref?: string };
+
+/**
+ * 寄り道先で過ごす時間の合計と、着きたい時刻から逆算した出発の時刻（運転＋過ごす時間。渋滞は含まない）。
+ * 出発の時刻は分を切り捨てる（遅れない側）。日をまたぐときは 24時間で回す
+ */
+export function arrival(sec: number, stops: { stay_min: number | null }[], arrive_by: string | null) {
+  const stay_min = stops.reduce((n, s) => n + (s.stay_min ?? 0), 0);
+  if (!arrive_by) return { stay_min, arrive_by: null, depart_by: null };
+  const [h, m] = arrive_by.split(':').map(Number);
+  const t = (((Math.floor(h * 60 + m - sec / 60 - stay_min)) % 1440) + 1440) % 1440;
+  return { stay_min, arrive_by: `${h}:${String(m).padStart(2, '0')}`, depart_by: `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}` };
+}
 const nameOf = (p: Cand) => p.name ?? (p.kind in DICT ? DICT[p.kind as DictKey].label : p.ref ?? '');
 
 export const route = defineOp({
@@ -58,14 +70,17 @@ export const route = defineOp({
   description:
     '自動車のルートを引く（自社の Valhalla）。出発地と目的地は場所の参照。寄り道（最大3つ）は、決まった場所なら ref、' +
     '「郵便局」のような種類なら word（業務の言葉）のどちらか1つを指定する。word の寄り道は、寄り道なしのルートから 300 m 以内の候補から' +
-    '合計時間が最小になるものを選ぶ。keep_order が true なら寄り道は指定の順に回る。avoid_highways が true なら高速道路を通らない。',
+    '合計時間が最小になるものを選ぶ。keep_order が true なら寄り道は指定の順に回る。avoid_highways が true なら高速道路を通らない。' +
+    'arrive_by は依頼に着きたい時刻があるときだけ入れ、出発の時刻を逆算する。stay_min は依頼に寄り道先で過ごす時間が書いてあるときだけ入れる（なければ null。推測で入れない）。',
   input: z.object({
     from: Ref.describe('出発地の参照。現在地なら here:。view: は使えない'),
     to: Ref.describe('目的地の参照。view: は使えない'),
     stops: z.array(z.object({
       ref: Ref.nullable().describe('決まった場所の寄り道。word を使うときは null'),
       word: Word.nullable().describe('種類で指定する寄り道（例：post_office）。ref を使うときは null'),
+      stay_min: z.number().int().min(0).max(240).nullable().default(null).describe('その寄り道先で過ごす時間（分）。依頼に書いてあるときだけ。なければ null'),
     })).max(3).describe('寄り道。なければ空の配列'),
+    arrive_by: z.string().regex(/^([01]?\d|2[0-3]):[0-5]\d$/).nullable().default(null).describe('着きたい時刻（24時間制の H:MM。例：15:20）。依頼にあるときだけ。なければ null'),
     keep_order: z.boolean().describe('寄り道を指定の順に回るなら true'),
     avoid_highways: z.boolean().describe('高速道路を通らないなら true'),
   }),
@@ -152,7 +167,7 @@ export const route = defineOp({
         const r = routes.get(key(b.order, b.picks.map((x, k) => (k === i ? j : x))));
         return r ? [{ place: reg(c), extra_min: min1(r.sec - b.r.sec) }] : [];
       });
-      return { requested: st.word ? DICT[st.word].label : nameOf(refStops[i]!), chosen: reg(lists[i][b.picks[i]]), alternatives };
+      return { requested: st.word ? DICT[st.word].label : nameOf(refStops[i]!), chosen: reg(lists[i][b.picks[i]]), alternatives, stay_min: st.stay_min };
     });
 
     // 6. 区間
@@ -166,6 +181,7 @@ export const route = defineOp({
       direct: { minutes: min1(direct.sec), km: km2(direct.km) },
       extra_min: min1(b.r.sec - direct.sec),
       avoid_highways, keep_order, tried: combos.length,
+      ...arrival(b.r.sec, stops, input.arrive_by),
     };
     session.route = out;
     return out;
@@ -174,6 +190,7 @@ export const route = defineOp({
     from: o.legs[0]?.from, to: o.legs[o.legs.length - 1]?.to,
     stops: o.stops.map((s) => ({ ref: s.chosen.ref, name: s.chosen.name, requested: s.requested, alternatives: s.alternatives.length })),
     total: o.total, direct_minutes: o.direct.minutes, extra_min: o.extra_min,
+    stay_min: o.stay_min, arrive_by: o.arrive_by, depart_by: o.depart_by,
     avoid_highways: o.avoid_highways, tried: o.tried,
     legs: o.legs.map((l) => ({ from: l.from, to: l.to, minutes: l.minutes, km: l.km })),
   }),

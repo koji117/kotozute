@@ -119,11 +119,11 @@ export const planCourse = defineOp({
     const names = [startName, ...vias.map((v) => v.name ?? ''), startName];
     const course: RouteOutput = {
       from: start, to: start,
-      stops: vias.map((v) => ({ requested: 'トンネル', chosen: v, alternatives: [] })),
+      stops: vias.map((v) => ({ requested: 'トンネル', chosen: v, alternatives: [], stay_min: null })),
       legs: last.r.legs.map((l, i) => ({ from: names[i], to: names[i + 1], minutes: min1(l.sec), km: km2(l.km), shape: l.shape, steps: toSteps(l.maneuvers, i > 0) })),
       total: { minutes: last.a.minutes, km: last.a.km },
       direct: { minutes: last.a.minutes, km: last.a.km }, // 周回なので寄り道なしの比べ先はない
-      extra_min: 0,
+      extra_min: 0, stay_min: 0, arrive_by: null, depart_by: null,
       avoid_highways, keep_order: true, tried: routes,
     };
     session.route = course;

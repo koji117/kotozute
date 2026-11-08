@@ -131,7 +131,7 @@
  },
  {
   "name": "route",
-  "description": "自動車のルートを引く（自社の Valhalla）。出発地と目的地は場所の参照。寄り道（最大3つ）は、決まった場所なら ref、「郵便局」のような種類なら word（業務の言葉）のどちらか1つを指定する。word の寄り道は、寄り道なしのルートから 300 m 以内の候補から合計時間が最小になるものを選ぶ。keep_order が true なら寄り道は指定の順に回る。avoid_highways が true なら高速道路を通らない。",
+  "description": "自動車のルートを引く（自社の Valhalla）。出発地と目的地は場所の参照。寄り道（最大3つ）は、決まった場所なら ref、「郵便局」のような種類なら word（業務の言葉）のどちらか1つを指定する。word の寄り道は、寄り道なしのルートから 300 m 以内の候補から合計時間が最小になるものを選ぶ。keep_order が true なら寄り道は指定の順に回る。avoid_highways が true なら高速道路を通らない。arrive_by は依頼に着きたい時刻があるときだけ入れ、出発の時刻を逆算する。stay_min は依頼に寄り道先で過ごす時間が書いてあるときだけ入れる（なければ null。推測で入れない）。",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -186,15 +186,40 @@
          }
         ],
         "description": "種類で指定する寄り道（例：post_office）。ref を使うときは null"
+       },
+       "stay_min": {
+        "description": "その寄り道先で過ごす時間（分）。依頼に書いてあるときだけ。なければ null {default: null}",
+        "anyOf": [
+         {
+          "type": "integer",
+          "description": "{minimum: 0, maximum: 240}"
+         },
+         {
+          "type": "null"
+         }
+        ]
        }
       },
       "required": [
        "ref",
-       "word"
+       "word",
+       "stay_min"
       ],
       "additionalProperties": false
      },
      "description": "寄り道。なければ空の配列 {maxItems: 3}"
+    },
+    "arrive_by": {
+     "description": "着きたい時刻（24時間制の H:MM。例：15:20）。依頼にあるときだけ。なければ null {default: null}",
+     "anyOf": [
+      {
+       "type": "string",
+       "description": "{pattern: \"^([01]?\\\\d|2[0-3]):[0-5]\\\\d$\"}"
+      },
+      {
+       "type": "null"
+      }
+     ]
     },
     "keep_order": {
      "type": "boolean",
@@ -209,6 +234,7 @@
     "from",
     "to",
     "stops",
+    "arrive_by",
     "keep_order",
     "avoid_highways"
    ],
