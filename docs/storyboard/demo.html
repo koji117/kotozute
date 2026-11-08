@@ -532,7 +532,7 @@ const netOf = (id) => { const x = R[id]; return (Array.isArray(x) ? x.at(-1) : x
 const grp = (id, w) => oks(id).filter((s) => s.op === 'find_features').flatMap((s) => s.output.groups).filter((g) => g.word === w).at(-1);
 const unit = (g) => `${g.count}${g.word === 'tunnel' ? '本' : g.points != null ? 'か所' : '件'}${g.truncated ? '以上' : ''}`;
 const min = (m) => `${Math.round(m * 10) / 10}分`;
-const hm = (x) => { const [h, m] = x.split(':').map(Number); n(h); n(m); return `${h}時${m}分`; }; // 15:20 → 15時20分
+const hm = (x) => { const [h, m] = x.split(':').map(Number); n(h); n(m); return `${h < 12 ? '午前' : '午後'}${h % 12 || 12}時${m ? `${m}分` : ''}`; }; // 15:20 → 午後3時20分（11/8 にユーザーが「時刻の読み上げがおかしい」と指摘。話し言葉の形にし、字幕と声を同じ文にする）
 const km = (k) => `${Math.round(k * 100) / 100}km`;
 const n = (x) => { if (typeof x !== 'number' || !isFinite(x)) throw 0; return x; };
 const V_TEXT = { pass: '合う', fail: '合わない' }; // 「分からない（データなし）」は動画に出さない（2026-11-06 にユーザーが決定）。出たら「？」と知らせる
