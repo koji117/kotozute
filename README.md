@@ -324,7 +324,7 @@ npx tsx scripts/eval.ts
 コマンドを使わずに入れられる Mac のアプリ（.dmg）があります。
 
 - **対応**：Apple Silicon の Mac だけです。確かめたのは、この Mac Studio（M5 Ultra、96GB、macOS 27.0.1）だけです。
-- **入れ方**：.dmg（約216MB）を開いて、ことづてをアプリケーションに入れます。
+- **入れ方**：[GitHub Releases の v0.1.0](https://github.com/koji117/kotozute/releases/tag/v0.1.0) から .dmg（約216MB）を取り、開いて、ことづてをアプリケーションに入れます。
 - **署名**：Apple の Developer ID の署名も公証もありません（ad-hoc の署名だけ）。ダウンロードしたものを初めて開くと、macOS が止めます。「システム設定 → プライバシーとセキュリティ」の下に出る「このまま開く」を押すと開けます。
 - **初めて開いたとき**：
   1. Claude API のキーの画面が出ます。キーはキーチェーン（safeStorage）で暗号化して保存します。キーなしでも、地図、カテゴリのボタン、地図のボタン、AI を通さないルートは使えます。
@@ -482,7 +482,6 @@ MCP サーバ（stdio）─→ 同じ操作の一覧（AI を呼ばない、キ�
 
 - Mac のアプリは署名も公証もないので、初めて開くときに macOS が止めます（開き方は上の「Mac のアプリ」）。
 - Mac のアプリは Apple Silicon だけです。Intel の Mac、Windows、Linux では試していません。
-- 住所のデータ（GitHub Releases の `abr-tokyo-20261106`）は、リポジトリを公開するときに上げます。上げる前は、Mac のアプリの初めてのデータ作りが「住所のデータ」の手順で止まります。
 
 ## ライセンス
 
