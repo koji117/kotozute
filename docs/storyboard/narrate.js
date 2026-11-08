@@ -30,18 +30,18 @@ const READ = [
 // 行ごとの話し方（v4・v3 だけ。2026-11-07 にユーザーが「聞いている人が惹きつけられる抑揚のあるプレゼンに」と頼んだ）。
 // [字幕の文の頭, 指示, 読みだけの直し（任意）]。指示は英語で書く（ElevenLabs の audio tags）。字幕の文字は変えない
 const DIRECTION = [
-  [/^あなたの組織では/, '[curious, direct, engaging]'],
-  [/^無料のGoogleマップには/, '[serious, matter-of-fact]'],
+  [/^Googleマップなどの地図アプリ/, '[curious, direct, engaging]'],
+  [/^無料の地図アプリには/, '[serious, matter-of-fact]'],
   [/^規約を決めるのも/, '[serious, pointed]'],
   [/^これまでも/, '[serious, measured]'],
   [/^無料で使える/, '[thoughtful]'],
   [/^書ける人は/, '[curious, a little playful]'],
   [/^地図は、言語の壁/, '[thoughtful, sincere]'],
   [/^本来は会社に依存しない/, '[sincere, warm, unhurried]'],
-  [/^地図の業界に長くいる/, '[warm, sincere]'],
+  [/^ことづては、地図業界で/, '[warm, sincere]'],
   [/^言葉から地図へ/, '[calm, sincere]'],
   [/^ローカルファースト。/, '[calm, measured]'],
-  [/^必要なときに、地図のデータ/, '[calm]'],
+  [/^必要な分だけ地図を/, '[calm]'],
   [/^日本ファースト。/, '[calm, warm]'],
   [/^では、冒頭の予定を/, '[warm]'],
   [/^頼むのは、このひとこと/, '[confident]'],
