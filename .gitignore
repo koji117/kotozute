@@ -40,3 +40,6 @@ logs/ops.jsonl
 # Mac のアプリの出力（npm run app:dist）
 release/
 logs/ops-public.jsonl
+
+# Claude Code の手元の指示（2026-11-08 にユーザーが Git から外すと決めた）
+CLAUDE.md
