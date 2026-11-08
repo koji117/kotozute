@@ -126,6 +126,14 @@ svg{display:block;flex:none}
 .icon-box{width:150px;text-align:center;font-size:15px;font-weight:700;color:var(--text)}
 .promise .fig{margin-top:12px;font-size:16px;font-weight:800;color:var(--teal-700)}
 .promise .fig2{font-size:12.5px;color:var(--text-3);line-height:1.5}
+/* 約束を録画の右の余白に縦に並べる（45.16-74.45） */
+.side-promises .h3{display:inline-block;font-size:20px;background:var(--surface);border-radius:var(--r-lg);padding:4px 14px;box-shadow:var(--sh-pill);margin-bottom:8px}
+.side-promises .promise{width:auto;padding:10px 16px}
+.side-promises .promise .no{width:28px;height:28px;font-size:15px;margin-bottom:2px}
+.side-promises .promise h4{font-size:18px;margin-bottom:2px}
+.side-promises .promise div{font-size:13px;line-height:1.5}
+.side-promises .promise .fig{margin-top:6px;font-size:14px}
+.side-promises .promise .fig2{font-size:11.5px}
 .case{position:relative}
 .case .det{display:block;min-height:19px;margin-top:2px;font-size:14px;font-weight:700;color:var(--teal-300)}
 .cases6 .case{padding:6px 16px}
@@ -264,7 +272,7 @@ svg{display:block;flex:none}
 </div>
 
 <!-- ============ 課題・作った人・約束（22.4-42.25） ============ -->
-<div data-show="32.8-74.45" class="abs full">
+<div data-show="32.8-45.76" class="abs full">
   <div data-show="32.8-39.54" class="abs" style="left:100px;top:150px;display:flex;gap:40px;align-items:stretch">
     <div class="card" style="width:460px;padding:26px 28px;box-shadow:var(--sh-pill)">
       <div class="h3" style="font-size:28px">OpenStreetMap（OSM）</div>
@@ -287,13 +295,14 @@ out center;</div>
     <div style="font-size:20px;color:var(--text-2);margin-top:10px;line-height:1.6">地図業界で長く働いてきた開発者が、ひとりで作った<br>Google にも地図ベンダーにも頼らない、地図に詳しくなくても使える地図</div>
     <div style="margin-top:16px"><span class="badge b-acc" style="font-size:15px;height:30px">Claude Code で開発</span></div>
   </div>
-  <div data-show="45.16-74.45" class="abs" style="left:90px;top:120px;width:1100px">
-    <div class="h3" style="margin-bottom:22px">3つの約束</div>
-    <div style="display:flex;gap:26px">
+</div>
+<!-- 約束（45.16-74.45）：後ろに本物の操作の録画（s2-view、s1-chips、s4-feat）を音なしで流す。運営の「デモ＞プレゼン。スライドではなく、実際に使っている姿を見たい」を受けて、2026-11-08 にユーザーが決定。カードは録画の右の余白に縦に並べる -->
+<div data-show="45.16-74.45" class="abs side-promises" style="left:884px;top:52px;width:384px;z-index:60">
+  <div class="h3">3つの約束</div>
+  <div style="display:flex;flex-direction:column;gap:8px">
       <div data-show="45.76-74.45" class="promise rise"><div class="no">1</div><h4>言葉から地図へ</h4><div>作りたい地図を、言葉で伝えるだけ。はじめてでも、数秒で地図ができる。検索文もタグも知らなくてよい。<span class="nb">インストールも簡単</span></div><div class="fig">依頼から結果まで 中央値 5.25秒</div></div>
       <div data-show="51.19-74.45" class="promise rise"><div class="no">2</div><h4>ローカルファースト</h4><div>地図・検索・ルート・住所は、お使いの PC の上で動く。データも手元に置く。手元で読むので、クラウドベースの地図アプリより圧倒的に高速。必要なときに更新できる</div><div class="fig">名前の検索 数ms〜0.2秒</div><div class="fig2">前の構成では、名前の一部での検索に 8〜11.5秒</div></div>
       <div data-show="68.49-74.45" class="promise rise"><div class="no">3</div><h4>日本ファースト</h4><div>住所（丁目・番・号）、駅の名前、平面直角座標、地域メッシュ、度分秒に、追加の設定なしで対応</div></div>
-    </div>
   </div>
 </div>
 
@@ -449,6 +458,10 @@ const F = 0.35;
 // 枠は印の区間を順に並べる。録画が枠より長ければ速め（早送りの札）、短ければ最後のコマで止める。
 // 'sent' で終わる枠の次が 'answered' で始まる枠なら、その間（Claude の待ち時間）を切り、札を出す。
 const SHOTS = [
+  // 約束の場面の後ろ（音なし）：① の声のあいだに日本語の依頼で地図が動く（s2-view）、② のあいだに AI を通さないボタン（s1-chips、s4-feat）。③ は最後のコマで止める
+  ['s2-view', 45.5, [['start', 'sent', 2.5], ['answered', 'done', 2.5]]],
+  ['s1-chips', 50.5, [['start', 'done', 8]]],
+  ['s4-feat', 58.5, [['start', 'done', 9.75]], { hold: 74.15 }],
   ['s3-ex1', 74.15, [['start', 'typing', 1.6], ['typing', 'sent', 5], ['answered', 'done', 23.15]], { hold: 109.5 }], // 現在地のボタンは早送り。打つところは見せる
   ['s3b-share', 103.9, [['start', 'done', 5.6]], { box: 'share' }],
   ['s2b-coord', 115.79, [['start', 'typing', 0.62], ['typing', 'done', 4.18]]], // 座標を貼る（AI を通さない）。地点の札を見せる
