@@ -69,18 +69,6 @@ svg{display:block;flex:none}
 .co .v{font-size:20px;font-weight:800}
 .co .li.sm{font-size:var(--fs-small);color:var(--text-2);line-height:1.45} .co .li.sm .nb{white-space:normal}
 
-/* 動画の注（約束の欄・印・説明の箱）は、アプリの画面と見分けがつくようにする（11/8 にユーザーが「アプリのUIに見える」と指摘）。
-   アプリはやわらかい影・角丸・青緑。注は黄色の地、黒い枠、ずらした影（紙を貼ったような見た目） */
-.tracker,.stamp,.co{border:2px solid var(--sumi-900);border-radius:8px;box-shadow:5px 5px 0 var(--sumi-900)}
-.tracker{background:#FFD84D}
-.tracker .lab{color:var(--sumi-900)}
-.tracker .step{color:#5C4A00}
-.tracker .step .num{border-color:#8A7200}
-.stamp{background:#FFD84D;color:var(--sumi-900)}
-.stamp .tag{background:var(--sumi-900);color:#FFD84D}
-.stamp .s{color:#3B3200}
-.stamp .back{color:#6B4E00}
-.co{background:#FFF7D6}
 .ok{color:var(--ok-700);font-weight:800} .ng{color:var(--ng-700);font-weight:800}
 
 /* 地図の上に重ねる窓（別のブラウザ、書き出した画像、Mac のアプリ） */
@@ -180,11 +168,55 @@ svg{display:block;flex:none}
 .notes .wait{color:var(--sumi-900);background:#F2C46B;border-color:#F2C46B;font-weight:700}
 .notes .speed{color:var(--sumi-900);background:var(--teal-300);border-color:var(--teal-300);font-weight:700}
 .notes .bad{color:#fff;background:var(--ng-700);border-color:var(--ng-700);font-weight:800}
+
+/* ===== 動画の注：ひとこと（ここから） =====
+   注は「暗い幕の上の白い字で、一度に一言」。数字があるときは数字をいちばん大きくする。場面の名前・約束の欄・開示は字幕帯へ。
+   アプリは白いカード・青緑・やわらかい影・丸いボタンなので、注には箱も影も丸いボタンも青緑も使わない。色は琥珀を1か所だけ（今の場面で示している約束） */
+:root{--say-on:#FFFDF7;--say-on2:#B9C2C8;--say-off:#7F8B92;--say-hit:#F2C14E;--axis:840px}
+/* 右側を暗くする幕。箱に見えないよう、形そのものをぼかす。右は録画の外の黒へ溶かす。下は出典の手前で切れる。録画がもともと暗い場面（Claude Code）には出さない */
+.scrim{left:796px;top:40px;width:700px;height:506px;z-index:64;filter:blur(46px);background:linear-gradient(180deg,rgba(14,18,21,0) 0,rgba(14,18,21,.94) 38%)}
+/* ひとこと。どの場面も同じ軸・同じ高さから始める */
+.say{left:var(--axis);top:232px;width:420px;z-index:66;font-weight:700;color:var(--say-on);font-feature-settings:"palt"}
+.say .big{font-size:52px;line-height:1.04;letter-spacing:-.01em;white-space:nowrap}
+.say .big b{font-size:108px;font-weight:700;letter-spacing:-.025em}
+.say .tail{font-size:38px;line-height:1.28;margin-top:8px}
+.say .lead{font-size:38px;line-height:1.28}
+.say .land{font-size:80px;line-height:1.18;letter-spacing:-.01em}
+.say .land.mid{font-size:60px}
+.say .fine{font-size:15px;font-weight:500;line-height:1.55;margin-top:12px}
+.say .tail,.say .fine{word-break:auto-phrase}
+.say [data-list]{display:flex;gap:18px;margin-top:10px;font-size:17px;line-height:1.5}
+.say .li span:not(.k){display:none} /* 操作の名前だけ。入力の中身は、同じ時に左のパネルの「解釈」に出ている */
+.full .say{width:376px} /* Claude Code の場面：端末の窓の中に収める */
+/* 字幕帯：上の段は字幕（左）と、場面の名前・約束の欄（右。ひとことと同じ軸）。下の段は開示を1行で */
+.cap{display:block;padding:0}
+.captext{position:absolute;left:71px;top:0;width:750px;height:58px;flex:none}
+.captext > div{height:58px;line-height:1.3}
+.scene{position:absolute;left:var(--axis);top:7px;height:auto;padding:0;border-radius:0;background:none;color:var(--say-on2);font-size:14px;font-weight:500;line-height:20px}
+.trk{position:absolute;left:var(--axis);top:29px;display:flex;gap:14px;font-size:14px;font-weight:700;line-height:20px;white-space:nowrap;color:var(--say-off);font-feature-settings:"palt"}
+.trk > span{position:relative;padding-left:16px}
+.trk .on,.trk .now{position:absolute;inset:0;display:flex;align-items:center;gap:4px;background:var(--cap-bg)}
+.trk .on{color:var(--say-on)}
+.trk .now{color:var(--say-hit)}
+.trk svg{width:12px;height:12px;color:inherit}
+.notes{position:absolute;left:71px;right:24px;bottom:4px;width:auto;height:18px;flex-direction:row;justify-content:flex-start;align-items:center;gap:22px;white-space:nowrap;font-feature-settings:"palt"}
+.notes > div{flex:none;font-size:13px;line-height:18px;color:var(--say-on2);border:0;border-radius:0;padding:0}
+.notes .wait,.notes .speed{background:none;border:0;color:var(--say-on);font-weight:500}
+.notes .wait{order:8}
+.notes .speed{order:9;margin-left:auto}
+/* 冒頭の規約変更の通知（イメージ）：箱も太い線も使わず、暗い地に字だけ */
+.hook-notice{justify-content:center;padding:0;background:none;border:0;border-radius:0;box-shadow:none;gap:16px;font-feature-settings:"palt"}
+.hook-notice .bang{margin-top:3px;background:none;border:2px solid var(--say-hit);color:var(--say-hit)}
+.hook-notice b{font-size:26px;color:var(--say-on)}
+.hook-notice div span{font-size:16px;color:var(--say-on2)}
+.hook-notice small{margin:8px 0 0;font-size:13px;font-weight:500;color:var(--say-on2)}
+/* ===== 動画の注：ひとこと（ここまで） ===== */
 </style></head>
 <body>
 <svg width="0" height="0" style="position:absolute">
   <defs>
     <symbol id="i-logo" viewBox="0 0 26 26"><rect width="26" height="26" rx="8" fill="#7CCFD3"/><path d="M6.5 16.5c2.6-6 6.4-1.2 9.2-6.6" fill="none" stroke="#111518" stroke-width="2.4" stroke-linecap="round"/><circle cx="18.4" cy="8.6" r="2.4" fill="#111518"/><circle cx="6.5" cy="17" r="1.6" fill="#111518"/></symbol>
+    <symbol id="i-tick" viewBox="0 0 12 12"><path d="M2 6.5 5 9.5 10 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </defs>
 </svg>
 
@@ -194,40 +226,31 @@ svg{display:block;flex:none}
 <div id="clips" class="abs" style="inset:0"></div>
 <div id="dummy" class="abs dummy" hidden></div>
 
-<!-- 約束の欄（アプリの場面だけ。共有リンクの窓が出ている間は消す） -->
-<div data-show="74.15-104.07,109.5-120.8,145.85-163.02" class="abs pill tracker">
-  <span class="lab">約束</span>
-  <span class="step"><span class="num">1</span>数秒で地図に<span data-show="77.85-120.8,145.85-163.02" class="on"><span class="num">1</span>数秒で地図に</span></span>
-  <span class="step"><span class="num">2</span>ローカルファースト<span data-show="109.5-120.8,145.85-163.02" class="on"><span class="num">2</span>ローカルファースト</span></span>
-  <span class="step"><span class="num">3</span>日本ファースト<span data-show="85.52-120.8,145.85-163.02" class="on"><span class="num">3</span>日本ファースト</span></span>
-</div>
+<!-- ひとこと：右側を暗くする幕。ひとことを出す間だけ（Claude Code の場面は録画がもともと暗いので出さない） -->
+<div data-show="45.5-74.15,78.05-103.9,106-109.22,116.62-120.49,148.55-162.65,165.2-167.45" class="abs scrim"></div>
 
 <!-- 約束を守った場面の印 -->
 <div data-show="0-0" class="abs stamp pop"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">ボタンは AI を通さない</div><div class="s">地図・検索・ルートに、回数ごとの料金はない</div><div class="back">冒頭の例への答え：2018年の無料枠の縮小</div></div></div>
-<div data-show="77.85-80.75" class="abs stamp pop"><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">日本語のひとことで頼める</div><div class="s">検索文もタグも書かなくてよい</div><div class="back">冒頭の「専門知識が要る」への答え</div></div></div>
-<div data-show="116.62-120.49" class="abs stamp pop"><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">座標を貼るだけで、その場所へ</div><div class="s">平面直角座標・地域メッシュ・度分秒。変換は完全ローカル</div></div></div>
-<div data-show="81.95-85.36" class="abs stamp pop" data-fill><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">{ex1sec}で、ルートと共有リンク</div><div class="s">依頼から結果まで（Claude の処理時間を含む）</div></div></div>
-<div data-show="96.7-103.7" class="abs stamp pop" data-fill><div class="tag"><span class="n">①</span><span class="w">解決</span></div><div><div class="t">着く時刻も、過ごす時間も、ひとことで</div><div class="s">着く時刻から出発時刻を逆算（運転時間と滞在時間から。渋滞は含まない）</div></div></div>
-<div data-show="106-109.22" class="abs stamp pop" style="z-index:55"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">出典とデータの日付を、いつも表示</div><div class="s">地図のデータは、自分で更新するまで変わらない。出典つきで資料にも使える</div><div class="back">冒頭の例への答え：2019年の地図の作り替え／Google Earth の画像</div></div></div>
+<div data-show="78.05-80.75" class="abs say rise"><div class="lead">日本語の</div><div class="land">ひとこと</div><div class="lead">で頼める</div><div class="fine">検索文もタグも書かなくてよい<br>冒頭の「専門知識が要る」への答え</div></div>
+<div data-show="116.62-120.49" class="abs say rise"><div class="lead">座標を貼るだけで、</div><div class="land">その場所へ</div><div class="fine">平面直角座標・地域メッシュ・度分秒。変換は完全ローカル</div></div>
+<div data-show="80.75-85.2" class="abs say rise" data-fill><div class="big">{ex1n}つの操作に</div><div class="tail">Claude が分けた</div><div data-list="ex1read"></div><div class="fine">Claude には座標を渡さず、場所の番号と名前だけを渡す</div></div>
+<div data-show="96.4-103.9" class="abs say rise" data-fill><div class="big">{ex1dep}</div><div class="tail">までに出発</div><div class="fine">{ex1arr}に着くには。運転時間と滞在時間から逆算。渋滞は含まない。地図のデータから計算</div></div>
+<div data-show="106-109.22" class="abs say rise"><div class="lead">出典とデータの日付を、</div><div class="land">いつも表示</div><div class="fine">地図のデータは、自分で更新するまで変わらない。出典つきで資料にも使える<br>冒頭の例への答え：2019年の地図の作り替え／Google Earth の画像</div></div>
 <!-- 例2の③：「品川駅」で探して、出発地が OSM の駅（名前は「品川」）になったときだけ出す（下の script で、そうでなければ消す。2026-11-07 にユーザーが決定） -->
 <div id="stamp-station" data-show="0-0" class="abs stamp pop" data-fill><div class="tag"><span class="n">③</span><span class="w">解決</span></div><div><div class="t">「{ex2q}」は、OSM の駅「{ex2st}」</div><div class="s">「駅」を外して、駅として探す</div></div></div>
 <div data-show="0-0" class="abs stamp pop"><div class="tag"><span class="n" style="font-size:13px">しくみ</span></div><div><div class="t">合うかどうかは、通った道の OSM のタグで</div><div class="s">プログラムが数えて確かめる。トンネルは、頼んだ本数以上で「合う」</div></div></div>
 <div data-show="0-0" class="abs stamp pop" style="z-index:55"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">出典とデータ時点を、画像に焼き込む</div><div class="s">OSM の地図なので、出典を入れて社外の資料に使える</div><div class="back">↩ 冒頭の問い：Google Earth の画像</div></div></div>
-<div data-show="148.55-156.45" class="abs stamp pop" data-fill><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">外部への通信は Claude への依頼だけ{advOtherZero}</div><div class="s">地図・検索・ルート・住所は自分のマシンで動き、使った回数による料金はかからない（Claude API は使った分）</div><div class="back">冒頭の例への答え：明日、業務が止まる／2011年の有料化／2018年の無料枠の縮小</div></div></div>
-<div data-show="64.1-68.1" class="abs stamp pop" data-fill style="z-index:65;left:488px;right:auto;top:468px;width:384px"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">地図で選んだ点へ、押してから {rfSec}</div><div class="s">AI を通さないルート。Claude を呼ばず、手元で計算（この録画で測った値）。車・徒歩・自転車</div></div></div>
-<div data-show="157.45-162.65" class="abs stamp pop" data-fill><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">Claude を使わずに再実行</div><div class="s">このときの Claude への通信は {recA}</div></div></div>
-<div data-show="163.15-167.45" class="abs stamp pop" style="z-index:65;left:60px;right:auto;top:430px"><div class="tag"><span class="n">②</span><span class="w">解決</span></div><div><div class="t">ローカルファースト</div><div class="s">アプリはオープンソース（Apache-2.0）。地図のデータは手元で作り、メニューから最新にできる</div><div class="back">冒頭の例への答え：2020年 Mapbox／2024年 Bing Maps／2026年 Earth Pro</div></div></div>
+<div data-show="148.55-156.45" class="abs say rise" data-fill><div class="big">{advA}</div><div class="tail">Claude への依頼だけ{advOtherZero}</div><div class="fine">地図・検索・ルート・住所は自分のマシンで動き、使った回数による料金はかからない（Claude API は使った分）<br>冒頭の例への答え：明日、業務が止まる／2011年の有料化／2018年の無料枠の縮小</div></div>
+<div data-show="64.1-68.1" class="abs say rise" data-fill><div class="big">{rfSec}</div><div class="tail">地図で選んだ点へ、押してから</div><div class="fine">AI を通さないルート。Claude を呼ばず、手元で計算（この録画で測った値）。車・徒歩・自転車</div></div>
+<div data-show="157.45-162.65" class="abs say rise" data-fill><div class="big">{recA}</div><div class="tail">Claude を使わずに再実行</div><div class="fine">このときの Claude への通信</div></div>
+<div data-show="165.2-167.45" class="abs say rise"><div class="lead">アプリは</div><div class="land mid">オープンソース</div><div class="fine">Apache-2.0。地図のデータは手元で作り、メニューから最新にできる<br>冒頭の例への答え：2020年 Mapbox／2024年 Bing Maps／2026年 Earth Pro</div></div>
+<!-- 例1 の結果の値。声の1行ごとに1つ。どれも「地図のデータから計算」と書く（解釈は Claude、結果の値は地図のデータ） -->
+<div data-show="85.2-90.2" class="abs say rise" data-fill><div class="big">{ex1tried}通り</div><div class="tail">から、いちばん早い組み合わせ</div><div class="fine">{ex1stopsArrow}。全行程 {ex1min}・{ex1km}。地図のデータから計算<br>依頼から結果まで {ex1sec}（Claude の処理時間を含む）</div></div>
+<div data-show="90.2-96.4" class="abs say rise" data-fill><div class="big"><b>+</b>{ex1extra}</div><div class="tail">寄り道とカフェの分</div><div class="fine">運転 +{ex1drive}、カフェ {ex1stay}。地図のデータから計算</div></div>
 
 <!-- ③：解釈（Claudeが読んだ）と結果の値（地図のデータが答えた）。中身は events.json の結果から作る -->
 <div class="abs callouts">
   <div data-show="0-0" class="co data rise" data-fill><span class="who">地図のデータから計算した結果</span><div class="li"><span class="k">郵便局</span><span class="v">{po}</span><span style="color:var(--text-3)">この画面の範囲</span></div></div>
-  <div data-show="82.15-85.1" class="co read rise"><span class="who">Claude の解釈</span><div data-list="ex1read"></div><div class="li sm" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line)">Claude には座標を渡さず、場所の番号と名前だけを渡す</div></div>
-  <div data-show="85-103.9" class="co data rise" data-fill><span class="who">地図のデータから計算した結果</span>
-    <div class="li"><span class="v">{ex1min}・{ex1km}</span></div>
-    <div class="li"><span class="k">寄り道先</span><span>{ex1stopsArrow}</span></div>
-    <div class="li"><span class="k">寄り道で増える時間</span><span>{ex1extra}（運転 +{ex1drive}、カフェ {ex1stay}）</span></div>
-    <div class="li"><span class="k">着く時刻</span><span>{ex1arr}に着くには、{ex1dep}までに出発</span></div>
-    <div class="li sm">{ex1how}</div></div>
   <div data-show="0-0" class="co read rise"><span class="who">Claude の解釈</span><div data-list="ex2read"></div><div class="li sm" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line)">Claude には座標を渡さず、場所の番号と名前だけを渡す</div></div>
   <div data-show="0-0" class="co data rise" data-fill><span class="who">地図のデータから計算した結果</span>
     <div class="li"><span class="k">1回目</span><span>{c1via}：トンネル {c1t}・<span class="ng">× {c1r}</span></span></div>
@@ -313,17 +336,13 @@ out center;</div>
   </div>
 </div>
 <!-- 約束（45.16-74.45）：後ろに本物の操作の録画（s2-view、s1-chips、s4-feat）を音なしで流す。運営の「デモ＞プレゼン。スライドではなく、実際に使っている姿を見たい」を受けて、2026-11-08 にユーザーが決定。カードは録画の右の余白に縦に並べる -->
-<div data-show="45.16-74.45" class="abs side-promises" style="left:884px;top:52px;width:384px;z-index:60">
-  <div class="h3">3つの約束</div>
-  <div style="display:flex;flex-direction:column;gap:8px">
-      <div data-show="45.76-74.45" class="promise rise"><div class="no">1</div><h4>言葉から地図へ</h4><div>作りたい地図を、言葉で伝えるだけ。はじめてでも、数秒で地図ができる。検索文もタグも知らなくてよい。<span class="nb">インストールも簡単</span></div><div class="fig">依頼から結果まで 中央値 5.25秒</div></div>
-      <div data-show="51.19-74.45" class="promise rise"><div class="no">2</div><h4>ローカルファースト</h4><div>地図・検索・ルート・住所は、お使いの PC の上で動く。データも手元に置く。手元で読むので、クラウドベースの地図アプリより圧倒的に高速。必要なときに更新できる</div><div class="fig">名前の検索 数ms〜0.2秒</div><div class="fig2">前の構成では、名前の一部での検索に 8〜11.5秒</div></div>
-      <div data-show="68.49-74.45" class="promise rise"><div class="no">3</div><h4>日本ファースト</h4><div>住所（丁目・番・号）、駅の名前、平面直角座標、地域メッシュ、度分秒に、追加の設定なしで対応</div></div>
-  </div>
-</div>
+<div data-show="45.76-50.45" class="abs say rise"><div class="big">5.25秒</div><div class="tail">言葉から地図へ</div><div class="fine">依頼から結果まで、中央値</div></div>
+<div data-show="50.45-57.94" class="abs say rise"><div class="land mid">ローカル<br>ファースト</div><div class="fine">地図・検索・ルート・住所は、お使いの PC の上で動く。データも手元に置く</div></div>
+<div data-show="57.94-64.1" class="abs say rise"><div class="big">数ms〜0.2秒</div><div class="tail">名前の検索</div><div class="fine">前の構成では、名前の一部での検索に 8〜11.5秒</div></div>
+<div data-show="68.49-74.15" class="abs say rise"><div class="land mid">日本<br>ファースト</div><div class="fine">住所（丁目・番・号）、駅の名前、平面直角座標、地域メッシュ、度分秒に、追加の設定なしで対応</div></div>
 <!-- ② の声「…カスタマイズできます」：カテゴリのボタンの編集（11/8 に足した機能。録画のあとに足したので、今の公開版の静止画。~/kotozute-video/chip-editor.png）。
      2026-11-08 にユーザーが「カテゴリの追加機能も動画内で軽く説明して」 -->
-<div data-show="52.4-57.9" class="abs win rise" style="left:560px;top:58px;width:262px;z-index:58">
+<div data-show="52.4-57.9" class="abs win rise" style="left:510px;top:58px;width:262px;z-index:58">
   <div class="bar" style="font-size:12.5px">カテゴリのボタンの編集（今の画面）</div>
   <div class="body" style="height:520px;background:var(--surface)"><img id="chipedit" alt="" style="position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px);object-fit:contain;object-position:top"></div>
 </div>
@@ -369,7 +388,7 @@ out center;</div>
             <div class="b" data-show="130.95-143.95"><span>94%</span><i style="height:141px;background:var(--teal-600)"></i><span class="m">2回目</span></div>
             <div class="b" data-show="131.93-143.95"><span>100%</span><i style="height:150px;background:var(--teal-300)"></i><span class="m">3回目</span></div>
           </div>
-          <div class="m" style="padding-bottom:30px;line-height:1.9">自作の50問（40問＋罠10問）<br><span style="font-size:1.35em;font-weight:800;color:var(--teal-300)">AIが座標を作った回数：どの回も 0</span></div>
+          <div class="m" style="padding-bottom:30px;line-height:1.9">自作の50問（40問＋罠10問）<br><span style="font-size:1.35em;font-weight:800;color:var(--teal-300)">AIが座標を作った回数：<br>どの回も 0</span></div>
         </div>
         <!-- 問いの例（eval/set.jsonl の b01・d01 と、罠の t01・t06・t07・t09・t10）。2026-11-08 にユーザーがトランスクリプトのコメントで「罠とは？それぞれの問いの例を載せといて」 -->
         <div data-show="134.9-143.95" class="rise" style="margin-top:4px;font-size:14px;line-height:1.75">
@@ -387,8 +406,8 @@ out center;</div>
       </div>
     </div>
   </div>
-  <div data-show="123.16-128.35" class="abs stamp pop" style="right:70px;top:360px;z-index:55"><div class="tag"><span class="n">②</span><span class="w">開発</span></div><div><div class="t">開発中から、公開サービスを使うコードを止める</div><div class="s">hook がホスト名で判定する</div></div></div>
-  <div data-show="132.58-140.83" class="abs stamp pop" style="right:70px;top:160px;z-index:55"><div class="tag"><span class="n">記録</span></div><div><div class="t">評価セットを先にコミット</div><div class="s">プロンプトを直したのは、そのあと。順番は git の履歴で確かめられる</div></div></div>
+  <div data-show="123.16-128.35" class="abs say rise"><div class="lead">開発中から、<br>公開サービスを<br>使うコードを</div><div class="land">止める</div><div class="fine">hook がホスト名で判定する</div></div>
+  <div data-show="132.58-140.83" class="abs say rise"><div class="lead">評価セットを</div><div class="land mid">先にコミット</div><div class="fine">プロンプトを直したのは、そのあと。順番は git の履歴で確かめられる</div></div>
 </div>
 
 <!-- ============ Mac のアプリ（162-170）：入れ方の絵と、本物の窓の録画（s6-app） ============ -->
@@ -432,6 +451,12 @@ out center;</div>
 <!-- ============ 字幕帯。字幕は読み上げる（narrate.js）。{名前} は events.json の結果で埋める ============ -->
 <div class="abs cap">
   <span class="scene" id="sceneLabel">冒頭</span>
+  <!-- 約束の欄。on：もう示した約束。now：今の場面で示している約束（琥珀） -->
+  <div data-show="45.5-167.65" class="abs trk">
+    <span>数秒で地図に<span data-show="78.05-167.65" class="on"><svg><use href="#i-tick"/></svg>数秒で地図に</span><span data-show="45.5-50.45,78.05-103.9" class="now"><svg><use href="#i-tick"/></svg>数秒で地図に</span></span>
+    <span>ローカルファースト<span data-show="103.9-167.65" class="on"><svg><use href="#i-tick"/></svg>ローカルファースト</span><span data-show="50.45-68.25,103.9-109.5,120.8-128.35,145.85-167.65" class="now"><svg><use href="#i-tick"/></svg>ローカルファースト</span></span>
+    <span>日本ファースト<span data-show="109.5-167.65" class="on"><svg><use href="#i-tick"/></svg>日本ファースト</span><span data-show="68.25-74.15,109.5-120.8" class="now"><svg><use href="#i-tick"/></svg>日本ファースト</span></span>
+  </div>
   <div class="captext" data-fill>
     <div data-show="0-5">あなたの組織では、Googleマップなどの<br>地図アプリを無料で使っていませんか？</div>
     <div data-show="5-8.4">無料の地図アプリには、SLAがありません。</div>
@@ -469,7 +494,7 @@ out center;</div>
   </div>
   <div class="notes" id="notes">
     <div data-show="0-5">想定：用事を済ませてから、時間までに東京タワーへ行く人</div>
-    <div data-show="45.5-74.15">数字は開発機（Mac Studio）で測った値。①は自作の50問の中央値で、Claude を待つ時間を含む</div>
+    <div data-show="45.5-50.45,57.94-68.25">数字は開発機（Mac Studio）で測った値。①は自作の50問の中央値で、Claude を待つ時間を含む</div>
     <div data-show="74.15-109.5">想定：用事を済ませてから、時間までに東京タワーへ行く人</div>
     <div data-show="74.15-103.9">現在地は撮影用に設定（品川駅 高輪口）</div>
     <div data-show="103.9-109.5">撮影は手元のサーバで。チームで使うときは共有サーバのアドレスになる</div>
@@ -592,6 +617,7 @@ const stationOk = () => { try { const q = ex2q(), st = course().start?.name; ret
 if (!stationOk()) $('#stamp-station').remove();
 for (const e of document.querySelectorAll('.captext > div')) e.innerHTML = `<span>${e.innerHTML}</span>`;
 for (const e of document.querySelectorAll('[data-fill]')) e.innerHTML = e.innerHTML.replace(/\{(\w+)\}/g, (_, k) => `<span class="nb">${esc(val(k))}</span>`);
+for (const e of document.querySelectorAll('.say .big')) e.innerHTML = e.innerHTML.replace(/\d+(?:\.\d+)?/g, '<b>$&</b>'); // ひとことの数字だけを大きくする（単位はそのまま）
 
 // 解釈の行（画面の「解釈」と同じ作り：操作の名前と、入力を日本語にしたもの。src/web/panel.ts の pairs）
 const LABEL = { post_office: '郵便局', souvenir: '手土産', convenience: 'コンビニ', cafe: 'カフェ', parking: '駐車場', fuel: 'ガソリンスタンド', toilets: 'トイレ', park: '公園', station: '駅', hospital: '病院', level_crossing: '踏切', foot_crossing: '歩行者用の踏切', tunnel: 'トンネル' };

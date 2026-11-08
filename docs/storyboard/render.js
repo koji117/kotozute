@@ -11,7 +11,7 @@ const { execFileSync, execSync } = require('child_process');
 const { pathToFileURL } = require('url');
 
 const HOME = process.env.HOME;
-const OUT = path.join(HOME, 'kotozute-video');
+const OUT = process.env.VIDEO_OUT ?? path.join(HOME, 'kotozute-video'); // VIDEO_OUT：別のセッションと出力を分けるとき
 const EVENTS = process.env.EVENTS ?? path.join(OUT, 'events.json');
 const FPS = 30;
 
