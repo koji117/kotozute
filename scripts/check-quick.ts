@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DICT, DICT_KEYS } from '../src/ops/dict';
 import { arrival, route } from '../src/ops/route';
+import { makeLimits } from '../src/server/limits';
 import { mergeCrossings, mergeTunnels } from '../src/ops/find_features';
 import { otherPref } from '../src/ops/geocode_address';
 import type { RegionConfig } from '../src/region';
@@ -223,6 +224,18 @@ if (bad.length) {
   eq([old.arrive_by, old.stops[0].stay_min], [null, null], '新しいキーのない入力（前のレシピ）');
   eq(route.input.safeParse({ ...old, arrive_by: '25:00' }).success, false, '時刻の形の検証');
   eq(route.input.safeParse({ ...old, stops: [{ ref: null, word: 'cafe', stay_min: 999 }] }).success, false, '過ごす時間の上限');
+}
+
+// ===== 10. 公開版の回数の上限（日本時間の日付で数え直す） =====
+{
+  let t = Date.parse('2026-11-08T05:00:00Z'); // 日本時間 14:00
+  const L = makeLimits({ chatDay: 3, chatIp: 2, perMin: 2, saveDay: 1 }, () => t);
+  const got = [L.chat('a'), L.chat('a'), L.chat('a'), L.chat('b'), L.chat('c')];
+  if (JSON.stringify(got) !== JSON.stringify(['ok', 'ok', 'ip', 'ok', 'day'])) bad.push(`日本語の依頼の上限：${got}`);
+  if (![L.hit('a'), L.hit('a')].every(Boolean) || L.hit('a') || !L.hit('b')) bad.push('1分の上限');
+  if (!L.save() || L.save()) bad.push('保存の上限');
+  t = Date.parse('2026-11-08T15:00:00Z'); // 日本時間 11/9 0:00。日が変われば数え直す
+  if (L.chat('a') !== 'ok' || !L.save() || !L.hit('a')) bad.push('日が変わっても数え直していない');
 }
 
 console.log('check-quick: ok');

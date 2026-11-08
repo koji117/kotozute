@@ -9,6 +9,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { z } from 'zod';
 import { chat } from './claude';
 import { installNetlog, withNetlog } from './netlog';
+import { LIMIT_TEXT, limitsFromEnv } from './limits';
 import { loadRecipe, runRecipe, saveRecipe } from './recipe';
 import { getSession } from './session';
 import { findOp, runOp } from '../ops/registry';
@@ -65,6 +66,13 @@ app.use('/api/*', async (c, next) => {
   await next();
 });
 app.use('/api/*', bodyLimit({ maxSize: 16 * 1024, onError: (c) => c.json({ error: '送られたデータが大きすぎます' }, 413) }));
+// 公開版（KOTOZUTE_PUBLIC=1）だけの回数の上限（src/server/limits.ts）。IP は Cloudflare のトンネルが付ける CF-Connecting-IP
+const LIMITS = limitsFromEnv();
+const ipOf = (c: Context) => c.req.header('cf-connecting-ip') ?? 'local';
+app.use('/api/*', async (c, next) => {
+  if (LIMITS && !LIMITS.hit(ipOf(c))) return c.json({ error: LIMIT_TEXT.minute }, 429);
+  await next();
+});
 
 // 現在地・画面の範囲・クリックを伝える。座標はここで受けてセッションに置き、LLM には参照名だけを渡す
 app.post('/api/context', async (c) => {
@@ -88,6 +96,7 @@ app.post('/api/context', async (c) => {
 app.post('/api/op/:name', async (c) => {
   const op = findOp(c.req.param('name'));
   if (!op?.direct) return c.json({ error: 'その操作はありません' }, 404);
+  if (LIMITS && op.name === 'make_share_link' && !LIMITS.save()) return c.json({ error: LIMIT_TEXT.save }, 429);
   const req = await body(c, OpReq);
   const [r, net] = await withNetlog(() => runOp(op.name, { session: withView(req.sessionId, req.view), source: 'direct' }, req.input));
   return c.json({ ...r, net });
@@ -95,6 +104,8 @@ app.post('/api/op/:name', async (c) => {
 
 app.post('/api/chat', async (c) => {
   const req = await body(c, ChatReq);
+  const lim = LIMITS?.chat(ipOf(c));
+  if (lim && lim !== 'ok') return c.json({ error: LIMIT_TEXT[lim] }, 429);
   const [res, net] = await withNetlog(() => chat(withView(req.sessionId, req.view), req.text));
   return c.json({ ...res, net } satisfies ChatResponse);
 });
@@ -103,6 +114,7 @@ app.post('/api/chat', async (c) => {
 const SessionReq = z.object({ sessionId: SessionId });
 app.post('/api/recipe', async (c) => {
   const req = await body(c, SessionReq);
+  if (LIMITS && !LIMITS.save()) return c.json({ error: LIMIT_TEXT.save }, 429);
   return c.json(saveRecipe(getSession(req.sessionId)));
 });
 app.get('/api/recipe/:id', (c) => {
@@ -118,9 +130,10 @@ app.post('/api/recipe/:id/run', async (c) => {
 });
 
 // OSM ノートの下書きに入れてはいけない語。NOTE_BLOCK_WORDS（社名など。.env か、Mac のアプリでは note-block-words.txt）も使う。見つかった語だけ返す
+// 公開版では NOTE_BLOCK_WORDS を使わない（外から語を送って当たりを見れば、登録した社名などが分かってしまうため）
 app.post('/api/note/check', async (c) => {
   const { text } = await body(c, z.object({ text: z.string().max(2000, 'ノートは2000文字までにしてください') }));
-  return c.json({ blocked: blockedWords(text, envBlockWords()) });
+  return c.json({ blocked: blockedWords(text, LIMITS ? [] : envBlockWords()) });
 });
 
 // 地点の詳細（地図の印をクリックしたときのカード）。AI を通さず、OSM のタグから決まったものだけを返す
@@ -163,7 +176,7 @@ app.use('/*', serveStatic({ root: 'dist' })); // vite build の出力
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT ?? 8787);
   serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }); // 手元だけ。外から使うときは tailscale serve を前に置く
-  console.log(`kotozute server http://localhost:${port}`);
+  console.log(`kotozute server http://localhost:${port}${LIMITS ? '（公開版：回数の上限あり）' : ''}`);
   // Mac のアプリ（KOTOZUTE_DATA_DIR）は止める語を note-block-words.txt から渡す（desktop/main.mjs）。語そのものは出さない
   const dataDir = process.env.KOTOZUTE_DATA_DIR;
   if (!envBlockWords().length) {

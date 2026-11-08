@@ -5,6 +5,8 @@ import { VIEW_NONE_NAME } from '../region-text';
 
 // ponytail: メモリだけ。サーバを止めると消える。続きが要るならファイルに書く
 const sessions = new Map<string, Session>();
+/** セッションの数の上限。超えたら古いものから捨てる（公開版で、外からいくらでも作られないように） */
+const MAX_SESSIONS = 5000;
 
 /** reset：前の状態を捨てて作り直す（レシピの再実行で result:N の番号を 1 から振り直すため） */
 export function getSession(id: string, reset = false): Session {
@@ -12,7 +14,9 @@ export function getSession(id: string, reset = false): Session {
   let s = sessions.get(id);
   if (!s || reset) {
     s = { id, clicks: [], places: new Map(), nextResult: 1, nextAbr: 1, layers: {}, pins: [], history: [] };
+    sessions.delete(id);
     sessions.set(id, s);
+    if (sessions.size > MAX_SESSIONS) sessions.delete(sessions.keys().next().value!);
   }
   return s;
 }
