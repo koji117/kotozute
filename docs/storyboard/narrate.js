@@ -34,7 +34,7 @@ const DIRECTION = [
   [/^無料のGoogleマップには/, '[serious, matter-of-fact]'],
   [/^規約を決めるのも/, '[serious, pointed]'],
   [/^これまでも/, '[serious, measured]'],
-  [/^OSMは自分で/, '[thoughtful]'],
+  [/^無料で使える地図も/, '[thoughtful]'],
   [/^書ける人は/, '[curious, a little playful]'],
   [/^地図の業界に長くいる/, '[warm, sincere]'],
   [/^言葉から、数秒で地図に/, '[confident, upbeat]'],
