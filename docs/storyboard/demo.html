@@ -160,6 +160,13 @@ svg{display:block;flex:none}
 .route-ui li .dot.here{background:var(--teal-600)}
 .route-ui li.add{color:var(--teal-700);font-size:16px}
 .mapsearch{display:flex;align-items:center;gap:10px;height:48px;padding:0 18px;background:var(--surface);border-radius:var(--r-pill);box-shadow:var(--sh-win);font-size:17px;font-weight:700;color:var(--text-2)}
+.hook-dim{inset:0;background:linear-gradient(180deg,rgba(17,21,24,.86) 0%,rgba(17,21,24,.72) 46%,rgba(17,21,24,.12) 78%,rgba(17,21,24,0) 100%)}
+.hook-q{line-height:1.25;color:var(--on-sumi)}
+.hook-notice{left:320px;top:166px;width:600px;display:flex;align-items:flex-start;gap:14px;padding:16px 20px;background:var(--surface);border-radius:var(--r-lg);border-left:8px solid var(--ng-700);box-shadow:var(--sh-win)}
+.hook-notice .bang{flex:none;width:32px;height:32px;border-radius:50%;background:var(--ng-700);color:#fff;display:grid;place-items:center;font-weight:800;font-size:20px}
+.hook-notice b{display:block;font-size:20px;font-weight:800;color:var(--text);line-height:1.4}
+.hook-notice div span{font-size:15px;font-weight:500;color:var(--text-2);line-height:1.5}
+.hook-notice small{margin-left:auto;flex:none;font-size:12px;font-weight:700;color:var(--text-3)}
 .gray{inset:0;background:rgba(17,21,24,.9);-webkit-backdrop-filter:grayscale(1);backdrop-filter:grayscale(1)}
 
 /* ===== 字幕帯（下 80px）。右の欄は小さな札（想定の役割、現在地、待ち時間、早送り） ===== */
@@ -246,19 +253,12 @@ svg{display:block;flex:none}
 <div data-show="0-14.65" class="abs full">
   <img id="openmap" alt="" class="abs" style="left:0;top:0;width:1280px;height:640px;object-fit:cover">
   <div class="abs" style="right:10px;top:618px;font-size:11px;color:#5A646B;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:4px">© OpenStreetMap contributors | Protomaps</div>
-  <div class="abs mapsearch" style="left:24px;top:20px;width:430px"><svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>東京タワー</span><span class="badge free-tag">無料の地図アプリ</span></div>
-  <!-- 冒頭（0-3.8）：ふだん使っている無料の地図アプリで、明日の予定のルートを組んでいる画面（2026-11-08 にユーザーが「無料の地図アプリの利用画面をだして」と決定）。
-       Google の見た目（ロゴ、4色、アイコン）はまねない。経路のパネルに分や km は書かない（録画の結果ではないため）。予定のメモは 74.15秒の「冒頭の予定」が指すので残す -->
-  <div class="abs plan route-ui" style="left:24px;top:84px;width:430px">
-    <div class="rh">経路</div>
-    <div class="modes"><span class="on">車</span><span>電車</span><span>徒歩</span><span>自転車</span></div>
-    <ul>
-      <li><i class="dot here"></i>現在地</li>
-      <li class="add">＋ 経由地を追加</li>
-      <li><i class="dot"></i>東京タワー</li>
-    </ul>
-  </div>
-  <div data-show="0.53-14.65" class="abs plan memo rise" style="left:934px;top:268px;width:326px;font-size:10px;padding:14px 20px 8px">
+  <!-- 冒頭（0-5）：見た人を引き込む問い（2026-11-08 夕方にユーザーが案Bを選んだ）。地図は下半分に見せる。通知は実在の会社のものではない（「イメージ」と書く）。Google の見た目はまねない -->
+  <div data-show="0-5" class="abs hook-dim"></div>
+  <div data-show="0-2.6" class="abs hero hook-q" style="top:90px;font-size:84px">その地図、<br>明日も使えますか？</div>
+  <div data-show="2.6-5" class="abs hero hook-q" style="top:62px;font-size:64px">その地図、明日も使えますか？</div>
+  <div data-show="2.75-5" class="abs hook-notice rise"><span class="bang">!</span><div><b>利用規約を変更しました</b><span>これまでの使い方が、規約に合わなくなることがあります</span></div><small>イメージ</small></div>
+  <div data-show="2.75-14.65" class="abs plan memo rise" style="left:934px;top:268px;width:326px;font-size:10px;padding:14px 20px 8px">
     <div class="ph">明日の予定<small>メモ</small></div>
     <ul>
       <li><i></i>郵便局で書類を出す</li>
