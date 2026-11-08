@@ -145,6 +145,9 @@ app.post('/api/recipe/:id/run', async (c) => {
   const recipe = loadRecipe(c.req.param('id'));
   if (!recipe) return c.json({ error: 'レシピが見つかりません' }, 404);
   const req = await body(c, SessionReq);
+  // 再実行の中の共有リンクも、保存の上限に数える（数えないと、再実行で上限を超えて保存できる）
+  const shares = recipe.steps.filter((s) => s.op === 'make_share_link').length;
+  if (LIMITS) for (let i = 0; i < shares; i++) if (!LIMITS.save()) return c.json({ error: LIMIT_TEXT.save }, 429);
   const [steps, net] = await withNetlog(() => runRecipe(req.sessionId, recipe));
   return c.json({ steps, recipe, net } satisfies RecipeRunResponse);
 });

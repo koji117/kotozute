@@ -1,6 +1,6 @@
 // 結果パネルの文章。すべて操作の結果（OpResult）からテンプレートで作る。Claude の文章は出さない。
 import { ATTRIBUTION, OSM_DATA_AS_OF } from '../attribution';
-import { DICT, type DictKey } from '../ops/dict';
+import { DICT, DICT_KEYS, type DictKey } from '../ops/dict';
 import type {
   AddPinOutput, ChatResponse, CheckOutput, CheckRouteOutput, CheckRow, CourseOutput, ExportPngOutput, Mode, ExportRouteOutput, FindFeaturesOutput,
   GeocodeOutput, NetLog, OpResult, Place, RecipeRunResponse, RecipeSaved, RouteOutput, SearchPlaceOutput, SetViewOutput, ShareOutput,
@@ -225,7 +225,7 @@ const verdictTag = (v: Verdict) => html`<span class="verdict v-${v}">${V_ICON[v]
 
 function checkRow(r: CheckRow) {
   const [c, v] =
-    r.kind === 'tunnels' ? [html`<i class="sw-tun"></i>${r.want ? `トンネル ${r.want}本` : 'トンネルを通らない'}`, html`${r.got}${r.want ? `/${r.want}` : ''}<small>本</small>`]
+    r.kind === 'tunnels' ? [html`<i class="sw-tun"></i>${r.want ? `トンネル ${r.want}本以上` : 'トンネルを通らない'}`, html`${r.got}${r.want ? `/${r.want}` : ''}<small>本</small>`]
     : r.kind === 'minutes' ? [html`${CLOCK}${r.want}分以内`, html`${r.got}<small>分</small>`]
     : [html`<i class="sw-route"></i>高速を使わない`, r.got ? html`${r.got}<small>km 通る</small>` : html`<span class="muted">通らない</span>`];
   return html`<div class="c">${c}</div><div class="v">${v}</div><div class="j">${judged(r.result)}</div>`;
@@ -363,7 +363,10 @@ function opCard(s: OpResult, hereAcc?: number): Card {
     case 'export_png': return png(s.output as ExportPngOutput);
     case 'export_route': return routeFile(s.output as ExportRouteOutput);
     case 'draft_osm_note': return note(s.output as NoteDraftOutput);
-    case 'unknown_words': return card(html`<div class="card"><div>辞書にない言葉：${(s.output as UnknownWordsOutput).words.join('、')}（地物の検索には使えません）</div></div>`);
+    // 行き止まりにしない：地物で探せる言葉の一覧（辞書から作る）と、名前なら探せることを出す
+    case 'unknown_words': return card(html`<div class="card"><div>辞書にない言葉：${(s.output as UnknownWordsOutput).words.join('、')}（地物の検索には使えません）</div>
+      <div class="note">地物で探せる言葉：${DICT_KEYS.map((k) => DICT[k].label).join('・')}</div>
+      <div class="note">店や施設は、名前で頼むと探せます（例：東京タワー）</div></div>`);
     default: return card(html`<div class="card"><h3>${s.title}</h3></div>`);
   }
 }
@@ -401,7 +404,7 @@ export function renderChat(text: string, res: ChatResponse, hereAcc?: number) {
     ${opsList(res.steps, '解釈', '頼まれた言葉をこう受け取りました')}
     ${cards.map((c) => c.main)}
     ${stop ? html`<div class="card err"><div>${stop}${res.stop === 'error' && res.error ? `：${res.error}` : ''}</div></div>` : ''}
-    ${foot}${advSection(cards.map((c) => c.adv), res.net)}`;
+    ${res.steps.some((s) => s.ok && s.op !== 'unknown_words') ? foot : ''}${advSection(cards.map((c) => c.adv), res.net)}`; // 地図に何も出ていないときは、共有・画像・レシピを出さない
 }
 
 /** レシピの再実行（/?r=<id>）の結果。日本語の依頼の結果と同じ形で、Claude を使っていないことを見出しに出す。
@@ -433,5 +436,5 @@ export function renderRouteForm(form: Raw, r?: OpResult, hereAcc?: number) {
   return html`${close}${form}${c ? c.main : ''}${r?.ok ? foot : ''}${advSection([c?.adv], (r as { net?: NetLog } | undefined)?.net)}`;
 }
 
-export const renderError = (msg: string) => html`${close}<div class="card err" style="margin-top:0"><div>${msg}</div></div>${foot}${advSection([])}`;
-export const renderWait = () => html`<div class="wait">ことづてが地図を操作しています…</div>`;
+export const renderError = (msg: string) => html`${close}<div class="card err" style="margin-top:0"><div>${msg}</div></div>${advSection([])}`;
+export const renderWait = (msg = 'ことづてが地図を操作しています…') => html`<div class="wait">${msg}</div>`;
