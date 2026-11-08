@@ -5,7 +5,11 @@
 //   "center": [lng, lat], "zoom": 14, "bearing": 0, "flavor": "light", "flavorOverrides": {},
 //   "sources": { id: GeoJSON }, "layers": [ MapLibre のレイヤ ], "project": { 名前: [lng, lat] } } ] }
 // 出力：PNG と、project に書いた点の画面上の位置（CSS ピクセル）を <out>.json に書く。
-const { chromium } = require('playwright');
+// Playwright は require('playwright') で探し、なければグローバルの @playwright/cli の中のもの（render.js と同じ）
+const { chromium } = (() => {
+  try { return require('playwright'); } catch {}
+  return require(`${require('child_process').execSync('npm root -g').toString().trim()}/@playwright/cli/node_modules/playwright`);
+})();
 const fs = require('fs');
 const path = require('path');
 
@@ -87,7 +91,13 @@ async function shoot(browser, s) {
 
 (async () => {
   const spec = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-  const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const args = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+  // Playwright の版に合うブラウザがないときは、入っている中でいちばん新しい headless shell を使う（render.js と同じ）
+  const browser = await chromium.launch({ args }).catch(() => {
+    const dir = `${require('os').homedir()}/Library/Caches/ms-playwright`;
+    const shell = fs.readdirSync(dir).filter((d) => d.startsWith('chromium_headless_shell-')).sort().at(-1);
+    return chromium.launch({ args, executablePath: `${dir}/${shell}/chrome-headless-shell-mac-arm64/chrome-headless-shell` });
+  });
   for (const s of spec.shots) await shoot(browser, s);
   await browser.close();
 })();

@@ -7,6 +7,7 @@
 - `scripts/eval.ts`：採点。結果は `eval/runs/<日時>.json` に保存する。
 - 実行：`npx tsx scripts/eval.ts`（`.env` のキーが要る。検索は地域の設定 `data/region.json` があれば手元の SQLite、なければ Overpass :12345。ルートは Valhalla :8002（`VALHALLA_MODE=embedded` と `VALHALLA_CONFIG` で組み込み）。住所は `ABR_URL`（既定は :3002）。1回で Claude を約140回呼ぶ。3回の実績は138〜141回）。`--only a01,b03` で一部だけ。
 - 3回の結果（11/5）は、前の構成（Docker の Overpass、Valhalla、abr-geocoder）で測った。11/7 に検索の「〜駅」と ヶ・ケ・が の扱いを直したあとは回していない（回すのは3回までと決めているため）。
+- 11/8 に、ルートの操作（route）に着く時刻（`arrive_by`）と寄り道先で過ごす時間（`stay_min`）の入力を足した（ユーザーが承認）。Claude に渡すツールの定義が変わったので、3回の結果はこの前の版で測ったもの。足したあとは回していない。
 
 ## 問題の分け方
 

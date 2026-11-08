@@ -14,6 +14,7 @@ MP4="$OUT/kotozute-demo-$(date +%Y%m%d-%H%M).mp4"
 start=$(date +%s)
 if [ "${1:-}" != "--no-record" ]; then node scripts/video/record.mjs "$@"; fi
 cd docs/storyboard
+node open-map.js   # 冒頭の地図（例1の録画のルート）
 node render.js full
 MP4="$MP4" node narrate.js
 dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$MP4")
