@@ -89,5 +89,8 @@ export const DICT = {
 export type DictKey = keyof typeof DICT;
 export const DICT_KEYS = Object.keys(DICT) as [DictKey, ...DictKey[]];
 
-/** 画面の札に並べる言葉（左から） */
-export const CHIPS: DictKey[] = ['post_office', 'souvenir', 'convenience', 'level_crossing', 'tunnel'];
+/**
+ * 画面の札に並べる言葉（左から）。用事の札、車で客先へ行くときの札、試走コースの札の順。
+ * カフェ・駐車場・ガソリンスタンドは 11/8 にユーザーの頼みで足した（地図アプリの定番のカテゴリで、辞書にもともとある言葉。Claude に渡る文は変わらない）
+ */
+export const CHIPS: DictKey[] = ['post_office', 'souvenir', 'convenience', 'cafe', 'parking', 'fuel', 'level_crossing', 'tunnel'];

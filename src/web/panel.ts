@@ -36,6 +36,9 @@ export const CHIP_ICON: Partial<Record<DictKey, string>> = {
   post_office: svg16('M3.5 3.5h9a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11V5a1.5 1.5 0 0 1 1.5-1.5zM2.5 4.5L8 9l5.5-4.5'),
   souvenir: svg16('M2.5 6.5h11v7h-11zM2 4.5h12v2H2zM8 4.5v9M8 4.5C6 1.5 4 3 5.5 4.5M8 4.5c2-3 4-1.5 2.5 0'),
   convenience: svg16('M3 6h10l-.8 7.5H3.8zM5.5 6V4.5a2.5 2.5 0 0 1 5 0V6'),
+  cafe: svg16('M3 6.5h8v3.5a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM11 7.5h1.2a1.6 1.6 0 0 1 0 3.2H11M5.5 2.5v2M8.5 2.5v2'),
+  parking: svg16('M4 2.5h8a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5zM6.5 11.5v-7h2.3a2 2 0 0 1 0 4H6.5'),
+  fuel: svg16('M3 13.5v-10a1 1 0 0 1 1-1h4.5a1 1 0 0 1 1 1v10M2 13.5h8.5M4.5 5.5h3.5M9.5 7h1.5a1 1 0 0 1 1 1v3a1 1 0 0 0 2 0V6l-1.5-2'),
   level_crossing: svg16('M3 3l10 10M13 3L3 13'),
   tunnel: svg16('M2 13V8a6 6 0 0 1 12 0v5'),
 };

@@ -115,7 +115,7 @@ try {
   check('検索：左上、幅 440px', search && Math.abs(search.x - 16) < 2 && Math.abs(search.width - 440) < 2, JSON.stringify(search));
   check('検索：送るボタン', await page.locator('#search button[type=submit][aria-label]').count() === 1);
   const chips = await page.locator('#chips .chip').allTextContents();
-  check('札：5つ（郵便局から）', chips.length === 5 && chips[0] === '郵便局', chips.join(','));
+  check('札：8つ（郵便局から）', chips.length === 8 && chips[0] === '郵便局', chips.join(','));
   const chip0 = await box(page, '#chips .chip');
   check('札：検索の右', chip0 && chip0.x > search.x + search.width && chip0.y < search.y + search.height);
   for (const id of ['#locate', '#zin', '#zout']) {
