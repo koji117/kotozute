@@ -91,7 +91,7 @@ const isWord = (s: string): s is DictKey => Object.hasOwn(DICT, s);
 const label = (s: string) => (isWord(s) ? DICT[s].label : s);
 const KEY: Record<string, string> = {
   words: '探すもの', area: '範囲', radius_m: '半径（m）', name: '名前', address: '住所', from: '出発', to: '目的地',
-  stops: '寄り先', ref: '場所', word: '種類', target: '場所', show: '残す', hide: '隠す', avoid_highways: '高速を使わない', keep_order: '頼んだ順に寄る', stay_min: '過ごす時間（分）', arrive_by: '着く時刻',
+  stops: '寄り道先', ref: '場所', word: '種類', target: '場所', show: '残す', hide: '隠す', avoid_highways: '高速を使わない', keep_order: '頼んだ順に寄る', stay_min: '過ごす時間（分）', arrive_by: '着く時刻',
   mode: '移動の手段', start: '出発・到着', tunnels: 'トンネル（本）', max_minutes: '時間の上限（分）',
   format: '形式',
   issue: '問題の種類',
@@ -102,6 +102,11 @@ function inVal(k: string, v: unknown): string {
   if (typeof v === 'string' && k === 'issue' && Object.hasOwn(ISSUES, v)) return ISSUES[v as Issue].label;
   if (typeof v === 'string' && k === 'mode') return v === 'transit' ? '電車・バス' : Object.hasOwn(MODE_JA, v) ? MODE_JA[v as Mode] : '';
   if (typeof v === 'string') return isWord(v) ? DICT[v].label : refName(v); // OSM のタグでの解釈は「詳細」に出す
+  // 寄り道先は「カフェ（30分）」。「種類：カフェ、過ごす時間（分）：30」とは出さない
+  if (k === 'stops' && v && typeof v === 'object' && 'stay_min' in v) {
+    const st = v as { ref: string | null; word: string | null; stay_min: number | null };
+    return `${inVal(k, st.word ?? st.ref)}${st.stay_min ? `（${st.stay_min}分）` : ''}`;
+  }
   if (v && typeof v === 'object') return pairs(v, '、');
   return String(v);
 }
@@ -189,7 +194,7 @@ function route(r: RouteOutput, hereAcc?: number) {
     ${r.avoid_highways ? html`<div class="badges"><span class="badge b-acc">高速を使わない</span></div>` : ''}
     <div class="steps">${legs}</div></div>`,
   html`${r.legs.length > 1 ? html`<div class="note">区間ごと：${r.legs.map((l) => min(l.minutes)).join('／')}</div>` : ''}
-    ${nStops ? html`<div class="note">寄り先の候補の組み合わせを ${r.tried}通り試しました</div>` : ''}`);
+    ${nStops ? html`<div class="note">寄り道先の候補の組み合わせを ${r.tried}通り試しました</div>` : ''}`);
 }
 
 function setView(o: SetViewOutput) {
