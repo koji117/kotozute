@@ -56,6 +56,12 @@ export function limitsFromEnv(env = process.env) {
   return makeLimits({ chatDay: num('CHAT_PER_DAY', 300), chatIp: num('CHAT_PER_IP', 20), perMin: num('API_PER_MIN', 60), saveDay: num('SAVE_PER_DAY', 1000) });
 }
 
+/**
+ * 公開版の試用の現在地。審査員の多くは東京都の外にいて「今いる場所から…」を試せないので、位置情報が使えないときと、
+ * 東京都の外のときに使う。動画と同じ品川駅 高輪口（OSM node/265050703 の近く）。画面とルートには、この名前で出す（2026-11-08 にユーザーが決定）
+ */
+export const DEMO_HERE = { coord: [139.737985, 35.628809] as [number, number], accuracy_m: 30, label: '試用の現在地（品川駅 高輪口）' };
+
 export const LIMIT_TEXT = {
   minute: '短い時間に多くの操作がありました。1分ほど待ってから試してください',
   day: '公開版の今日の日本語の依頼は、上限に達しました。地図、カテゴリのボタン、座標の貼り付け、レシピの再実行は使えます',

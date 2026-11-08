@@ -58,8 +58,13 @@ const st = {
   pins: [] as { place: Place; n: string }[], // 住所と場所の検索の結果
   pinned: [] as Place[], // add_pin で立てたピン（サーバの session.pins と同じ並び）。新しい依頼でも消さない
   here: undefined as Session['here'],
+  hereDemo: false, // 公開版の試用の現在地を使っている
   clicks: [] as { coord: LngLat; n: string }[],
 };
+/** 公開版だけ：位置情報が使えないとき・東京都の外のときに使う試用の現在地（サーバが kz-public で渡す。src/server/limits.ts） */
+const DEMO_HERE: { coord: LngLat; accuracy_m: number; label: string } | null = (() => {
+  try { return JSON.parse(document.getElementById('kz-public')?.textContent ?? 'null')?.demoHere ?? null; } catch { return null; }
+})();
 /** 札で出した結果（言葉ごと）。パネルにまとめて出す */
 const chipSteps = new Map<DictKey, OpResult>();
 const shareId = new URLSearchParams(location.search).get('s');
@@ -196,7 +201,7 @@ function draw() {
   for (const p of st.pinned) if (!onRoute.has(p.ref)) marks.push(pt(p.coord, { n: '', label: nm(p), color: C.pin, ...info(p) })); // 自前のフォントに ★ などの記号がないので、赤い丸だけ
   for (const c of st.clicks) marks.push(pt(c.coord, { n: c.n, label: `クリック${c.n}`, color: C.gray }));
   set('marks', marks);
-  set('here', st.here ? [pt(st.here.coord, { label: `現在地 半径${st.here.accuracy_m}m` })] : []);
+  set('here', st.here ? [pt(st.here.coord, { label: st.hereDemo && DEMO_HERE ? DEMO_HERE.label : `現在地 半径${st.here.accuracy_m}m` })] : []);
   set('acc', st.here ? [circle(st.here.coord, st.here.accuracy_m)] : []);
 }
 
@@ -470,7 +475,7 @@ form.addEventListener('submit', async (e) => {
   // 現在地がないと Claude は here: を使えず、住所だけ調べて黙って止まる。送る前に位置情報の許可を求め、取れなければ送らない
   // ponytail: 言葉で判定するので「ここから」などは拾わない。拾い漏れが目立てば言葉を足す
   if (!st.here && HERE_WORDS.test(text)) {
-    const why = await locate(false);
+    const why = await locateOrDemo(false);
     if (why) {
       show(renderError(`依頼を送りませんでした。「今いる場所」を使うには現在地が要りますが、${why}。右下の現在地のボタンで位置情報を許可するか、地図で出発地をクリックしてから「クリックした場所から…」と頼んでください`));
       send.disabled = false;
@@ -536,14 +541,27 @@ function locate(fly: boolean): Promise<string | null> {
     // サーバが受けた（地域の中で、here: として使える）ときだけ地図に出す
     try { await api<ContextResponse>('/api/context', { sessionId, here }); } catch (err) { return done((err as Error).message); }
     st.here = here;
+    st.hereDemo = false;
     draw();
     if (fly) map.flyTo({ center: here.coord, zoom: Math.max(map.getZoom(), 15) });
     done(null);
   }, () => done(GEO_OFF), { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }));
 }
+/** 現在地を取る。公開版で取れない（許可がない、東京都の外など）ときは、試用の現在地を使い、そう知らせる */
+async function locateOrDemo(fly: boolean): Promise<string | null> {
+  const why = await locate(fly);
+  if (!why || !DEMO_HERE) return why;
+  try { await api<ContextResponse>('/api/context', { sessionId, demoHere: true }); } catch (err) { return (err as Error).message; }
+  st.here = { coord: DEMO_HERE.coord, accuracy_m: DEMO_HERE.accuracy_m };
+  st.hereDemo = true;
+  draw();
+  if (fly) map.flyTo({ center: DEMO_HERE.coord, zoom: Math.max(map.getZoom(), 15) });
+  toast(`${why}。公開版なので、${DEMO_HERE.label}を使います`);
+  return null;
+}
 $('#locate').addEventListener('click', async () => {
   if (replaying) return;
-  const why = await locate(true);
+  const why = await locateOrDemo(true);
   if (why) toast(why === GEO_OFF ? `${GEO_OFF}。地図をクリックして場所を指定できます` : why);
 });
 map.on('click', async (e) => {

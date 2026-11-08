@@ -9,7 +9,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { z } from 'zod';
 import { chat } from './claude';
 import { installNetlog, withNetlog } from './netlog';
-import { LIMIT_TEXT, limitsFromEnv } from './limits';
+import { DEMO_HERE, LIMIT_TEXT, limitsFromEnv } from './limits';
 import { loadRecipe, runRecipe, saveRecipe } from './recipe';
 import { getSession } from './session';
 import { findOp, runOp } from '../ops/registry';
@@ -40,6 +40,8 @@ const ContextReq = z.object({
   here: z.object({ coord: LngLat, accuracy_m: z.number().min(0).max(100_000) }).nullable().optional(),
   view: View.optional(),
   click: LngLat.optional(),
+  /** 公開版だけ：試用の現在地を使う（座標はサーバが持つ） */
+  demoHere: z.literal(true).optional(),
 });
 const OpReq = z.object({ sessionId: SessionId, input: z.unknown(), view: View.optional() });
 const ChatReq = z.object({ sessionId: SessionId, text: z.string().trim().min(1, '依頼が空です').max(300, '依頼は300文字までにしてください'), view: View.optional() });
@@ -83,6 +85,11 @@ app.post('/api/context', async (c) => {
   if (req.here !== undefined) delete s.hereLabel; // 見ている人の現在地（または無し）が、レシピを保存した人の現在地に代わる
   if (req.here === null) delete s.here;
   else if (req.here) s.here = req.here;
+  if (req.demoHere) {
+    if (!LIMITS) throw new HTTPException(400, { message: '試用の現在地は公開版だけで使えます' });
+    s.here = { coord: DEMO_HERE.coord, accuracy_m: DEMO_HERE.accuracy_m };
+    s.hereLabel = DEMO_HERE.label; // ルートなどでは、この名前の場所として出る（session.ts の resolveRef）
+  }
   const res: ContextResponse = {};
   if (req.click) {
     if (s.clicks.length >= 9999) throw new OpError('limit', 'クリックした点が多すぎます。画面を読み込み直してください');
@@ -163,9 +170,11 @@ app.onError((e, c) => {
 app.get(`/tiles/${basename(REGION.tiles)}`, serveStatic({ path: REGION.tiles })); // 画面は同じ名前で読む（src/web/main.ts）
 // 画面（index.html）には今の地域の値（データ時点など）を入れて返す。dist は build のときの値を持ち、それを上書きする（vite.config.ts）
 const regionTag = `<script type="application/json" id="kz-region">${JSON.stringify(webRegion(REGION)).replace(/</g, '\\u003c')}</script>`;
+// 公開版だけ：試用の現在地を画面に渡す（src/web/main.ts の DEMO_HERE）
+const publicTag = LIMITS ? `<script type="application/json" id="kz-public">${JSON.stringify({ demoHere: DEMO_HERE }).replace(/</g, '\\u003c')}</script>` : '';
 const page = async (c: Context, next: () => Promise<void>) => {
   if (!existsSync('dist/index.html')) return next();
-  return c.html(readFileSync('dist/index.html', 'utf8').replace('</head>', () => `${regionTag}</head>`));
+  return c.html(readFileSync('dist/index.html', 'utf8').replace('</head>', () => `${regionTag}${publicTag}</head>`));
 };
 app.get('/', page);
 app.get('/index.html', page);
