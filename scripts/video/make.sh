@@ -18,5 +18,5 @@ node open-map.js   # 冒頭の地図（例1の録画のルート）
 node render.js full
 MP4="$MP4" node narrate.js
 dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$MP4")
-echo "$MP4：${dur}秒（作るのにかかった時間 $(( $(date +%s) - start ))秒）"
+echo "${MP4}：${dur}秒（作るのにかかった時間 $(( $(date +%s) - start ))秒）"
 awk -v d="$dur" 'BEGIN { exit !(d <= 180.0) }' || { echo "180秒を超えています" >&2; exit 1; }
