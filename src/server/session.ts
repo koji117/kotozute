@@ -40,7 +40,7 @@ export function addAbr(s: Session, p: Omit<Place, 'ref'>): Place {
 export function resolveRef(s: Session, ref: string): Place {
   if (!REF_PATTERN.test(ref)) throw new OpError('bad_ref', '場所の参照の形が正しくありません');
   if (ref === 'here:') {
-    if (!s.here) throw new OpError('bad_ref', '現在地がまだありません。画面の現在地ボタンで位置情報を許可するか、地図をクリックしてください');
+    if (!s.here) throw new OpError('bad_ref', '現在地がまだありません。右下の現在地のボタンで位置情報を許可するか、地図で出発地をクリックしてから「クリックした場所から…」と頼んでください');
     if (s.hereLabel) return { ref, name: s.hereLabel, coord: s.here.coord, kind: 'place' };
     return { ref, name: '現在地', coord: s.here.coord, kind: 'here' };
   }

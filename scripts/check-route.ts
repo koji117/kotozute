@@ -109,6 +109,20 @@ await check('ルート：高速を使わない（品川 → 立川）', async ()
   console.log('  ', `高速あり ${normalMin}分、高速なし ${avoid.total.minutes}分`);
 });
 
+await check('ルート：徒歩と自転車（現在地 → 郵便局 → 芝公園4-2-8）。電車は引かない', async () => {
+  const base = { from: 'here:', to: 'abr:1', stops: [{ ref: null, word: 'post_office' }], keep_order: true, avoid_highways: true };
+  const car = await go({ ...base, avoid_highways: false });
+  const walk = await go({ ...base, mode: 'walk' });
+  const bike = await go({ ...base, mode: 'bicycle' });
+  assert.equal(walk.mode, 'walk');
+  assert.equal(walk.avoid_highways, false, '徒歩に「高速を使わない」を付けている');
+  assert.ok(walk.total.minutes > bike.total.minutes && bike.total.minutes > car.total.minutes, `徒歩 ${walk.total.minutes}・自転車 ${bike.total.minutes}・車 ${car.total.minutes} 分`);
+  for (const r of [walk, bike]) assert.ok(r.legs.every((l) => l.steps.every((s) => ja.test(s.text))), '曲がり方の日本語がない');
+  assert.equal((route.llm(walk) as { mode?: string }).mode, 'walk');
+  await fails(() => go({ ...base, mode: 'transit' }), ['not_found']);
+  console.log('  ', `車 ${car.total.minutes}分、自転車 ${bike.total.minutes}分、徒歩 ${walk.total.minutes}分（寄り道 ${walk.stops[0].chosen.name}）`);
+});
+
 await check('ルート：誤った参照と入力', async () => {
   await fails(() => go({ from: 'result:999', to: 'abr:1', stops: [], keep_order: true, avoid_highways: false }), ['bad_ref']);
   await fails(() => go({ from: 'here:', to: 'abr:1', stops: [{ ref: 'abr:1', word: 'cafe' }], keep_order: true, avoid_highways: false }), ['bad_input']);

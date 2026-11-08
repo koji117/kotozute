@@ -35,16 +35,34 @@ const View = z.object({
     .refine(([w, s, e, n]) => w < e && s < n, '範囲の形が正しくありません'),
   zoom: z.number().min(0).max(24),
 });
+const Here = z.object({ coord: LngLat, accuracy_m: z.number().min(0).max(100_000) });
 const ContextReq = z.object({
   sessionId: SessionId,
-  here: z.object({ coord: LngLat, accuracy_m: z.number().min(0).max(100_000) }).nullable().optional(),
+  here: Here.nullable().optional(),
   view: View.optional(),
   click: LngLat.optional(),
   /** 公開版だけ：試用の現在地を使う（座標はサーバが持つ） */
   demoHere: z.literal(true).optional(),
 });
 const OpReq = z.object({ sessionId: SessionId, input: z.unknown(), view: View.optional() });
-const ChatReq = z.object({ sessionId: SessionId, text: z.string().trim().min(1, '依頼が空です').max(300, '依頼は300文字までにしてください'), view: View.optional() });
+// here・demoHere：画面が持っている現在地。依頼のたびに送る（サーバを動かし直すとセッションが消え、画面には現在地が出たままでも here: が使えなくなるため）
+const ChatReq = z.object({
+  sessionId: SessionId, text: z.string().trim().min(1, '依頼が空です').max(300, '依頼は300文字までにしてください'), view: View.optional(),
+  here: Here.optional(), demoHere: z.literal(true).optional(),
+});
+
+/** 画面の現在地をセッションに置く（/api/context と /api/chat）。地域の外は断る */
+function setHere(s: Session, req: { here?: Session['here'] | null; demoHere?: true }) {
+  if (req.here && !inTokyo(req.here.coord)) throw new OpError('out_of_area', OUTSIDE_POINT);
+  if (req.here !== undefined) delete s.hereLabel; // 見ている人の現在地（または無し）が、レシピを保存した人の現在地に代わる
+  if (req.here === null) delete s.here;
+  else if (req.here) s.here = req.here;
+  if (req.demoHere) {
+    if (!LIMITS) throw new HTTPException(400, { message: '試用の現在地は公開版だけで使えます' });
+    s.here = { coord: DEMO_HERE.coord, accuracy_m: DEMO_HERE.accuracy_m };
+    s.hereLabel = DEMO_HERE.label; // ルートなどでは、この名前の場所として出る（session.ts の resolveRef）
+  }
+}
 
 async function body<T extends z.ZodType>(c: Context, schema: T): Promise<z.infer<T>> {
   // JSON だけ受ける。ほかのサイトから送らせない（JSON は事前確認が要り、CORS は開けていないので通らない）
@@ -82,14 +100,7 @@ app.post('/api/context', async (c) => {
   // 地域の外の点は、セッションを変える前に断る。文は画面にそのまま出す（「送られたデータが正しくありません」で包まない）
   if ([req.here?.coord, req.click].some((p) => p && !inTokyo(p))) throw new OpError('out_of_area', OUTSIDE_POINT);
   const s = withView(req.sessionId, req.view);
-  if (req.here !== undefined) delete s.hereLabel; // 見ている人の現在地（または無し）が、レシピを保存した人の現在地に代わる
-  if (req.here === null) delete s.here;
-  else if (req.here) s.here = req.here;
-  if (req.demoHere) {
-    if (!LIMITS) throw new HTTPException(400, { message: '試用の現在地は公開版だけで使えます' });
-    s.here = { coord: DEMO_HERE.coord, accuracy_m: DEMO_HERE.accuracy_m };
-    s.hereLabel = DEMO_HERE.label; // ルートなどでは、この名前の場所として出る（session.ts の resolveRef）
-  }
+  setHere(s, req);
   const res: ContextResponse = {};
   if (req.click) {
     if (s.clicks.length >= 9999) throw new OpError('limit', 'クリックした点が多すぎます。画面を読み込み直してください');
@@ -113,7 +124,9 @@ app.post('/api/chat', async (c) => {
   const req = await body(c, ChatReq);
   const lim = LIMITS?.chat(ipOf(c));
   if (lim && lim !== 'ok') return c.json({ error: LIMIT_TEXT[lim] }, 429);
-  const [res, net] = await withNetlog(() => chat(withView(req.sessionId, req.view), req.text));
+  const s = withView(req.sessionId, req.view);
+  setHere(s, req);
+  const [res, net] = await withNetlog(() => chat(s, req.text));
   return c.json({ ...res, net } satisfies ChatResponse);
 });
 

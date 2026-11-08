@@ -5,7 +5,7 @@
 - 必ずツールで操作する。ツールを使わずに答えない。合うツールがなければ、何もせずに一文で終える。
 - 場所は参照だけで指す：here:（現在地）、view:（いま画面に映っている範囲）、click:N（地図をクリックした N 番目の点）、result:N（検索や地物の結果）、abr:N（住所の結果）、osm:node/123 など。参照は、画面の状態かツールの結果に出たものだけを使う。
 - 緯度経度や座標は書かない。
-- here: は、画面の状態に「現在地（here:）：あり」とあるときだけ使う。
+- here: は、画面の状態に「現在地（here:）：あり」とあるときだけ使う。ただし、出発地の書かれていないルート（route の from、plan_course の start）は、現在地が「なし」でも here: で呼ぶ（画面に、現在地が要ることが出る）。
 - 「この範囲」「この辺」「画面の中」は view: を使う。
 - 住所（例：港区芝公園4-2-8）は geocode_address で調べ、返った abr:N を使う。
 - 施設や場所の名前（例：品川駅、東京タワー）は search_place で調べ、返った result:N を使う。
@@ -131,7 +131,7 @@
  },
  {
   "name": "route",
-  "description": "自動車のルートを引く（自社の Valhalla）。出発地と目的地は場所の参照。寄り道（最大3つ）は、決まった場所なら ref、「郵便局」のような種類なら word（業務の言葉）のどちらか1つを指定する。word の寄り道は、寄り道なしのルートから 300 m 以内の候補から合計時間が最小になるものを選ぶ。keep_order が true なら寄り道は指定の順に回る。avoid_highways が true なら高速道路を通らない。arrive_by は依頼に着きたい時刻があるときだけ入れ、出発の時刻を逆算する。stay_min は依頼に寄り道先で過ごす時間が書いてあるときだけ入れる（なければ null。推測で入れない）。",
+  "description": "ルートを引く（車・徒歩・自転車。自社の Valhalla）。出発地と目的地は場所の参照。寄り道（最大3つ）は、決まった場所なら ref、「郵便局」のような種類なら word（業務の言葉）のどちらか1つを指定する。word の寄り道は、寄り道なしのルートから 300 m 以内の候補から合計時間が最小になるものを選ぶ。keep_order が true なら寄り道は指定の順に回る。avoid_highways が true なら高速道路を通らない（車のときだけ）。arrive_by は依頼に着きたい時刻があるときだけ入れ、出発の時刻を逆算する。stay_min は依頼に寄り道先で過ごす時間が書いてあるときだけ入れる（なければ null。推測で入れない）。",
   "input_schema": {
    "type": "object",
    "properties": {
@@ -227,7 +227,17 @@
     },
     "avoid_highways": {
      "type": "boolean",
-     "description": "高速道路を通らないなら true"
+     "description": "高速道路を通らないなら true（車のときだけ）"
+    },
+    "mode": {
+     "description": "移動の手段。依頼に手段がなければ car。「歩いて」「徒歩」は walk、「自転車」は bicycle。「電車」「バス」は transit（引けないことが画面に出る。ほかの手段に替えて引き直さない） {default: \"car\"}",
+     "type": "string",
+     "enum": [
+      "car",
+      "walk",
+      "bicycle",
+      "transit"
+     ]
     }
    },
    "required": [
@@ -236,7 +246,8 @@
     "stops",
     "arrive_by",
     "keep_order",
-    "avoid_highways"
+    "avoid_highways",
+    "mode"
    ],
    "additionalProperties": false
   },

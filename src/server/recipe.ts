@@ -22,12 +22,13 @@ export function saveRecipe(s: Session): RecipeSaved {
     id: newId(),
     created_at: new Date().toISOString(),
     osm_as_of: OSM_DATA_AS_OF,
-    context: { here: usesHere ? (s.here ?? null) : null, clicks: s.clicks.slice(0, lastClick) },
+    // hereLabel があるのは試用の現在地のとき（レシピの再実行の名前は、再実行の終わりに消える）
+    context: { here: usesHere ? (s.here ?? null) : null, ...(usesHere && s.here && s.hereLabel ? { here_label: s.hereLabel } : {}), clicks: s.clicks.slice(0, lastClick) },
     steps: [...s.history],
   };
   mkdirSync(DIR, { recursive: true });
   writeFileSync(`${DIR}/${recipe.id}.json`, JSON.stringify(recipe));
-  return { id: recipe.id, url: `/?r=${recipe.id}`, steps: recipe.steps, includes_here: !!recipe.context.here };
+  return { id: recipe.id, url: `/?r=${recipe.id}`, steps: recipe.steps, includes_here: !!recipe.context.here && !recipe.context.here_label };
 }
 
 /** GET /api/recipe/:id。形が違う ID と、ない ID は null（共有リンクと同じ検査。パスに使う前に形を確かめる） */
@@ -46,7 +47,7 @@ export function loadRecipe(id: string): Recipe | null {
  */
 export async function runRecipe(sessionId: string, r: Recipe): Promise<OpResult[]> {
   const s = getSession(sessionId, true);
-  if (r.context.here) { s.here = r.context.here; s.hereLabel = 'レシピを保存した人の現在地'; }
+  if (r.context.here) { s.here = r.context.here; s.hereLabel = r.context.here_label ?? 'レシピを保存した人の現在地'; }
   s.clicks = [...r.context.clicks];
   const steps: OpResult[] = [];
   try {

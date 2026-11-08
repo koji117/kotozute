@@ -2,7 +2,7 @@
 // 言葉の寄り道は、寄り道なしのルートの近く（300 m 以内）の候補から、合計時間が最小の組み合わせを選ぶ。
 import { z } from 'zod';
 import { DICT, type DictKey } from './dict';
-import { defineOp, OpError, Ref, Word, type Leg, type LngLat, type Place, type RouteOutput, type StopChoice } from './types';
+import { defineOp, MODES, OpError, Ref, Word, type Leg, type LngLat, type Mode, type Place, type RouteOutput, type StopChoice } from './types';
 import { toSteps } from './steps';
 import { addResult, resolveRef } from '../server/session';
 import { features } from '../services/osm';
@@ -15,6 +15,9 @@ const CORRIDOR_M = 300; // ルートからこの距離までを候補にする
 const THIN_M = 100; // 検索文を短くするため、ルートの形をこの間隔に間引く
 const KEEP = 4; // 言葉ごとに残す候補の数
 const MAX_CALLS = 30; // Valhalla を呼ぶ回数の上限（寄り道なしの1回を含む）
+
+/** 電車・バスは時刻表のデータ（GTFS）がないので引けない。車などに替えて黙って引かない */
+const TRANSIT_NONE = '電車・バスのルートは引けません（時刻表のデータがありません）。車・徒歩・自転車なら引けます';
 
 const min1 = (sec: number) => Math.round(sec / 6) / 10;
 const km2 = (km: number) => Math.round(km * 100) / 100;
@@ -68,9 +71,9 @@ export const route = defineOp({
   name: 'route',
   title: 'ルート',
   description:
-    '自動車のルートを引く（自社の Valhalla）。出発地と目的地は場所の参照。寄り道（最大3つ）は、決まった場所なら ref、' +
+    'ルートを引く（車・徒歩・自転車。自社の Valhalla）。出発地と目的地は場所の参照。寄り道（最大3つ）は、決まった場所なら ref、' +
     '「郵便局」のような種類なら word（業務の言葉）のどちらか1つを指定する。word の寄り道は、寄り道なしのルートから 300 m 以内の候補から' +
-    '合計時間が最小になるものを選ぶ。keep_order が true なら寄り道は指定の順に回る。avoid_highways が true なら高速道路を通らない。' +
+    '合計時間が最小になるものを選ぶ。keep_order が true なら寄り道は指定の順に回る。avoid_highways が true なら高速道路を通らない（車のときだけ）。' +
     'arrive_by は依頼に着きたい時刻があるときだけ入れ、出発の時刻を逆算する。stay_min は依頼に寄り道先で過ごす時間が書いてあるときだけ入れる（なければ null。推測で入れない）。',
   input: z.object({
     from: Ref.describe('出発地の参照。現在地なら here:。view: は使えない'),
@@ -82,11 +85,15 @@ export const route = defineOp({
     })).max(3).describe('寄り道。なければ空の配列'),
     arrive_by: z.string().regex(/^([01]?\d|2[0-3]):[0-5]\d$/).nullable().default(null).describe('着きたい時刻（24時間制の H:MM。例：15:20）。依頼にあるときだけ。なければ null'),
     keep_order: z.boolean().describe('寄り道を指定の順に回るなら true'),
-    avoid_highways: z.boolean().describe('高速道路を通らないなら true'),
+    avoid_highways: z.boolean().describe('高速道路を通らないなら true（車のときだけ）'),
+    mode: z.enum([...MODES, 'transit']).default('car').describe('移動の手段。依頼に手段がなければ car。「歩いて」「徒歩」は walk、「自転車」は bicycle。「電車」「バス」は transit（引けないことが画面に出る。ほかの手段に替えて引き直さない）'),
   }),
   direct: true,
   async run({ session }, input): Promise<RouteOutput> {
-    const { avoid_highways, keep_order } = input;
+    if (input.mode === 'transit') throw new OpError('not_found', TRANSIT_NONE);
+    const mode: Mode = input.mode;
+    const { keep_order } = input;
+    const avoid_highways = mode === 'car' && input.avoid_highways; // 徒歩と自転車は高速を通らない
     for (const st of input.stops) {
       if ((st.ref == null) === (st.word == null)) throw new OpError('bad_input', '寄り道は、場所の参照か業務の言葉のどちらか1つで指定してください');
     }
@@ -102,7 +109,7 @@ export const route = defineOp({
     const refStops = input.stops.map((st) => (st.ref ? point(st.ref) : null));
 
     // 1. 寄り道なし
-    const direct = await valhallaRoute([from.coord, to.coord], { avoid_highways });
+    const direct = await valhallaRoute([from.coord, to.coord], { avoid_highways, mode });
     const line = direct.legs[0].shape;
 
     // 2. 寄り道ごとの候補（言葉はルートの近くを Overpass で探し、近い順に KEEP 件）。同じ言葉は1回だけ探す
@@ -145,7 +152,7 @@ export const route = defineOp({
       if (!order.length) { routes.set(key(order, picks), direct); return; }
       const pts = [from.coord, ...order.map((i) => lists[i][picks[i]].coord), to.coord];
       try {
-        routes.set(key(order, picks), await valhallaRoute(pts, { avoid_highways }));
+        routes.set(key(order, picks), await valhallaRoute(pts, { avoid_highways, mode }));
       } catch (e) {
         if (!(e instanceof OpError && e.code === 'not_found')) throw e; // 引けない組み合わせは飛ばす
       }
@@ -180,7 +187,7 @@ export const route = defineOp({
       total: { minutes: min1(b.r.sec), km: km2(b.r.km) },
       direct: { minutes: min1(direct.sec), km: km2(direct.km) },
       extra_min: min1(b.r.sec - direct.sec),
-      avoid_highways, keep_order, tried: combos.length,
+      avoid_highways, keep_order, tried: combos.length, mode,
       ...arrival(b.r.sec, stops, input.arrive_by),
     };
     session.route = out;
@@ -191,7 +198,7 @@ export const route = defineOp({
     stops: o.stops.map((s) => ({ ref: s.chosen.ref, name: s.chosen.name, requested: s.requested, alternatives: s.alternatives.length })),
     total: o.total, direct_minutes: o.direct.minutes, extra_min: o.extra_min,
     stay_min: o.stay_min, arrive_by: o.arrive_by, depart_by: o.depart_by,
-    avoid_highways: o.avoid_highways, tried: o.tried,
+    mode: o.mode, avoid_highways: o.avoid_highways, tried: o.tried,
     legs: o.legs.map((l) => ({ from: l.from, to: l.to, minutes: l.minutes, km: l.km })),
   }),
 });

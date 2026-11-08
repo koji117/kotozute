@@ -485,7 +485,9 @@ form.addEventListener('submit', async (e) => {
   }
   show(renderWait());
   try {
-    const res = await api<ChatResponse>('/api/chat', { sessionId, text, view: viewNow() });
+    // 画面の現在地もいっしょに送る（サーバを動かし直したあとでも、地図に出ている現在地を here: として使えるように）
+    const here = st.hereDemo ? { demoHere: true } : st.here ? { here: st.here } : {};
+    const res = await api<ChatResponse>('/api/chat', { sessionId, text, view: viewNow(), ...here });
     // 住所のピンは残す（共有リンクはサーバにある住所の結果をすべて入れるので、画面と合わせる）
     st.pins = st.pins.filter((p) => p.place.kind === 'address');
     const cam = apply(res.steps);

@@ -2,7 +2,7 @@
 // 既定は HTTP（VALHALLA_URL）。VALHALLA_MODE=embedded では同じプロセスの中で動かす（下の embedded）。
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { OpError, type LngLat } from '../ops/types';
+import { OpError, type LngLat, type Mode } from '../ops/types';
 
 const URL_ = process.env.VALHALLA_URL ?? 'http://localhost:8002';
 
@@ -87,23 +87,28 @@ async function post(path: string, body: unknown, notFound: string): Promise<any>
   return j;
 }
 
+/** 移動の手段 → Valhalla の costing。タイルは同じもの（手段ごとに作り直さない） */
+export const COSTING: Record<Mode, string> = { car: 'auto', walk: 'pedestrian', bicycle: 'bicycle' };
+const ROAD: Record<Mode, string> = { car: '車の通れる道', walk: '歩ける道', bicycle: '自転車で通れる道' };
+
 /**
- * 自動車のルート。points は出発地、経由地、目的地の順。
- * 高速を使わないときは高速道路と有料道路をハード除外する（exclude_highways・exclude_tolls。allow_hard_exclusions は有効にしてある）
+ * ルート（既定は車）。points は出発地、経由地、目的地の順。
+ * 車で高速を使わないときは高速道路と有料道路をハード除外する（exclude_highways・exclude_tolls。allow_hard_exclusions は有効にしてある）
  */
-export async function valhallaRoute(points: (LngLat | VLoc)[], opt: { avoid_highways: boolean }): Promise<VRoute> {
+export async function valhallaRoute(points: (LngLat | VLoc)[], opt: { avoid_highways: boolean; mode?: Mode }): Promise<VRoute> {
+  const mode = opt.mode ?? 'car';
   const body = {
     locations: points.map((p) => {
       if (!('coord' in p)) return { lat: p[1], lon: p[0] };
       const { coord: [lon, lat], type, heading, layer } = p;
       return { lat, lon, type, ...(heading != null ? { heading, heading_tolerance: 45 } : {}), ...(layer != null ? { preferred_layer: layer } : {}) };
     }),
-    costing: 'auto',
-    ...(opt.avoid_highways ? { costing_options: { auto: { exclude_highways: true, exclude_tolls: true } } } : {}),
+    costing: COSTING[mode],
+    ...(mode === 'car' && opt.avoid_highways ? { costing_options: { auto: { exclude_highways: true, exclude_tolls: true } } } : {}),
     units: 'kilometers',
     shape_format: 'polyline6',
   };
-  const j = await post('/route', body, 'ルートが見つかりませんでした（近くに車の通れる道がないか、道がつながっていません）') as {
+  const j = await post('/route', body, `ルートが見つかりませんでした（近くに${ROAD[mode]}がないか、道がつながっていません）`) as {
     trip?: { summary: { time: number; length: number }; legs: { summary: { time: number; length: number }; shape: string; maneuvers: Maneuver[] }[] };
   };
   if (!j.trip) throw new OpError('service', 'ルートの検索（自社の Valhalla）の応答が読めません');
@@ -120,9 +125,9 @@ export interface VEdge { way_id: number; m: number; from: number; to: number }
 export interface VTrace { shape: LngLat[]; edges: VEdge[]; snapped: boolean }
 
 /** ルートの形を道路網に重ねて、通った辺（OSM の way）を順に返す。そのまま合わなければ（edge_walk）近くの道に寄せて取り直す（walk_or_snap） */
-export async function valhallaTrace(shape: LngLat[]): Promise<VTrace> {
+export async function valhallaTrace(shape: LngLat[], mode: Mode = 'car'): Promise<VTrace> {
   const body = (shape_match: string) => ({
-    shape: shape.map(([lon, lat]) => ({ lat, lon })), costing: 'auto', shape_match,
+    shape: shape.map(([lon, lat]) => ({ lat, lon })), costing: COSTING[mode], shape_match,
     filters: { action: 'include', attributes: ['shape', 'edge.way_id', 'edge.length', 'edge.begin_shape_index', 'edge.end_shape_index'] },
   });
   const notFound = 'ルートの道を地図のデータと照らし合わせられませんでした';

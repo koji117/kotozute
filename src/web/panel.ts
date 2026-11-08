@@ -2,7 +2,7 @@
 import { ATTRIBUTION, OSM_DATA_AS_OF } from '../attribution';
 import { DICT, type DictKey } from '../ops/dict';
 import type {
-  AddPinOutput, ChatResponse, CheckOutput, CheckRouteOutput, CheckRow, CourseOutput, ExportPngOutput, ExportRouteOutput, FindFeaturesOutput,
+  AddPinOutput, ChatResponse, CheckOutput, CheckRouteOutput, CheckRow, CourseOutput, ExportPngOutput, Mode, ExportRouteOutput, FindFeaturesOutput,
   GeocodeOutput, NetLog, OpResult, Place, RecipeRunResponse, RecipeSaved, RouteOutput, SearchPlaceOutput, SetViewOutput, ShareOutput,
   UnknownWordsOutput, Verdict,
 } from '../ops/types';
@@ -53,7 +53,15 @@ const turnIcon = (t: number) => raw(
   [9, 18, 20, 23].includes(t) ? TURN.slightRight : [10, 11].includes(t) ? TURN.right
   : [16, 19, 21, 24].includes(t) ? TURN.slightLeft : [14, 15].includes(t) ? TURN.left
   : [12, 13].includes(t) ? TURN.uturn : TURN.straight);
-const CAR = raw('<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 12l1.6-4.4A2 2 0 0 1 7.5 6.2h5a2 2 0 0 1 1.9 1.4L16 12v3.5H4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6.8" cy="13" r="1" fill="currentColor"/><circle cx="13.2" cy="13" r="1" fill="currentColor"/></svg>');
+const svg20 = (body: string) => raw(`<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">${body}</svg>`);
+const line20 = 'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
+/** 移動の手段のアイコン（自前の線画）と名前。名前は types.ts の MODES と同じ並び（zod を画面に入れないため、ここに書く） */
+const MODE_ICON: Record<Mode, Raw> = {
+  car: svg20('<path d="M4 12l1.6-4.4A2 2 0 0 1 7.5 6.2h5a2 2 0 0 1 1.9 1.4L16 12v3.5H4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6.8" cy="13" r="1" fill="currentColor"/><circle cx="13.2" cy="13" r="1" fill="currentColor"/>'),
+  walk: svg20(`<circle cx="10.5" cy="3.8" r="1.6" fill="currentColor"/><path d="M10 6.8L9 11.5l2.6 2.4.6 3.6M9 11.5l-1.6 5.5M9.6 8.2L7 10.2M10.2 7.6l2.8 2" ${line20}/>`),
+  bicycle: svg20(`<circle cx="5" cy="13.2" r="3.2" ${line20}/><circle cx="15" cy="13.2" r="3.2" ${line20}/><path d="M5 13.2l3.4-5.6h4.4L15 13.2M8.4 7.6l2.2 5.6 2.2-5.6M7.2 5.8h2.4M12.2 5.4l.6 2.2" ${line20}/>`),
+};
+const MODE_JA: Record<Mode, string> = { car: '車', walk: '徒歩', bicycle: '自転車' };
 
 // ===== 参照の名前。結果に出た場所だけ名前で出し、知らない参照はそのまま出す =====
 const names = new Map<string, string>([['here:', '現在地'], ['view:', '画面の範囲']]);
@@ -81,7 +89,7 @@ const label = (s: string) => (isWord(s) ? DICT[s].label : s);
 const KEY: Record<string, string> = {
   words: '探すもの', area: '範囲', radius_m: '半径（m）', name: '名前', address: '住所', from: '出発', to: '目的地',
   stops: '寄り先', ref: '場所', word: '種類', target: '場所', show: '残す', hide: '隠す', avoid_highways: '高速を使わない', keep_order: '頼んだ順に寄る', stay_min: '過ごす時間（分）', arrive_by: '着く時刻',
-  start: '出発・到着', tunnels: 'トンネル（本）', max_minutes: '時間の上限（分）',
+  mode: '移動の手段', start: '出発・到着', tunnels: 'トンネル（本）', max_minutes: '時間の上限（分）',
   format: '形式',
   issue: '問題の種類',
 };
@@ -89,6 +97,7 @@ function inVal(k: string, v: unknown): string {
   if (Array.isArray(v)) return v.map((x) => inVal(k, x)).join('、');
   if (typeof v === 'boolean') return v ? 'はい' : 'いいえ';
   if (typeof v === 'string' && k === 'issue' && Object.hasOwn(ISSUES, v)) return ISSUES[v as Issue].label;
+  if (typeof v === 'string' && k === 'mode') return v === 'transit' ? '電車・バス' : Object.hasOwn(MODE_JA, v) ? MODE_JA[v as Mode] : '';
   if (typeof v === 'string') return isWord(v) ? DICT[v].label : refName(v); // OSM のタグでの解釈は「詳細」に出す
   if (v && typeof v === 'object') return pairs(v, '、');
   return String(v);
@@ -151,6 +160,8 @@ function search(o: SearchPlaceOutput) {
 function route(r: RouteOutput, hereAcc?: number) {
   const nStops = r.stops.length;
   const stay = r.stay_min ?? 0; // 11/8 より前の共有リンクとレシピにはない
+  const mode = r.mode ?? 'car'; // 試走コースと、11/8 より前の共有リンクとレシピは車
+  const move = mode === 'car' ? '運転' : '移動';
   const legs = r.legs.map((leg, i) => {
     const last = leg.steps.at(-1);
     const side = last?.type === 5 ? '右側' : last?.type === 6 ? '左側' : '';
@@ -167,11 +178,11 @@ function route(r: RouteOutput, hereAcc?: number) {
       ${r.stops.map((s, i) => html`<div class="pt"><span class="dotn">${i + 1}</span><span>${nm(s.chosen)}</span><small>${label(s.requested)}${s.stay_min ? `・${s.stay_min}分` : ''}</small></div>`)}
       <div class="pt"><span class="dotn">終</span><span>${nm(r.to)}</span><small>目的地</small></div>
     </div>
-    <div class="ph-h" style="margin-top:12px">${CAR}<h2>車</h2><span class="big">${min(r.total.minutes)}</span><span class="od">${km(r.total.km)}</span>
+    <div class="ph-h" style="margin-top:12px">${MODE_ICON[mode]}<h2>${MODE_JA[mode]}</h2><span class="big">${min(r.total.minutes)}</span><span class="od">${km(r.total.km)}</span>
       ${nStops ? html`<span class="badge b-acc" style="margin-left:auto">寄り道で +${min(r.extra_min + stay)}</span>` : ''}</div>
-    ${nStops ? html`<div class="od">寄らない場合 ${min(r.direct.minutes)}・${km(r.direct.km)}${stay ? `。増える時間は、運転 +${min(r.extra_min)}と、寄り道先で過ごす ${stay}分` : ''}</div>` : ''}
+    ${nStops ? html`<div class="od">寄らない場合 ${min(r.direct.minutes)}・${km(r.direct.km)}${stay ? `。増える時間は、${move} +${min(r.extra_min)}と、寄り道先で過ごす ${stay}分` : ''}</div>` : ''}
     ${r.depart_by ? html`<div class="arr">${CLOCK}<span><b>${r.arrive_by}</b> に着くには <b>${r.depart_by}</b> までに出発</span></div>
-      <div class="od">運転 ${min(r.total.minutes)}${stay ? `＋寄り道先で過ごす ${stay}分` : ''}から逆算（渋滞は含まない）</div>` : ''}
+      <div class="od">${move} ${min(r.total.minutes)}${stay ? `＋寄り道先で過ごす ${stay}分` : ''}から逆算${mode === 'car' ? '（渋滞は含まない）' : ''}</div>` : ''}
     ${r.avoid_highways ? html`<div class="badges"><span class="badge b-acc">高速を使わない</span></div>` : ''}
     <div class="steps">${legs}</div></div>`,
   html`${r.legs.length > 1 ? html`<div class="note">区間ごと：${r.legs.map((l) => min(l.minutes)).join('／')}</div>` : ''}

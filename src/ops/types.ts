@@ -117,7 +117,12 @@ export interface RouteOutput {
   avoid_highways: boolean; keep_order: boolean;
   /** 試した組み合わせの数 */
   tried: number;
+  /** 移動の手段。11/8 より前の共有リンクとレシピ、試走コースにはない（車） */
+  mode?: Mode;
 }
+/** ルートの移動の手段（自社の Valhalla の costing。電車・バスは時刻表のデータがないので引けない） */
+export const MODES = ['car', 'walk', 'bicycle'] as const;
+export type Mode = (typeof MODES)[number];
 export interface SetViewOutput { target: Place | null; bbox: BBox; shown: DictKey[]; hidden: DictKey[] }
 /** includes_here：共有したルートに現在地が入っている（開いた人に見える） */
 export interface ShareOutput { id: string; url: string; includes_here: boolean }
@@ -190,7 +195,8 @@ export interface Recipe {
   /** 保存したときの OSM のデータ時点（再実行はいまのデータで行う） */
   osm_as_of: string;
   /** here は操作が here: を使ったときだけ入る */
-  context: { here: Session['here'] | null; clicks: LngLat[] };
+  /** here_label：here が公開版の試用の現在地のとき、その名前（再実行でもその名前で出す。人の現在地ではない） */
+  context: { here: Session['here'] | null; here_label?: string; clicks: LngLat[] };
   steps: RecipeStep[];
 }
 /** POST /api/recipe */

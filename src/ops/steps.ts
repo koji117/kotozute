@@ -39,6 +39,12 @@ export function stepText(m: Maneuver, resume = false): string {
     case 27: return s ? `環状交差点を出て${s}へ` : '環状交差点を出る';
     case 28: return 'フェリーに乗る';
     case 29: return 'フェリーを降りる';
+    // 徒歩と自転車のルートで出る（Valhalla の kElevatorEnter〜kBuildingExit）
+    case 39: return 'エレベーターに乗る';
+    case 40: return '階段を通る';
+    case 41: return 'エスカレーターに乗る';
+    case 42: return '建物に入る';
+    case 43: return '建物を出る';
     default: return '道なりに進む';
   }
 }

@@ -12,7 +12,8 @@ if (existsSync('.env')) process.loadEnvFile('.env');
 
 const MODEL = 'claude-sonnet-5-5';
 const MAX_CALLS = 8; // 1回の応答で使うツールは1つ（disable_parallel_tool_use）なので、ツールの数＋最後の1回
-const DEADLINE_MS = 150_000; // 依頼1件にかける時間の上限
+// 依頼1件にかける時間の上限。公開版は Cloudflare のトンネルが約100秒で応答を切る（524）ので、その前に止めて理由を返す
+const DEADLINE_MS = process.env.KOTOZUTE_PUBLIC === '1' ? 90_000 : 150_000;
 const MAX_RECENT = 30;
 
 // system と tools は毎回同じ中身にする（キャッシュのため）。依頼ごとの状態は user の文に入れる
@@ -23,7 +24,7 @@ export const SYSTEM = [
   '- 必ずツールで操作する。ツールを使わずに答えない。合うツールがなければ、何もせずに一文で終える。',
   '- 場所は参照だけで指す：here:（現在地）、view:（いま画面に映っている範囲）、click:N（地図をクリックした N 番目の点）、result:N（検索や地物の結果）、abr:N（住所の結果）、osm:node/123 など。参照は、画面の状態かツールの結果に出たものだけを使う。',
   '- 緯度経度や座標は書かない。',
-  '- here: は、画面の状態に「現在地（here:）：あり」とあるときだけ使う。',
+  '- here: は、画面の状態に「現在地（here:）：あり」とあるときだけ使う。ただし、出発地の書かれていないルート（route の from、plan_course の start）は、現在地が「なし」でも here: で呼ぶ（画面に、現在地が要ることが出る）。',
   '- 「この範囲」「この辺」「画面の中」は view: を使う。',
   '- 住所（例：港区芝公園4-2-8）は geocode_address で調べ、返った abr:N を使う。',
   '- 施設や場所の名前（例：品川駅、東京タワー）は search_place で調べ、返った result:N を使う。',
@@ -116,6 +117,7 @@ function apiError(e: unknown): string {
   if (e instanceof Anthropic.AuthenticationError) return 'Claude API のキーが正しくありません';
   if (e instanceof Anthropic.RateLimitError) return 'Claude API が混んでいます。少し待ってから試してください';
   if (e instanceof Anthropic.BadRequestError) return 'Claude API への依頼の形が正しくありません';
+  if (e instanceof Anthropic.APIConnectionTimeoutError) return 'Claude の応答が時間内に終わりませんでした'; // 下の「接続できません」より先に見る（子のクラス）
   if (e instanceof Anthropic.APIConnectionError) return 'Claude API に接続できません';
   if (e instanceof Anthropic.APIError) return `Claude API がエラーを返しました（${e.status}）`;
   return 'Claude とのやりとりの途中でエラーが起きました';

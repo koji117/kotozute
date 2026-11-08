@@ -2,7 +2,7 @@
 // 通った way は Valhalla の trace_attributes で取り、タグは Overpass で取り直す。Valhalla の値（edge.tunnel、lane_count など）では判定しない
 // （lane_count は lanes タグがなくても値が入る）。
 import { z } from 'zod';
-import { defineOp, OpError, type CheckOutput, type CheckRouteOutput, type CheckRow, type CourseConditions, type LngLat, type TunnelRun, type Verdict } from './types';
+import { defineOp, OpError, type CheckOutput, type CheckRouteOutput, type CheckRow, type CourseConditions, type LngLat, type Mode, type TunnelRun, type Verdict } from './types';
 import { wayTags } from '../services/osm';
 import { distM, midOf } from '../services/region';
 import { valhallaTrace } from '../services/valhalla';
@@ -32,12 +32,12 @@ function runsOf(edges: Edge[], pred: (e: Edge) => boolean): [number, number][] {
 const sumM = (es: Edge[]) => es.reduce((s, e) => s + e.m, 0);
 
 /** ルートの区間ごとの形と、所要時間・距離（Valhalla の推定）から合否表を作る */
-export async function judge(legs: LngLat[][], total: { minutes: number; km: number }, c: CourseConditions): Promise<CheckOutput> {
+export async function judge(legs: LngLat[][], total: { minutes: number; km: number }, c: CourseConditions, mode: Mode = 'car'): Promise<CheckOutput> {
   // 1. 区間ごとに道へ重ねて、通った辺をつなぐ（周回を1本で重ねると edge_walk が失敗するため）
   const edges: Edge[] = [];
   let snapped = false;
   for (const shape of legs) {
-    const t = await valhallaTrace(shape);
+    const t = await valhallaTrace(shape, mode); // 徒歩のルートは歩道を通るので、車で重ねると合わない
     snapped ||= t.snapped;
     for (const e of t.edges) edges.push({ way_id: e.way_id, m: e.m, line: t.shape.slice(e.from, e.to + 1) });
   }
@@ -127,7 +127,7 @@ export const checkRoute = defineOp({
     if (input.tunnels == null && input.max_minutes == null && !input.avoid_highways) {
       throw new OpError('bad_input', '確かめる条件（トンネルの本数、時間の上限、高速を使わない）を1つ以上指定してください');
     }
-    const check = await judge(r.legs.map((l) => l.shape), r.total, input);
+    const check = await judge(r.legs.map((l) => l.shape), r.total, input, r.mode);
     return { ...check, from: r.legs[0]?.from ?? '', to: r.legs.at(-1)?.to ?? '' };
   },
   llm: (o) => ({ from: o.from, to: o.to, ...llmCheck(o) }),

@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DICT, DICT_KEYS } from '../src/ops/dict';
 import { arrival, route } from '../src/ops/route';
+import { COSTING } from '../src/services/valhalla';
 import { makeLimits } from '../src/server/limits';
 import { mergeCrossings, mergeTunnels } from '../src/ops/find_features';
 import { otherPref } from '../src/ops/geocode_address';
@@ -110,6 +111,7 @@ for (const k of DICT_KEYS) {
 
 // ===== 5. Claude に渡る文（東京では1バイトも変えない。評価は回し直せないため） =====
 // 例外：2026-11-08 にユーザーが route に着きたい時刻（arrive_by）と寄り道先で過ごす時間（stay_min）を足すと決めた。記録はそのとき作り直した。評価の3回はその前の版
+// 同じ日にユーザーが、移動の手段（mode：車・徒歩・自転車。電車・バスは引けないと出す）と、出発地のないルートは here: で呼ぶ指示を足すと決めた。記録を作り直した
 // 地域の設定はプロセスを起こすときに読むので、別のプロセスで作る。東京は Git の中の既定で作る（data/region.json がほかの地域でも比べられる）
 function claudeText(regionFile: string): string {
   const r = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/claude-text.ts'], { env: { ...process.env, REGION_FILE: regionFile }, encoding: 'utf8' });
@@ -210,10 +212,6 @@ const OSAKA: RegionConfig = { ...TOKYO, id: 'osaka', label: '大阪府', name: '
   }
 }
 
-if (bad.length) {
-  console.error(`check-quick：${bad.length}件\n- ${bad.join('\n- ')}`);
-  process.exit(1);
-}
 // ===== 9. 着きたい時刻から出発の時刻を逆算する（運転＋寄り道先で過ごす時間。分は切り捨て） =====
 {
   const eq = (got: unknown, want: unknown, what: string) => { if (JSON.stringify(got) !== JSON.stringify(want)) bad.push(`${what}：${JSON.stringify(got)}（${JSON.stringify(want)} のはず）`); };
@@ -224,6 +222,11 @@ if (bad.length) {
   eq([old.arrive_by, old.stops[0].stay_min], [null, null], '新しいキーのない入力（前のレシピ）');
   eq(route.input.safeParse({ ...old, arrive_by: '25:00' }).success, false, '時刻の形の検証');
   eq(route.input.safeParse({ ...old, stops: [{ ref: null, word: 'cafe', stay_min: 999 }] }).success, false, '過ごす時間の上限');
+  // 移動の手段（11/8 に足した）。前の入力は車。電車・バスは引けないので、車に替えずにエラーにする（route.ts）
+  eq(old.mode, 'car', '手段のない入力（前のレシピ）は車');
+  eq(route.input.safeParse({ ...old, mode: 'walk' }).success && route.input.safeParse({ ...old, mode: 'bicycle' }).success, true, '徒歩と自転車');
+  eq(route.input.safeParse({ ...old, mode: 'train' }).success, false, '知らない手段');
+  eq(COSTING, { car: 'auto', walk: 'pedestrian', bicycle: 'bicycle' }, 'Valhalla の costing');
 }
 
 // ===== 10. 公開版の回数の上限（日本時間の日付で数え直す） =====
@@ -238,4 +241,8 @@ if (bad.length) {
   if (L.chat('a') !== 'ok' || !L.save() || !L.hit('a')) bad.push('日が変わっても数え直していない');
 }
 
+if (bad.length) {
+  console.error(`check-quick：${bad.length}件\n- ${bad.join('\n- ')}`);
+  process.exit(1);
+}
 console.log('check-quick: ok');
