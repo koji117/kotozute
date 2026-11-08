@@ -227,7 +227,9 @@ svg{display:block;flex:none}
 </div>
 
 <!-- 例1 (d)：共有リンクを別のブラウザで開く（録画 s3b-share） -->
-<div data-show="103.9-109.5" class="abs win rise" style="left:300px;top:70px;width:900px" data-fill>
+<!-- 窓のあいだ、後ろの録画を暗く沈める（窓の中と外で同じ地図と出典が二重に見えないように。2026-11-08 にユーザーが「窓が変」と指摘） -->
+<div data-show="103.9-109.5" class="abs" style="inset:0;z-index:49;background:rgba(17,21,24,.72)"></div>
+<div data-show="103.9-109.5" class="abs win rise" style="left:190px;top:70px;width:900px" data-fill>
   <div class="bar"><span>別のブラウザ</span><span class="url">{shareUrl}</span></div>
   <div id="box-share" class="body" style="height:506px"></div>
 </div>
@@ -240,7 +242,7 @@ svg{display:block;flex:none}
 
 <!-- ============ 冒頭（0-14.35）：あなたの組織では、Googleマップを無料で使っていませんか？（2026-11-07 にユーザーが決めた出だし）。
      予定のカードが灰色に沈み、「SLA がない」「変更によっては、明日、業務が止まるかもしれない」が出る ============ -->
-<div data-show="0-13.9" class="abs full">
+<div data-show="0-14.65" class="abs full">
   <img id="openmap" alt="" class="abs" style="left:0;top:0;width:1280px;height:640px;object-fit:cover">
   <div class="abs" style="right:10px;top:618px;font-size:11px;color:#5A646B;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:4px">© OpenStreetMap contributors | Protomaps</div>
   <div class="abs mapsearch" style="left:24px;top:20px;width:430px"><svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>東京タワー</span><span class="badge free-tag">無料の地図アプリ</span></div>
@@ -255,7 +257,7 @@ svg{display:block;flex:none}
       <li><i class="dot"></i>東京タワー</li>
     </ul>
   </div>
-  <div data-show="0.4-13.9" class="abs plan memo rise" style="left:934px;top:268px;width:326px;font-size:10px;padding:14px 20px 8px">
+  <div data-show="0.53-14.65" class="abs plan memo rise" style="left:934px;top:268px;width:326px;font-size:10px;padding:14px 20px 8px">
     <div class="ph">明日の予定<small>メモ</small></div>
     <ul>
       <li><i></i>郵便局で書類を出す</li>
@@ -265,31 +267,31 @@ svg{display:block;flex:none}
       <li><i></i>ルートを送る</li>
     </ul>
   </div>
-  <div data-show="3.63-13.9" class="abs gray">
-    <div data-show="3.8-8.02" class="abs hero" style="top:190px;font-size:50px;line-height:1.45;color:var(--on-sumi)">無料の地図アプリには<br>SLA がない</div>
-    <div data-show="4.35-8.02" class="abs hero" id="sla-note" style="top:380px;font-size:20px;font-weight:700;color:var(--teal-300)">SLA：サービスの品質を約束する契約</div>
-    <div data-show="7.7-13.9" class="abs hero" style="top:190px;font-size:50px;line-height:1.45;color:var(--on-sumi)">規約を決めるのも、変えるのも地図会社<br>変更によっては、明日、業務が止まるかもしれない</div>
+  <div data-show="4.78-14.65" class="abs gray">
+    <div data-show="5-8.72" class="abs hero" style="top:190px;font-size:50px;line-height:1.45;color:var(--on-sumi)">無料の地図アプリには<br>SLA がない</div>
+    <div data-show="5.48-8.72" class="abs hero" id="sla-note" style="top:380px;font-size:20px;font-weight:700;color:var(--teal-300)">SLA：サービスの品質を約束する契約</div>
+    <div data-show="8.4-14.65" class="abs hero" style="top:190px;font-size:50px;line-height:1.45;color:var(--on-sumi)">規約を決めるのも、変えるのも地図会社<br>変更によっては、明日、業務が止まるかもしれない</div>
   </div>
 </div>
 
 <!-- ============ 冒頭：これまでも（14.65-22.4）。前例は調べて確かめたものだけ（docs/research/google-map-changes.md） ============ -->
-<div data-show="13.37-33.08" class="abs full dark">
-  <div data-show="13.47-21.74" class="abs" style="left:110px;top:26px;width:1060px">
+<div data-show="14.12-33.08" class="abs full dark">
+  <div data-show="14.22-21.74" class="abs" style="left:110px;top:26px;width:1060px">
     <div style="font-size:26px;font-weight:800;line-height:1.5">業務で使ってよい範囲は、ガイドラインに例で書かれているだけ。<br>範囲を決め直すのも Google。</div>
     <div style="font-size:20px;font-weight:700;color:var(--teal-300);margin-top:6px">Google Earth の画像は、今も商用には使えない。</div>
     <div style="font-size:16px;color:var(--on-sumi-2);margin-top:4px">変更は、地図アプリにも、地図を組み込んだ業務のシステムにも及ぶ</div>
     <div class="cases6" style="display:flex;flex-direction:column;gap:5px;margin-top:12px">
-      <div data-show="13.79-33.14" class="case rise"><span class="yr">2011</span><b>Google Maps API</b><span>一定の量を超える利用を、有料にする方針を発表</span><i data-show="16.09-16.97,19.5-33.14" class="hl"></i></div>
-      <div data-show="14.09-33.14" class="case rise"><span class="yr">2018</span><b>Google Maps Platform</b><span>APIキーが必須に。キーのないサイトで地図が灰色に。無料枠も大幅に縮小<small class="det"><span data-show="16.97-33.14">無料の範囲：1日 25,000回 → 月 約28,000回。超えた分：1,000回 0.5ドル → 7ドル（Maps JavaScript API）</span></small></span><i data-show="14.83-16.09,16.97-17.75,19.5-33.14" class="hl"></i></div>
-      <div data-show="14.39-33.14" class="case rise"><span class="yr">2019</span><b>Googleマップ（日本）</b><span>地図を作り替え。道やバス停が欠けた</span><i data-show="19.5-33.14" class="hl"></i></div>
-      <div data-show="14.68-33.14" class="case rise"><span class="yr">2020</span><b>Mapbox GL JS</b><span>v2 からオープンソース（BSD）のライセンスをやめ、利用規約への同意が必要に</span><i data-show="14.83-16.09,19.5-33.14" class="hl"></i></div>
-      <div data-show="14.97-33.14" class="case rise"><span class="yr">2024</span><b>Bing Maps for Enterprise</b><span>Microsoft が提供終了を発表。無料版は 2025年6月、有料版も 2028年6月まで</span><i data-show="17.75-33.14" class="hl"></i></div>
-      <div data-show="15.26-33.14" class="case rise"><span class="yr">2026</span><b>Google Earth Pro</b><span>デスクトップ版の配布終了を発表（2027年6月まで）</span><i data-show="17.75-33.14" class="hl"></i></div>
+      <div data-show="14.54-33.14" class="case rise"><span class="yr">2011</span><b>Google Maps API</b><span>一定の量を超える利用を、有料にする方針を発表</span><i data-show="16.62-17.42,19.69-33.14" class="hl"></i></div>
+      <div data-show="14.82-33.14" class="case rise"><span class="yr">2018</span><b>Google Maps Platform</b><span>APIキーが必須に。キーのないサイトで地図が灰色に。無料枠も大幅に縮小<small class="det"><span data-show="17.42-33.14">無料の範囲：1日 25,000回 → 月 約28,000回。超えた分：1,000回 0.5ドル → 7ドル（Maps JavaScript API）</span></small></span><i data-show="15.49-16.62,17.42-18.12,19.69-33.14" class="hl"></i></div>
+      <div data-show="15.09-33.14" class="case rise"><span class="yr">2019</span><b>Googleマップ（日本）</b><span>地図を作り替え。道やバス停が欠けた</span><i data-show="19.69-33.14" class="hl"></i></div>
+      <div data-show="15.35-33.14" class="case rise"><span class="yr">2020</span><b>Mapbox GL JS</b><span>v2 からオープンソース（BSD）のライセンスをやめ、利用規約への同意が必要に</span><i data-show="15.49-16.62,19.69-33.14" class="hl"></i></div>
+      <div data-show="15.61-33.14" class="case rise"><span class="yr">2024</span><b>Bing Maps for Enterprise</b><span>Microsoft が提供終了を発表。無料版は 2025年6月、有料版も 2028年6月まで</span><i data-show="18.12-33.14" class="hl"></i></div>
+      <div data-show="15.87-33.14" class="case rise"><span class="yr">2026</span><b>Google Earth Pro</b><span>デスクトップ版の配布終了を発表（2027年6月まで）</span><i data-show="18.12-33.14" class="hl"></i></div>
     </div>
     <div class="src" style="margin-top:18px">出典：Google の Geo Guidelines、INTERNET Watch（2011年11月、2018年5月・6月）、GIGAZINE（2018年7月）、週刊アスキー（2019年3月）、窓の杜（2026年7月）、Mapbox のリリースノート（2020年12月）、Microsoft Learn。2011年は方針の発表（実際の請求は上限を90日続けて超えたサイトだけ）。2019年の件は、Google の新しい地図の発表と、表示の変化の報道による（理由は Google が説明していない）。Google の件は2026年11月4日、ほかは11月8日に確認</div>
   </div>
-  <div data-show="21.74-33.08" class="abs hero rise" style="top:200px;font-size:36px;line-height:1.5">地図は、言語の壁を超えて、誰もが毎日、意識せずに使う道具</div>
-  <div data-show="26.94-33.08" class="abs hero rise" style="top:280px;font-size:36px;line-height:1.5;color:var(--teal-300)">本来は、会社に依存しない、オープンな人類の共通アセットであるべきだ</div>
+  <div data-show="21.74-33.08" class="abs hero rise" style="top:200px;font-size:36px;line-height:1.5">地図は、誰もが日常的に使う道具</div>
+  <div data-show="24.94-33.08" class="abs hero rise" style="top:280px;font-size:34px;line-height:1.5;color:var(--teal-300)">生活の基盤だからこそ、一企業の都合に左右されない、<br>人類の共通アセットであるべき</div>
   <div data-show="21.74-33.08" class="abs" style="left:0;width:1280px;top:150px;text-align:center;font-size:15px;color:var(--on-sumi-2)">作った人の考え</div>
 </div>
 
@@ -326,6 +328,12 @@ out center;</div>
       <div data-show="51.19-74.45" class="promise rise"><div class="no">2</div><h4>ローカルファースト</h4><div>地図・検索・ルート・住所は、お使いの PC の上で動く。データも手元に置く。手元で読むので、クラウドベースの地図アプリより圧倒的に高速。必要なときに更新できる</div><div class="fig">名前の検索 数ms〜0.2秒</div><div class="fig2">前の構成では、名前の一部での検索に 8〜11.5秒</div></div>
       <div data-show="68.49-74.45" class="promise rise"><div class="no">3</div><h4>日本ファースト</h4><div>住所（丁目・番・号）、駅の名前、平面直角座標、地域メッシュ、度分秒に、追加の設定なしで対応</div></div>
   </div>
+</div>
+<!-- ② の声「…カスタマイズできます」：カテゴリのボタンの編集（11/8 に足した機能。録画のあとに足したので、今の公開版の静止画。~/kotozute-video/chip-editor.png）。
+     2026-11-08 にユーザーが「カテゴリの追加機能も動画内で軽く説明して」 -->
+<div data-show="53.4-58.4" class="abs win rise" style="left:560px;top:58px;width:262px;z-index:58">
+  <div class="bar" style="font-size:12.5px">カテゴリのボタンの編集（今の画面）</div>
+  <div class="body" style="height:520px;background:var(--surface)"><img id="chipedit" alt="" style="position:absolute;inset:4px;width:calc(100% - 8px);height:calc(100% - 8px);object-fit:contain;object-position:top"></div>
 </div>
 
 <!-- ============ 日本の住所と座標（77.45-88.25）。③ 日本ファースト。住所の4つの書き方は、2026-11-07 に手元の住所のデータで試した結果 ============ -->
@@ -370,6 +378,12 @@ out center;</div>
             <div class="b" data-show="131.93-143.95"><span>100%</span><i style="height:150px;background:var(--teal-300)"></i><span class="m">3回目</span></div>
           </div>
           <div class="m" style="padding-bottom:30px;line-height:1.9">自作の50問（40問＋罠10問）<br><span style="font-size:1.35em;font-weight:800;color:var(--teal-300)">AIが座標を作った回数：どの回も 0</span></div>
+        </div>
+        <!-- 問いの例（eval/set.jsonl の b01・d01 と、罠の t01・t06・t07・t09・t10）。2026-11-08 にユーザーがトランスクリプトのコメントで「罠とは？それぞれの問いの例を載せといて」 -->
+        <div data-show="134.9-143.95" class="rise" style="margin-top:4px;font-size:14px;line-height:1.75">
+          <div class="m"># 問いの例（eval/set.jsonl から）</div>
+          <div>ふつうの頼み方：「この画面に出ている範囲の郵便局を全部見せてください」「このルートを共有リンクにして」</div>
+          <div class="y">罠（引っかからずに答えられるか）：「横浜駅を地図に出して」（東京都の外）／「汐留ひかり公会堂ってどこ？」（ない施設）／「この辺に本屋ある？」（辞書にない言葉）／「北緯35.6812、東経139.7671に地図を動かして」（座標の指定）／「この画面の踏切を出して」（OSM上で0件）</div>
         </div>
       </div>
       <div data-show="143.65-146.16">
@@ -427,12 +441,12 @@ out center;</div>
 <div class="abs cap">
   <span class="scene" id="sceneLabel">冒頭</span>
   <div class="captext" data-fill>
-    <div data-show="0-3.8">Googleマップなどの地図アプリを無料で使っていませんか？</div>
-    <div data-show="3.8-7.7">無料の地図アプリには、SLAがありません。</div>
-    <div data-show="7.7-13.9">規約を決めるのも変えるのも地図会社次第で、<br>変更によっては明日業務が止まってしまうかもしれません。</div>
-    <div data-show="13.9-21.45">これまでも、規約の変更、有料化、値上げ、サービスの終了が、<br>何度もありました。</div>
-    <div data-show="21.45-26.75">地図は、言語の壁を超えて、誰もが毎日使う道具です。</div>
-    <div data-show="26.75-32.8">本来は会社に依存しない、<br>人類の共通アセットであるべきだと思います。</div>
+    <div data-show="0-5">あなたの組織では、Googleマップなどの<br>地図アプリを無料で使っていませんか？</div>
+    <div data-show="5-8.4">無料の地図アプリには、SLAがありません。</div>
+    <div data-show="8.4-14.65">規約を決めるのも変えるのも地図会社次第で、<br>変更によっては明日業務が止まってしまうかもしれません。</div>
+    <div data-show="14.65-21.45">これまでも、規約の変更、有料化、値上げ、サービスの終了が、<br>何度もありました。</div>
+    <div data-show="21.45-24.75">地図は誰もが日常的に使う道具です。</div>
+    <div data-show="24.75-32.8">生活の基盤だからこそ、一企業の都合に左右されず、<br>自由に使える人類の共通アセットであるべきです。</div>
     <div data-show="32.8-39.2">無料で使えるオープンな地図もあります。<br>しかし使うのには専門知識が要ります。</div>
     <div data-show="39.2-45.5">ことづては、地図業界で長く働いてきた私が、<br>ずっと足りないと思っていた地図です。</div>
     <div data-show="45.5-50.45">言葉から地図へ。ひとことで頼むと、数秒で地図ができます。</div>
@@ -462,13 +476,14 @@ out center;</div>
     <div data-show="175.35-179.85">あなたの地図は、止まらない。ことづて。</div>
   </div>
   <div class="notes" id="notes">
-    <div data-show="0-3.8">想定：用事を済ませてから、時間までに東京タワーへ行く人</div>
+    <div data-show="0-5">想定：用事を済ませてから、時間までに東京タワーへ行く人</div>
     <div data-show="45.5-74.15">数字は開発機（Mac Studio）で測った値。①は自作の50問の中央値で、Claude を待つ時間を含む</div>
     <div data-show="74.15-109.5">想定：用事を済ませてから、時間までに東京タワーへ行く人</div>
     <div data-show="74.15-103.9">現在地は撮影用に設定（品川駅 高輪口）</div>
     <div data-show="103.9-109.5">撮影は手元のサーバで。チームで使うときは共有サーバのアドレスになる</div>
     <div data-show="0-0">想定：条件つきのコースを作る人</div>
     <div data-show="128.35-143.65">評価の3回は 11/5（着く時刻と移動の手段を足す前の版）</div>
+    <div data-show="53.4-58.4">カテゴリのボタンは、辞書の13語から足す・外す・並べ替え（11/8 に足した。画面は今の公開版の静止画）</div>
     <div data-show="162.85-167.65">録画の地図のデータは、撮影用に前もって作ったもの</div>
   </div>
 </div>
@@ -495,7 +510,7 @@ const SHOTS = [
 ];
 const SCENES = [[32.8, '課題・作った人・約束'], [74.15, '例1 寄り道して東京タワーへ'], [103.9, '例1 (d) 共有リンク'], [109.5, '日本の住所と座標'], [120.8, 'Claude Code での開発'], [145.85, '外部通信の記録'], [156.45, 'レシピ'], [162.85, 'アプリ'], [167.65, 'おわり']];
 
-SCENES.unshift([0, '冒頭：無料の地図アプリ'], [13.37, '冒頭：これまでも'], [21.45, '冒頭：作った人の考え']);
+SCENES.unshift([0, '冒頭：無料の地図アプリ'], [14.12, '冒頭：これまでも'], [21.45, '冒頭：作った人の考え']);
 
 const E = window.EVENTS ?? null, REPO = window.REPO ?? {}, VDIR = window.VIDEO_DIR ?? '';
 const MISSING = window.MISSING = [];
@@ -656,7 +671,8 @@ const shots = SHOTS.map(([id, at, segDefs, opt = {}]) => {
 });
 // Mac のアプリの録画がなければ、入れ方の絵だけを真ん中に出す
 if (!clips['s6-app']) { $('#mac-win').remove(); $('#mac-how').style.left = '380px'; }
-$('#openmap').src = VDIR + 'open-map.png'; // node open-map.js（make.sh が render の前に作る）
+$('#openmap').src = VDIR + 'open-map.png';
+$('#chipedit').src = VDIR + 'chip-editor.png'; // カテゴリのボタンの編集（今の公開版の静止画） // node open-map.js（make.sh が render の前に作る）
 $('#png').src = VDIR + (clips['s4b-png']?.png ?? clips['s4b-png']?.downloads?.[0] ?? 's4b-png.png');
 if (E?.dummy) { $('#dummy').hidden = false; $('#dummy').textContent = 'ダミーの録画と結果（dummy-events.js）。本番では使わない'; }
 if (!E) note('bad', 'events.json がありません（render.js から開く）', 0, DURATION);
@@ -690,7 +706,7 @@ const loaded = (m, ok, ng) => new Promise((res) => {
   m.addEventListener(ng, () => { MISSING.push(`読めない：${m.src.split('/').pop()}`); res(); }, { once: true });
   setTimeout(() => { if (m.readyState < 2 && !(m.complete && m.naturalWidth)) MISSING.push(`読み込みが終わらない：${m.src.split("/").pop()}`); res(); }, 30000); // 止まったままにしない
 });
-window.ready = Promise.all([document.fonts.ready, loaded($('#png'), 'load', 'error'), ...shots.filter((s) => s.v).map((s) => loaded(s.v, 'loadeddata', 'error'))])
+window.ready = Promise.all([document.fonts.ready, loaded($('#png'), 'load', 'error'), loaded($('#chipedit'), 'load', 'error'), ...shots.filter((s) => s.v).map((s) => loaded(s.v, 'loadeddata', 'error'))])
   .then(() => render(0));
 </script>
 </body></html>
