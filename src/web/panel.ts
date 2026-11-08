@@ -59,12 +59,12 @@ const turnIcon = (t: number) => raw(
 const svg20 = (body: string) => raw(`<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">${body}</svg>`);
 const line20 = 'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
 /** 移動の手段のアイコン（自前の線画）と名前。名前は types.ts の MODES と同じ並び（zod を画面に入れないため、ここに書く） */
-const MODE_ICON: Record<Mode, Raw> = {
+export const MODE_ICON: Record<Mode, Raw> = {
   car: svg20('<path d="M4 12l1.6-4.4A2 2 0 0 1 7.5 6.2h5a2 2 0 0 1 1.9 1.4L16 12v3.5H4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6.8" cy="13" r="1" fill="currentColor"/><circle cx="13.2" cy="13" r="1" fill="currentColor"/>'),
   walk: svg20(`<circle cx="10.5" cy="3.8" r="1.6" fill="currentColor"/><path d="M10 6.8L9 11.5l2.6 2.4.6 3.6M9 11.5l-1.6 5.5M9.6 8.2L7 10.2M10.2 7.6l2.8 2" ${line20}/>`),
   bicycle: svg20(`<circle cx="5" cy="13.2" r="3.2" ${line20}/><circle cx="15" cy="13.2" r="3.2" ${line20}/><path d="M5 13.2l3.4-5.6h4.4L15 13.2M8.4 7.6l2.2 5.6 2.2-5.6M7.2 5.8h2.4M12.2 5.4l.6 2.2" ${line20}/>`),
 };
-const MODE_JA: Record<Mode, string> = { car: '車', walk: '徒歩', bicycle: '自転車' };
+export const MODE_JA: Record<Mode, string> = { car: '車', walk: '徒歩', bicycle: '自転車' };
 
 // ===== 参照の名前。結果に出た場所だけ名前で出し、知らない参照はそのまま出す =====
 const names = new Map<string, string>([['here:', '現在地'], ['view:', '画面の範囲']]);
@@ -183,7 +183,7 @@ function route(r: RouteOutput, hereAcc?: number) {
       ${r.from.kind === 'here'
         ? html`<div class="pt"><span class="dot here"></span><span>現在地</span><small>${hereAcc != null ? `半径${hereAcc}m` : ''}</small></div>`
         : html`<div class="pt"><span class="dotn">出</span><span>${nm(r.from)}</span><small>出発</small></div>`}
-      ${r.stops.map((s, i) => html`<div class="pt"><span class="dotn">${i + 1}</span><span>${nm(s.chosen)}</span><small>${label(s.requested)}${s.stay_min ? `・${s.stay_min}分` : ''}</small></div>`)}
+      ${r.stops.map((s, i) => html`<div class="pt"><span class="dotn">${i + 1}</span><span>${nm(s.chosen)}</span><small>${label(s.requested) === nm(s.chosen) ? '経由地' : label(s.requested)}${s.stay_min ? `・${s.stay_min}分` : ''}</small></div>`)}
       <div class="pt"><span class="dotn">終</span><span>${nm(r.to)}</span><small>目的地</small></div>
     </div>
     <div class="ph-h" style="margin-top:12px">${MODE_ICON[mode]}<h2>${MODE_JA[mode]}</h2><span class="big">${min(r.total.minutes)}</span><span class="od">${km(r.total.km)}</span>
@@ -424,6 +424,13 @@ export function renderDirect(steps: OpResult[]) {
   return html`${close}<div class="ph-h"><h2>この画面の範囲</h2><span class="badge b-ok">AIを通さない</span></div>
     ${cards.map((c) => c.main)}
     ${foot}${advSection([html`<div class="note">${CHIP_SOURCE}</div>`, ...cards.map((c) => c.adv)], (steps.at(-1) as { net?: NetLog } | undefined)?.net)}`;
+}
+
+/** ルートのフォーム（AI を通さない。src/web/route-form.ts）。引いたあとはフォームの下にルートのカードと、共有リンクなどのボタン */
+export function renderRouteForm(form: Raw, r?: OpResult, hereAcc?: number) {
+  if (r?.ok) remember(r.output);
+  const c = r && stepHtml(r, hereAcc);
+  return html`${close}${form}${c ? c.main : ''}${r?.ok ? foot : ''}${advSection([c?.adv], (r as { net?: NetLog } | undefined)?.net)}`;
 }
 
 export const renderError = (msg: string) => html`${close}<div class="card err" style="margin-top:0"><div>${msg}</div></div>${foot}${advSection([])}`;

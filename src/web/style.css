@@ -42,6 +42,41 @@ svg { display: block; flex: none; }
 .search:focus-within { box-shadow: var(--sh-float), 0 0 0 2px var(--teal-600); }
 .send { width: 38px; height: 38px; border: 0; border-radius: 12px; background: var(--teal-600); display: grid; place-items: center; flex: none; }
 .send:disabled { background: var(--line-2); cursor: progress; }
+.rbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0; white-space: nowrap; width: 48px; height: 48px; flex: none; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); color: var(--teal-700); font-size: 11px; font-weight: 700; line-height: 1.2; }
+.rbtn:hover { background: var(--teal-50); }
+
+/* ルートのフォーム（AI を通さない。src/web/route-form.ts） */
+.rf-modes { display: flex; gap: 6px; margin-top: 10px; }
+.rf-mode { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 38px; border: 1px solid var(--line-2); border-radius: var(--r-pill); background: var(--surface); font-size: var(--fs-body); font-weight: 700; }
+.rf-mode[aria-pressed="true"] { background: var(--sumi-800); border-color: var(--sumi-800); color: var(--on-sumi); }
+.rf-pts { position: relative; display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-right: 46px; }
+.rf-swap { position: absolute; right: 0; top: 50%; width: 36px; height: 36px; margin-top: -18px; border: 1px solid var(--line-2); border-radius: 50%; background: var(--surface); display: grid; place-items: center; color: var(--text-2); }
+.rf-f { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 10px; align-items: center; }
+.rf-f > .dotn { grid-row: 2; }
+.rf-f > :not(.dotn) { grid-column: 2; }
+.rf-f label { font-size: var(--fs-label); font-weight: 700; color: var(--text-2); }
+.rf-in { display: flex; align-items: center; height: 42px; border: 1px solid var(--line-2); border-radius: var(--r-md); background: var(--surface); }
+.rf-in:focus-within { border-color: var(--teal-600); box-shadow: 0 0 0 1px var(--teal-600); }
+.rf-f.set .rf-in { border-color: var(--teal-600); background: var(--teal-50); }
+.rf-in input { flex: 1; align-self: stretch; min-width: 0; border: 0; background: none; padding: 0 4px 0 10px; font: 500 var(--fs-body) var(--f-ui); color: var(--text); }
+.rf-in input:focus-visible { outline: none; }
+.rf-in button { width: 34px; align-self: stretch; border: 0; border-radius: var(--r-md); background: none; display: grid; place-items: center; color: var(--text-2); }
+.rf-x:empty { display: none; }
+.rf-x .zero { font-size: var(--fs-small); }
+.rf-cands { list-style: none; margin: 6px 0 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-md); }
+.rf-cands li + li { border-top: 1px solid var(--line); }
+.rf-cands button { display: flex; align-items: center; width: 100%; min-height: 36px; padding: 4px 10px; border: 0; background: none; font-size: var(--fs-body); text-align: left; }
+.rf-cands button:hover { background: var(--surface-2); }
+.rf-cands small { margin-left: auto; padding-left: 8px; font-size: var(--fs-small); color: var(--text-2); white-space: nowrap; }
+.rf-cands .dotn.sm { background: var(--teal-600); } /* 地図の候補の印と同じ色 */
+.rf-sub { display: flex; gap: 4px; margin-top: 2px; }
+.rf-lnk { height: 28px; padding: 0 8px; border: 0; border-radius: var(--r-sm); background: none; font-size: var(--fs-small); font-weight: 700; color: var(--teal-700); }
+.rf-lnk:hover, .rf-lnk[aria-pressed="true"] { background: var(--teal-50); }
+.rf-add { margin: 6px 0 0 24px; }
+.rf-chk { display: flex; align-items: center; gap: 8px; min-height: 32px; margin: 6px 0 0 32px; font-weight: 500; cursor: pointer; }
+.rf-chk input { width: 18px; height: 18px; margin: 0; accent-color: var(--teal-600); }
+.rf-act { display: flex; margin-top: 12px; }
+.rf-act .btn { flex: 1; justify-content: center; }
 
 /* カテゴリの札（AI を通さずに直接動く） */
 .chips { position: absolute; left: calc(100% + 12px); top: 6px; width: calc(100vw - var(--panel-w) - var(--edge) * 2 - 12px); display: flex; flex-wrap: wrap; gap: 8px; pointer-events: none; }
@@ -171,6 +206,8 @@ a.btn { color: var(--text); text-decoration: none; }
 .poi .kv > div { grid-template-columns: 84px 1fr; }
 .poi a { color: var(--teal-700); }
 .poi .nw { white-space: nowrap; }
+.poi .go { display: flex; gap: 8px; margin-top: 10px; }
+.poi .go .btn { flex: 1; justify-content: center; height: 36px; padding: 0 10px; font-size: var(--fs-body); }
 
 /* ===== 右下：地図のボタン、状態、出典 ===== */
 .br { position: absolute; right: var(--edge); bottom: var(--edge); z-index: 15; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: none; }
@@ -209,5 +246,6 @@ a.btn { color: var(--text); text-decoration: none; }
   .kv > div { grid-template-columns: 96px 1fr; }
   .vt .c > :is(i, svg) { display: none; } /* 条件の確認：狭いので条件の見本の線は出さない */
   .vt > div { padding: 4px 8px; }
-  .ncard textarea { font-size: var(--fs-input); } /* iOS が入力時に拡大しないように */
+  .ncard textarea, .rf-in input { font-size: var(--fs-input); } /* iOS が入力時に拡大しないように */
+  .rbtn { width: 44px; height: 44px; }
 }

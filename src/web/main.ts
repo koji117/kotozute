@@ -27,8 +27,9 @@ import type { PoiResponse } from '../poi';
 import {
   type Card, CHIP_ICON, COLOR, html, nm, type Raw, recipeCard, renderChat, renderDirect, renderError, renderRecipe, renderWait, stepHtml,
 } from './panel';
-import { BASEMAP_KIND_JA, placeCard, poiCard } from './poi-card';
+import { BASEMAP_KIND_JA, type Go, placeCard, poiCard } from './poi-card';
 import { parseCoord, ZONE_OF_REGION, type Parsed } from './jpcoord';
+import { routeForm } from './route-form';
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const r6 = (x: number) => Math.round(x * 1e6) / 1e6;
@@ -218,7 +219,7 @@ function fit(cs: LngLat[]) {
   cs.forEach((c) => b.extend(c));
   const panel = $('#panel');
   const padding = mobile()
-    ? { top: 150, right: 40, bottom: (panel.hidden ? 0 : panel.offsetHeight) + 40, left: 40 }
+    ? { top: 150, right: 40, bottom: (panel.hidden ? 0 : panel.offsetHeight) + $('#attr').offsetHeight + $('.br .status').offsetHeight + 42, left: 40 } // 下の出典と地域の札に隠れないように
     : { top: 110, right: 80, bottom: 140, left: shareId ? 80 : 16 + 440 + 40 }; // 下は右下の札と出典の分
   map.fitBounds(b, { padding, maxZoom: 16, duration: 700 });
 }
@@ -396,6 +397,7 @@ async function saveRecipe(b: HTMLButtonElement) {
 async function runRecipe(id: string) {
   show(renderWait());
   replaying = true;
+  $('#route-btn').hidden = true;
   try {
     const res = await api<RecipeRunResponse>(`/api/recipe/${encodeURIComponent(id)}/run`, { sessionId });
     st.clicks = res.recipe.context.clicks.map((coord, i) => ({ coord, n: String(i + 1) })); // click:N の番号どおり
@@ -407,6 +409,7 @@ async function runRecipe(id: string) {
     await saveExports(res.steps); // 書き出しの手順も同じようにやり直す（カードの「画像にしました」と合わせる）
   } catch (err) { show(renderError(`レシピを再実行できません：${(err as Error).message}`)); }
   replaying = false;
+  $('#route-btn').hidden = false;
 }
 
 async function copy(input: HTMLInputElement | HTMLTextAreaElement, what = '共有リンク') {
@@ -467,7 +470,7 @@ q.addEventListener('keydown', (e) => {
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const text = q.value.trim();
-  const send = form.querySelector('button')!;
+  const send = form.querySelector<HTMLButtonElement>('.send')!;
   if (!text || send.disabled || replaying) return;
   const coord = parseCoord(text, ZONE); // 座標なら Claude に送らず、その場所へ動く
   if (coord) return goTo(coord);
@@ -562,6 +565,24 @@ async function locateOrDemo(fly: boolean): Promise<string | null> {
   toast(`${why}。公開版なので、${DEMO_HERE.label}を使います`);
   return null;
 }
+// ===== ルート（AI を通さない。src/web/route-form.ts） =====
+const rf = routeForm(panel, {
+  op: (name, input) => api<OpResult>(`/api/op/${name}`, { sessionId, input, view: viewNow() }),
+  apply, fit, show, addClick, toast, zone: ZONE,
+  locate: () => locateOrDemo(false),
+  here: () => !st.here ? null : st.hereDemo && DEMO_HERE ? { label: DEMO_HERE.label, note: '', at: st.here.coord }
+    : { label: '現在地', note: `半径${st.here.accuracy_m}m`, acc: st.here.accuracy_m, at: st.here.coord },
+  bbox: () => viewNow()!.bbox,
+  keepPin: (ref) => { st.pins = st.pins.filter((p) => p.place.kind === 'address' || p.place.ref === ref); draw(); },
+});
+$('#route-btn').addEventListener('click', () => { if (!replaying) rf.open(); });
+// 地点のカードの「ここから出発」「ここへ行く」。参照がなければ、route-form.ts が同じ名前の地点かクリックした点にする
+document.addEventListener('click', (e) => {
+  const b = (e.target as Element).closest<HTMLButtonElement>('.poi [data-go]');
+  if (!b || shareId || replaying) return;
+  popup?.remove();
+  rf.put(b.dataset.go === 'from' ? 'from' : 'to', b.dataset.at!.split(',').map(Number) as LngLat, b.dataset.ref || undefined, b.dataset.name || undefined);
+});
 $('#locate').addEventListener('click', async () => {
   if (replaying) return;
   const why = await locateOrDemo(true);
@@ -569,10 +590,11 @@ $('#locate').addEventListener('click', async () => {
 });
 map.on('click', async (e) => {
   const click: LngLat = [r6(e.lngLat.lng), r6(e.lngLat.lat)];
+  if (!shareId && !replaying && await rf.click(click)) return; // ルートのフォームの「地図で選ぶ」
   const pop = poiAt(e.point) ? undefined : place('この場所', click); // 共有の画面でも出す
   if (shareId || replaying) return;
   const n = await addClick(click);
-  if (n && pop?.isOpen()) pop.setHTML(placeCard(`クリック${n}`, click, ZONE));
+  if (n && pop?.isOpen()) pop.setHTML(placeCard(`クリック${n}`, click, ZONE, { ref: `click:${n}`, name: `クリック${n}` }));
 });
 /** クリックした点をサーバに渡し、click:N の番号を返す（地域の外などで断られたら知らせて undefined） */
 async function addClick(click: LngLat): Promise<string | undefined> {
@@ -590,12 +612,12 @@ async function goTo(c: Parsed) {
   const n = await addClick(at);
   if (!n) return;
   map.flyTo({ center: at, zoom: Math.max(map.getZoom(), 16) });
-  place(`クリック${n}（${c.how}）`, at);
+  place(`クリック${n}（${c.how}）`, at, { ref: `click:${n}`, name: `クリック${n}` });
   q.value = '';
 }
-function place(title: string, at: LngLat) {
+function place(title: string, at: LngLat, go?: Go) {
   popup?.remove();
-  return (popup = new maplibregl.Popup({ maxWidth: '300px', offset: 14, className: 'poi-pop' }).setLngLat(at).setHTML(placeCard(title, at, ZONE)).addTo(map));
+  return (popup = new maplibregl.Popup({ maxWidth: '300px', offset: 14, className: 'poi-pop' }).setLngLat(at).setHTML(placeCard(title, at, ZONE, go)).addTo(map));
 }
 
 // ===== 地点の詳細：クリックした所に地点があれば、横にカードを出す（AI を通さない。左のパネルはそのまま） =====
@@ -612,10 +634,11 @@ function poiAt(point: maplibregl.Point): boolean {
   if (!own) { // タイルには名前と種類しかない。推測で OSM の要素は探さない
     const name = p['name:ja'] ?? p.name ?? null, kindLabel = BASEMAP_KIND_JA[p.kind] ?? null;
     if (!name && !kindLabel) return false;
-    card(poiCard({ name, kindLabel, asOf: MAP_TILES_AS_OF, at, zone: ZONE }));
+    card(poiCard({ name, kindLabel, asOf: MAP_TILES_AS_OF, at, zone: ZONE, go: shareId ? undefined : { name: name ?? kindLabel } }));
     return true;
   }
-  const base = { name: p.name || null, kindLabel: p.kind || null, osm: p.osm as string, at, zone: ZONE };
+  // 自分の印はセッションの結果なので、osm:… の参照でルートに使える
+  const base = { name: p.name || null, kindLabel: p.kind || null, osm: p.osm as string, at, zone: ZONE, go: shareId ? undefined : { ref: `osm:${p.osm}`, name: p.name || p.kind || '名前なし' } };
   const pop = card(poiCard(base));
   api<PoiResponse>(`/api/poi/${base.osm}`).then(
     (r) => pop.setHTML(poiCard({ ...base, tags: r.tags, asOf: r.osm_as_of })),

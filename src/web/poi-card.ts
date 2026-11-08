@@ -39,12 +39,17 @@ function coordRows([lng, lat]: LngLat, zone?: number): Raw {
 }
 const COORD_NOTE = '座標は地図の位置から計算（測量の値ではない）。平面直角は JGD2011';
 
+/** ルートのフォームに入れるボタン（main.ts が data-go を受ける）。ref がなければ、押したときにその位置を click:N にする */
+export interface Go { ref?: string; name: string }
+const goBtns = (at: LngLat, g: Go) => html`<div class="go">${(['from', 'to'] as const).map((w) => html`
+  <button type="button" class="btn${w === 'to' ? ' primary' : ''}" data-go="${w}" data-at="${at.join(',')}" data-ref="${g.ref ?? ''}" data-name="${g.name}">${w === 'from' ? 'ここから出発' : 'ここへ行く'}</button>`)}</div>`;
+
 /** クリックした場所や、貼った座標の場所のカード */
-export function placeCard(title: string, at: LngLat, zone?: number): string {
-  return html`<div class="poi"><h3>${title}</h3>${coordRows(at, zone)}<div class="note">${COORD_NOTE}</div></div>`.s;
+export function placeCard(title: string, at: LngLat, zone?: number, go?: Go): string {
+  return html`<div class="poi"><h3>${title}</h3>${coordRows(at, zone)}<div class="note">${COORD_NOTE}</div>${go ? goBtns(at, go) : ''}</div>`.s;
 }
 
-export function poiCard(p: { name: string | null; kindLabel: string | null; tags?: Record<string, string>; osm?: string; asOf?: string; error?: string; at?: LngLat; zone?: number }): string {
+export function poiCard(p: { name: string | null; kindLabel: string | null; tags?: Record<string, string>; osm?: string; asOf?: string; error?: string; at?: LngLat; zone?: number; go?: Go }): string {
   const t = p.tags ?? {};
   const rows = ([
     ['住所', address(t)],
@@ -64,5 +69,6 @@ export function poiCard(p: { name: string | null; kindLabel: string | null; tags
     <div class="note">OSM上の情報（現地と違うことがある）</div>
     ${p.asOf ? html`<div class="note">データ時点 ${p.asOf.slice(0, 10)}</div>` : ''}
     ${p.osm && OSM_REF.test(p.osm) ? html`<div class="note"><a href="https://www.openstreetmap.org/${p.osm}" target="_blank" rel="noopener noreferrer">OSM で見る（${p.osm}）</a></div>` : ''}
+    ${p.go && p.at ? goBtns(p.at, p.go) : ''}
   </div>`.s;
 }
