@@ -3,8 +3,8 @@
 //   TTS=say（既定）       … macOS の say（Kyoko）。字幕の時間に収まるまで速さを上げる
 //   TTS=elevenlabs        … ElevenLabs の API（11/7 にユーザーが決定）。キーは .env の ELEVENLABS_API_KEY（画面にもログにも出さない）、
 //                           声は ELEVENLABS_VOICE_ID、モデルは ELEVENLABS_MODEL（既定 eleven_v4）。
-//                           v4 と v3 は、行の頭に英語の指示（[curious] など。DIRECTION）を付けて抑揚を出す。字幕の文字は変えない。
-//                           v4 には style と speed の設定がないので、stability（ELEVENLABS_STABILITY、既定 0.35）と similarity_boost だけ送る。
+//                           v4 と v3 は、行の頭に英語の指示（TALK。会話調）を付ける。字幕の文字は変えない。
+//                           v4 には style と speed の設定がないので、stability（ELEVENLABS_STABILITY、既定 0.45）と similarity_boost だけ送る。
 //                           前後の行を previous_text / next_text で渡して、行と行の話し方をつなげる。作った音は文と設定の hash でキャッシュする
 //                           （~/kotozute-video/voice-el/。同じ文ならもう一度お金がかからない）。字幕の時間を超える行だけ、最大1.2倍まで速める。
 // 使い方（docs/storyboard で）：node render.js full && node narrate.js  → ~/kotozute-video/preview.mp4（MP4=… で出力先を変える）
@@ -27,54 +27,12 @@ const READ = [
   ['Valhalla', 'ヴァルハラ'], ['OSS', 'オーエスエス'], ['OSM', 'オーエスエム'], ['MCP', 'エムシーピー'], ['AI', 'エーアイ'],
   ['4-2-8', 'よんのにのはち'], ['四丁目2番8号', 'よんちょうめにばんはちごう'], ['hook', 'フック'], ['.dmg', 'ディーエムジー'], ['Mac', 'マック'], ['km', 'キロ'], ['札', 'ふだ'], ['0件', 'ゼロ件'], ['0分', 'ゼロ分'], ['SLA', 'エスエルエー'],
 ];
-// 行ごとの話し方（v4・v3 だけ。2026-11-07 にユーザーが「聞いている人が惹きつけられる抑揚のあるプレゼンに」と頼んだ）。
-// [字幕の文の頭, 指示, 読みだけの直し（任意）]。指示は英語で書く（ElevenLabs の audio tags）。字幕の文字は変えない
-const DIRECTION = [
-  [/^Googleマップなどの地図アプリ/, '[curious, direct, engaging]'],
-  [/^無料の地図アプリには/, '[serious, matter-of-fact]'],
-  [/^規約を決めるのも/, '[serious, pointed]'],
-  [/^これまでも/, '[serious, measured]'],
-  [/^無料で使える/, '[thoughtful]'],
-  [/^書ける人は/, '[curious, a little playful]'],
-  [/^地図は、言語の壁/, '[thoughtful, sincere]'],
-  [/^本来は会社に依存しない/, '[sincere, warm, unhurried]'],
-  [/^ことづては、地図業界で/, '[warm, sincere]'],
-  [/^言葉から地図へ/, '[calm, sincere]'],
-  [/^ローカルファースト。/, '[calm, measured]'],
-  [/^必要な分だけ地図を/, '[calm]'],
-  [/^日本ファースト。/, '[calm, warm]'],
-  [/^では、冒頭の予定を/, '[warm]'],
-  [/^頼むのは、このひとこと/, '[confident]'],
-  [/^ひとことを、Claudeが/, '[clear, explaining]'],
-  [/^寄る場所は/, '[clear, explaining]'],
-  [/^寄り道で増えるのは/, '[clear]'],
-  [/^\d+時\d+分に着くには/, '[clear, confident]'],
-  [/^共有リンクを別のブラウザ/, '[friendly]'],
-  [/^カテゴリのボタンを押すと/, '[snappy]'],
-  [/^日本の住所は/, '[knowing, a little amused]'],
-  [/^測量の座標も/, '[snappy]'],
-  [/^品川駅を出て/, '[upbeat]'],
-  [/^Claudeが条件を読み/, '[clear, explaining]'],
-  [/^1回目は/, '[matter-of-fact]'],
-  [/^\d+回目は/, '[satisfied]'],
-  [/^資料用の画像には/, '[confident]'],
-  [/^開発はClaude Code/, '[proud]'],
-  [/^評価セットは/, '[clear, explaining]'],
-  [/^ふつうの頼み方/, '[clear, confident]'],
-  [/^MCPでも/, '[snappy]'],
-  [/^詳細を開くと/, '[clear, explaining]'],
-  [/^やった操作の並びは/, '[confident]'],
-  [/^アプリは数クリックで/, '[friendly]'],
-  [/^地図を、誰でも使える/, '[sincere, warm]'],
-  [/^明日、Googleマップの規約が変わっても/, '[confident, warm]'],
-  [/^あなたの地図は、止まらない/, '[powerful, slowly]'],
-];
+// 話し方（v4・v3 だけ）。全部の行に同じ会話調の指示を付ける。
+// 11/7 は行ごとに演技の指示（[curious] など）を付けていたが、11/8 にユーザーが「もう少しだけ AI っぽくない声に」と頼み、
+// 聞き比べで、この指示と声（BSPow8LcoXJ0UVg1ws3x）に決めた。自然に速く読むので、機械で速める量も減る
+const TALK = '[conversational, relaxed]';
 const TAGS = /^eleven_v[34]/.test(process.env.ELEVENLABS_MODEL ?? 'eleven_v4');
-const directed = (text) => {
-  const d = TAGS && DIRECTION.find(([re]) => re.test(text));
-  const said = spokenOf(d?.[2] ? d[2](text) : text);
-  return d ? `${d[1]} ${said}` : said;
-};
+const directed = (text) => (TAGS ? `${TALK} ${spokenOf(text)}` : spokenOf(text));
 const spokenOf = (t) => READ.reduce((s, [k, v]) => s.split(k).join(v), t);
 const dur = (f) => +execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString();
 
@@ -83,7 +41,7 @@ const API = 'https://api.elevenlabs.io';
 const EL = {
   model: process.env.ELEVENLABS_MODEL ?? 'eleven_v4',
   voice: process.env.ELEVENLABS_VOICE_ID,
-  settings: TAGS ? { stability: Number(process.env.ELEVENLABS_STABILITY ?? 0.35), similarity_boost: 0.75 }
+  settings: TAGS ? { stability: Number(process.env.ELEVENLABS_STABILITY ?? 0.45), similarity_boost: 0.75 }
     : { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: Number(process.env.ELEVENLABS_SPEED ?? 1) },
   seed: 7, // 同じ文と設定なら、なるべく同じ読みにする（保証はされない）
 };

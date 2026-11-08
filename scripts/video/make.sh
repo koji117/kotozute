@@ -7,7 +7,7 @@
 # 出力は Git の外（~/kotozute-video）。3分（180秒）を超えたら失敗で終わる。
 set -eu
 # 声は ElevenLabs（2026-11-07 にユーザーが決定。モデル eleven_v4、声は Koji - Friendly Japanese Narrator、行ごとに抑揚の指示）。キーは .env の ELEVENLABS_API_KEY。TTS=say で macOS の Kyoko
-export TTS="${TTS:-elevenlabs}" ELEVENLABS_VOICE_ID="${ELEVENLABS_VOICE_ID:-YtLXDp1ffXOa1EhXx19q}" ELEVENLABS_MODEL="${ELEVENLABS_MODEL:-eleven_v4}"
+export TTS="${TTS:-elevenlabs}" ELEVENLABS_VOICE_ID="${ELEVENLABS_VOICE_ID:-BSPow8LcoXJ0UVg1ws3x}" ELEVENLABS_MODEL="${ELEVENLABS_MODEL:-eleven_v4}"
 cd "$(dirname "$0")/../.."
 OUT="$HOME/kotozute-video"
 MP4="$OUT/kotozute-demo-$(date +%Y%m%d-%H%M).mp4"
